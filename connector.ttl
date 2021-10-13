@@ -1,0 +1,15 @@
+PREFIX :        <#>
+PREFIX fuseki:  <http://jena.apache.org/fuseki#>
+PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
+
+<#connector> rdf:type fk:Connector ;
+    fk:bootstrapServers "localhost:9092";
+    fk:topic            "RDF";
+    fk:serviceName      "ds";
+    fk:stateFile        "Databases/RDF.state";
+##     fk:config ( "K1" "V1") ;
+##     fk:config ( "K2" "V2") ;
+    .
