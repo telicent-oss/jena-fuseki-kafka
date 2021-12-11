@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka.cmd;
+package org.apache.jena.fuseki.kafka;
 
 import java.time.Duration;
 
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
-import org.apache.jena.fuseki.kafka.DataState;
-import org.apache.jena.fuseki.kafka.FusekiKafka;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;

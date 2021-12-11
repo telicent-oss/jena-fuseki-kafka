@@ -20,15 +20,11 @@ package org.apache.jena.fuseki.kafka;
 
 import static org.apache.jena.fuseki.kafka.FusekiKafka.LOG;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 import javax.servlet.ServletContext;
 
 import org.apache.jena.atlas.logging.FmtLog;
-import org.apache.jena.fuseki.kafka.cmd.FK;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
@@ -56,7 +52,12 @@ public class ModuleFusekiKafka implements FusekiModule {
     private static final String attrConnectionFK = attrNS+"connectorFK";
     private static final String attrDataState = attrNS+"dataState";
 
-    // Assumes one server at a time. -->
+    private String modName = UUID.randomUUID().toString();
+
+    @Override
+    public String name() {
+        return modName;
+    }
 
     @Override
     public void configuration(FusekiServer.Builder builder,
