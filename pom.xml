@@ -24,7 +24,7 @@
   <properties>
     <ver.jena>4.4.0-SNAPSHOT</ver.jena>
     <ver.kafka>3.0.0</ver.kafka>
-    <ver.log4j2>2.15.0</ver.log4j2>
+    <ver.log4j2>2.16.0</ver.log4j2>
     <ver.junit>4.12</ver.junit>
     
     <java.version>11</java.version>
