@@ -24,8 +24,8 @@
   <properties>
     <ver.jena>4.4.0-SNAPSHOT</ver.jena>
     <ver.kafka>3.0.0</ver.kafka>
-    <ver.log4j2>2.15.0</ver.log4j2>
-    <ver.junit>4.12</ver.junit>
+    <ver.log4j2>2.17.1</ver.log4j2>
+    <ver.junit>4.13.1</ver.junit>
     
     <java.version>11</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -83,7 +83,7 @@
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>4.12</version>
+        <version>${ver.junit}</version>
         <scope>test</scope>
       </dependency>
 
