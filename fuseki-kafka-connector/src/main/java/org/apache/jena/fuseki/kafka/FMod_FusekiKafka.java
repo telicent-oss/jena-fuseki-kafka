@@ -41,7 +41,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-public class ModuleFusekiKafka implements FusekiModule {
+public class FMod_FusekiKafka implements FusekiModule {
 
     @Override
     public void start() {
