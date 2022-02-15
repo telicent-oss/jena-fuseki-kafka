@@ -22,8 +22,8 @@
   </licenses>
 
   <properties>
-    <ver.jena>4.4.0-SNAPSHOT</ver.jena>
-    <ver.kafka>3.0.0</ver.kafka>
+    <ver.jena>4.5.0-SNAPSHOT</ver.jena>
+    <ver.kafka>3.1.0</ver.kafka>
     <ver.log4j2>2.17.1</ver.log4j2>
     <ver.junit>4.13.1</ver.junit>
     
