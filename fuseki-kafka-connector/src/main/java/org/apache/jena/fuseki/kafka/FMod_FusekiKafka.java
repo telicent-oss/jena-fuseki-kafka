@@ -63,9 +63,6 @@ public class FMod_FusekiKafka implements FusekiModule {
     public void configuration(FusekiServer.Builder builder,
                               DataAccessPointRegistry dapRegistry,
                               Model configModel) {
-        // "For each connector."
-
-
         List<Resource> connectors = GraphUtils.findRootsByType(configModel, KafkaConnectorAssembler.getType()) ;
         if ( connectors.isEmpty() ) {
             FmtLog.error(LOG, "No connector in server configuration");
@@ -93,6 +90,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d", conn.getTopic(), lastOffset);
 
+        // Limitation. One connector per build.
         builder.addServletAttribute(attrConnectionFK, conn);
         builder.addServletAttribute(attrDataState, dataState);
     }

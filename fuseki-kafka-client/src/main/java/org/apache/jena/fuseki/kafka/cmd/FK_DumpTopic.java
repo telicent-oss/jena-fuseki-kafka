@@ -40,11 +40,12 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 public class FK_DumpTopic {
 
     public static void main(String... args) {
+        // No args - assumes FK_Defaults.connectorFile
         LogCtl.setLog4j2();
         RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
-        ConnectorFK conn = (ConnectorFK)AssemblerUtils.build("assembler.ttl", KafkaConnectorAssembler.getType());
+        ConnectorFK conn = (ConnectorFK)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
 
         if ( conn == null ) {
             System.err.flush();

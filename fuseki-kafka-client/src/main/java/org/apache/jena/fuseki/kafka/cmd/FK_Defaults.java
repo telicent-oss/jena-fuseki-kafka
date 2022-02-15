@@ -16,15 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka;
+package org.apache.jena.fuseki.kafka.cmd;
 
-import org.apache.jena.riot.web.HttpNames;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class FusekiKafka {
-    public static final String hContentType = HttpNames.hContentType;
-    public static final String hRequestType = "RT";
-    public static Logger LOG = LoggerFactory.getLogger("FusekiKakfa");
+public class FK_Defaults {
+    public static String connectorFile = "connector.ttl";
 }
-

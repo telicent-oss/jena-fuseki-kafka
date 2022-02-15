@@ -34,14 +34,16 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 
 /**
  * Sync a database.
+ * Not with Fuseki running.
  */
 public class FK_SyncDB {
 
     public static void main(String... args) {
+        // No args - assumes FK_Defaults.connectorFile
         FusekiLogging.setLogging();
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
-        ConnectorFK conn = (ConnectorFK)AssemblerUtils.build("assembler.ttl", KafkaConnectorAssembler.getType());
+        ConnectorFK conn = (ConnectorFK)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
 
         if ( conn == null ) {
             System.err.flush();
