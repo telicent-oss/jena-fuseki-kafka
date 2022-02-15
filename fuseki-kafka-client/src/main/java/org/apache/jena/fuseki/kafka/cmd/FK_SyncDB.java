@@ -61,7 +61,7 @@ public class FK_SyncDB {
         // Arguments. ?? Assembler?
         DatasetGraph dsg = DatabaseMgr.connectDatasetGraph(tdbDatabase);
         PersistentState state = new PersistentState(stateFile);
-        DataState dState = new DataState(state, dsName, conn.getTopic());
+        DataState dState = DataState.create(state);
         {
             long offset = dState.getOffset();
             String x = (offset<0) ? "<empty>" : "Offset: "+Long.toString(offset);

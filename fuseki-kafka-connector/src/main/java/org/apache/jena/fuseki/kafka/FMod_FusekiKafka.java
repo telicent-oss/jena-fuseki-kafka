@@ -27,7 +27,7 @@ import javax.servlet.ServletContext;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
-import org.apache.jena.fuseki.server.DataAccessPointRegistry;
+import org.apache.jena.fuseki.server.DataService;
 import org.apache.jena.fuseki.server.Dispatcher;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
@@ -60,9 +60,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     @Override
-    public void configuration(FusekiServer.Builder builder,
-                              DataAccessPointRegistry dapRegistry,
-                              Model configModel) {
+    public void prepare(FusekiServer.Builder builder, Set<String> names, Model configModel) {
         List<Resource> connectors = GraphUtils.findRootsByType(configModel, KafkaConnectorAssembler.getType()) ;
         if ( connectors.isEmpty() ) {
             FmtLog.error(LOG, "No connector in server configuration");
@@ -82,11 +80,14 @@ public class FMod_FusekiKafka implements FusekiModule {
             return;
         }
 
-        DatasetGraph dsg = dapRegistry.get(conn.getService()).getDataService().getDataset();
+        String datasetName = conn.getDataset();
+        String endpoint = conn.getEndpoint();
+
+        DatasetGraph dsg = builder.getDataset(datasetName);
         if ( dsg == null )
-            throw new FusekiKafkaException("No datsets for '"+conn.getService()+"'");
+            throw new FusekiKafkaException("No datsets for '"+conn.getDataset()+"'");
         PersistentState state = new PersistentState(conn.getStateFile());
-        DataState dataState = new DataState(state, conn.getService(), conn.getTopic());
+        DataState dataState = DataState.restoreOrCreate(state, datasetName, endpoint, conn.getTopic());
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d", conn.getTopic(), lastOffset);
 
@@ -102,10 +103,19 @@ public class FMod_FusekiKafka implements FusekiModule {
         ConnectorFK conn = (ConnectorFK)servletContext.getAttribute(attrConnectionFK);
         if ( conn == null )
             return ;
-        FmtLog.info(LOG, "Starting connector between topic %s and service %s", conn.getTopic(), conn.getService());
+
+        String dataset = conn.getDataset();
+        String endpoint = conn.getEndpoint();
+
+        String requestURI = conn.getDataset();
+        if ( requestURI != null && ! requestURI.isBlank() )
+            requestURI = requestURI+"/"+endpoint;
+
+        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(), requestURI);
         DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
-        DatasetGraph dsg =
-                server.getDataAccessPointRegistry().get(conn.getService()).getDataService().getDataset();
+
+        DataService dSrv = server.getDataAccessPointRegistry().get(dataset).getDataService();
+        DatasetGraph dsg = dSrv.getDataset();
 
         RequestDispatcher dispatcher = (req, resp) -> Dispatcher.dispatch(req, resp);
 
@@ -115,7 +125,7 @@ public class FMod_FusekiKafka implements FusekiModule {
 
         // Do work in deserializer or return a function that is the handler.
         // -- Via Fuseki dispatch
-        Deserializer<Void> reqDer = new DeserializerDispatch(dispatcher, conn.getService(), servletContext);
+        Deserializer<Void> reqDer = new DeserializerDispatch(dispatcher, requestURI, servletContext);
         // -- Direct
         //Deserializer<Void> reqDer = new DeserializerAction(dsg);
 
@@ -133,7 +143,6 @@ public class FMod_FusekiKafka implements FusekiModule {
             FmtLog.info(LOG, "Initialize from topic %s", conn.getTopic());
             consumer.seekToBeginning(Arrays.asList(topicPartition));
         } else {}
-
 
         // Offset of NEXT record to be read.
         long topicPosition = consumer.position(topicPartition);

@@ -34,39 +34,72 @@ public class DataState {
     static Logger LOG = LoggerFactory.getLogger(DataState.class);
 
     private static String fDataset = "dataset";
+    private static String fEndpoint = "endpoint";
     private static String fTopic = "topic";
     private static String fOffset = "offset";
 
     private final String datasetName;
+    private final String endpoint;
     private final String topic;
     private final RefBytes state;
     private long offset;
 
-    public DataState(RefBytes state, String datasetName, String topic) {
-        Objects.requireNonNull(state);
-        Objects.requireNonNull(topic);
-        Objects.requireNonNull(datasetName);
+    /** Minimal dummy DataState */
+    public static DataState createEphemeral(String topic) {
+        PersistentState state = PersistentState.createEphemeral();
+        return new DataState(state, "", "", topic);
+    }
+
+    public static DataState create(PersistentState state) {
+        InputStream bout = new ByteArrayInputStream(state.getBytes());
+        JsonObject obj = JSON.parse(bout);
+        return fromJson(obj);
+    }
+
+    private DataState(RefBytes state, String datasetName, String endpoint, String topic) {
         this.state = state;
         this.offset = 0;
         this.datasetName = datasetName;
+        if ( endpoint == null )
+            endpoint = "";
+        this.endpoint = endpoint;
         this.topic = topic;
         this.offset = -1;
-//        if ( offset < 0 )
-//            throw new IllegalArgumentException("Negative offset");
-        if ( state.getBytes().length != 0 ) {
-            // Existing.
-            InputStream bout = new ByteArrayInputStream(state.getBytes());
-            JsonObject obj = JSON.parse(bout);
-            setFromJson(obj);
-        } else {
-            // New.
-            writeState();
-        }
+
+//  if ( ! this.datasetName.equals(datasetName) )
+//      throw new FusekiKafkaException("Dataset name does not match: this="+this.datasetName+ " / read=" +datasetName);
+//  if ( ! Objects.equals(this.endpoint, endpoint) )
+//      throw new FusekiKafkaException("Endpoint name does not match: this="+this.endpoint+ " / read=" +endpoint);
+//  if ( ! this.topic.equals(topic) )
+//      throw new FusekiKafkaException("Topic does not match: this="+this.datasetName+ " / read=" +topic);
     }
 
-    // Protobuf?!
+    public static DataState restoreOrCreate(RefBytes state, String datasetName, String endpoint, String topic) {
+        Objects.requireNonNull(state);
+        Objects.requireNonNull(topic);
+        Objects.requireNonNull(datasetName);
+
+        if ( state.getBytes().length == 0 ) {
+            DataState dataState = new DataState(state, datasetName, endpoint, topic);
+            return dataState;
+        }
+
+        // Existing.
+        InputStream bout = new ByteArrayInputStream(state.getBytes());
+        JsonObject obj = JSON.parse(bout);
+        DataState dataState = fromJson(obj);
+        if ( ! dataState.datasetName.equals(datasetName) )
+            throw new FusekiKafkaException("Dataset name does not match: this="+dataState.datasetName+ " / read=" +datasetName);
+        if ( ! Objects.equals(dataState.endpoint, endpoint) )
+            throw new FusekiKafkaException("Endpoint name does not match: this="+dataState.endpoint+ " / read=" +endpoint);
+        if ( ! dataState.topic.equals(topic) )
+            throw new FusekiKafkaException("Topic does not match: this="+dataState.datasetName+ " / read=" +topic);
+        return dataState;
+    }
 
     private void writeState() {
+        if ( state == null )
+            return;
         // Via JSON.
         JsonObject obj = asJson();
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -86,9 +119,10 @@ public class DataState {
 
     private JsonObject asJson() {
         return JSON.buildObject(builder->builder
-                                .pair(fDataset, datasetName)
-                                .pair(fTopic,   topic)
-                                .pair(fOffset,  offset)
+                                            .pair(fDataset, datasetName)
+                                            .pair(fEndpoint, endpoint)
+                                            .pair(fTopic,   topic)
+                                            .pair(fOffset,  offset)
         );
     }
 
@@ -96,6 +130,7 @@ public class DataState {
         String datasetName = obj.getString(fDataset);
         if ( datasetName == null )
             throw new FusekiKafkaException("No dataset name: "+JSON.toStringFlat(obj));
+        String endpoint = obj.getString(fEndpoint);
         String topic  = obj.getString(fTopic);
         if ( topic == null )
             throw new FusekiKafkaException("No topic name: "+JSON.toStringFlat(obj));
@@ -106,9 +141,29 @@ public class DataState {
 
         if ( ! this.datasetName.equals(datasetName) )
             throw new FusekiKafkaException("Dataset name does not match: this="+this.datasetName+ " / read=" +datasetName);
+        if ( ! Objects.equals(this.endpoint, endpoint) )
+            throw new FusekiKafkaException("Endpoint name does not match: this="+this.endpoint+ " / read=" +endpoint);
         if ( ! this.topic.equals(topic) )
             throw new FusekiKafkaException("Topic does not match: this="+this.datasetName+ " / read=" +topic);
         this.offset = offset;
+    }
+
+    private static DataState fromJson(JsonObject obj) {
+        String datasetName = obj.getString(fDataset);
+        if ( datasetName == null )
+            throw new FusekiKafkaException("No dataset name: "+JSON.toStringFlat(obj));
+        String endpoint = obj.hasKey(fEndpoint) ? obj.getString(fEndpoint) : null;
+        String topic  = obj.getString(fTopic);
+        if ( topic == null )
+            throw new FusekiKafkaException("No topic name: "+JSON.toStringFlat(obj));
+        Number offsetNum = obj.getNumber(fOffset);
+        if ( offsetNum == null )
+            throw new FusekiKafkaException("No offset: "+JSON.toStringFlat(obj));
+        long offset = offsetNum.longValue();
+
+        DataState dataState = new DataState(null, datasetName, endpoint, topic);
+        dataState.offset = offset;
+        return dataState;
     }
 
     public long getOffset() {
@@ -127,204 +182,4 @@ public class DataState {
     public String getTopic() {
         return topic;
     }
-
 }
-
-//    private String name;
-//    private String uri;
-//    private RefString stateStr;
-//    private PersistentState state;
-//
-//    // State is:
-//    //   version - at least an int
-//    //   dsRef - id
-//    //   (lastpatchId).
-//    // Stored as JSON:
-//    // {
-//    //   version:    int
-//    //   datasource: string/uuid
-//    //   patch:      string/uuid
-//    // }
-//
-//    /** Create from existing state */
-//    /*package*/ DataState(Zone zone, PersistentState state) {
-//        this.zone = zone;
-//        this.state = state;
-//        this.stateStr = state;
-//        setStateFromString(this, state.getString());
-//        //FmtLog.info(LOG, "%s", this);
-//    }
-//
-//    /** Create new, initialize state. */
-//    /*package*/ DataState(Zone zone, Path stateFile, LocalStorageType storage, Id dsRef, String name, String uri, Version version, Id patchId) {
-//        this.zone = zone;
-//        this.datasource = dsRef;
-//        if ( stateFile != null )
-//            this.state = new PersistentState(stateFile);
-//        else
-//            this.state = PersistentState.createEphemeral();
-//        this.stateStr = state;
-//        this.version = version;
-//        this.patchId = patchId;
-//        this.name = name;
-//        this.uri = uri;
-//        this.storage = storage;
-//        writeState(this);
-//    }
-//
-//    public void refresh() {
-//        if ( state != null )
-//            load(getStatePath());
-//    }
-//
-//    private void load(Path stateFile) {
-//        state = new PersistentState(stateFile);
-//        stateStr = state;
-//        readState(stateStr);
-//    }
-//
-//    public Version version() {
-//        return version;
-//    }
-//
-//    public Id latestPatchId() {
-//        return patchId;
-//    }
-//
-//    public Zone zone() {
-//        return zone;
-//    }
-//
-//    @Override
-//    public String toString() {
-//        return String.format("[DataState: %s version=%s patch=%s]", datasource, version(), latestPatchId());
-//    }
-//
-//    public synchronized void updateState(Version newVersion, Id patchId) {
-//        // Update the shadow data first. Replaying patches is safe.
-//        // Update on disk.
-//        writeState(this.stateStr, this.datasource, this.name, this.uri, this.storage, newVersion, patchId);
-//        // Update local
-//        this.version = newVersion;
-//        this.patchId = patchId;
-//    }
-//
-//    public Id getDataSourceId() {
-//        return datasource;
-//    }
-//
-////    public DataSourceDescription asDataSourceDescription() {
-////        return new DataSourceDescription(datasource, name, uri);
-////    }
-//
-//    /** Place on-disk where the state is stored. Use with care. */
-//    public Path getStatePath() {
-//        return state.getPath();
-//    }
-//
-//    public String getDatasourceName() {
-//        return name ;
-//    }
-//
-//    public String getUri() {
-//        return uri ;
-//    }
-//
-//    public LocalStorageType getStorageType() {
-//        return storage ;
-//    }
-//
-//    private void readState(RefString state) {
-//        setStateFromString(this, state.getString());
-//    }
-//
-//
-//    private void writeState(DataState dataState) {
-//        writeState(dataState.stateStr, dataState.datasource, dataState.name, dataState.uri, dataState.storage, dataState.version, dataState.patchId);
-//    }
-//
-//    /** Allow a different version so we can write the state ahead of changing in-memory */
-//    private static void writeState(RefString state, Id datasource, String name, String uri, LocalStorageType storage, Version version, Id patchId) {
-//        if ( state == null )
-//            // Not persisted.
-//            return ;
-//        String x = stateToString(datasource, name, uri, storage, version, patchId);
-//        if ( ! x.endsWith("\n") )
-//            x = x+"\n";
-//        state.setString(x);
-//    }
-//
-//    private static String stateToString(Id datasource, String name, String uri, LocalStorageType storage, Version version, Id patchId) {
-//        JsonObject json = stateToJson(datasource, name, uri, storage, version, patchId);
-//        return JSON.toString(json);
-//    }
-//
-//    private static JsonObject stateToJson(Id datasource, String name, String uri,  LocalStorageType storage, Version version, Id patchId) {
-//        String x = "";
-//        if ( patchId != null )
-//            x = patchId.asPlainString();
-//        String patchStr = x;
-//        return
-//            JSONX.buildObject(builder->{
-//                builder
-//                    .pair(F_VERSION, version.asJson())
-//                    .pair(F_ID, patchStr)
-//                    .pair(F_NAME, name)
-//                    .pair(F_DATASOURCE, datasource.asPlainString());
-//
-//                if ( storage != null )
-//                    builder.pair(F_STORAGE, storage.typeName());
-//                if ( uri != null )
-//                    builder.pair(F_URI, uri);
-//            });
-//    }
-//
-//    /** Set version and datasource id from a string which is JOSN */
-//    private static void setStateFromString(DataState state, String string) {
-//        JsonObject obj = JSON.parse(string);
-//        setFromJsonObject(state, obj);
-//    }
-//
-//    /** JsonObject -> DataState */
-//    private static void setFromJsonObject(DataState dataState, JsonObject sourceObj) {
-//        Version version = Version.fromJson(sourceObj, F_VERSION, Version.UNSET);
-//        if ( ! Version.isValid(version) ) {
-//            if ( ! version.equals(Version.INIT) )
-//                LOG.warn("Bad version: "+JSON.toStringFlat(sourceObj));
-//        }
-//        dataState.version = version;
-//
-//        String patchStr = JSONX.getStrOrNull(sourceObj, F_ID);
-//        if ( patchStr == null || patchStr.isEmpty() ) {
-//            dataState.patchId = null;
-//        } else {
-//            dataState.patchId = Id.fromString(patchStr);
-//        }
-//
-//        String dsStr = JSONX.getStrOrNull(sourceObj, F_DATASOURCE);
-//        if ( dsStr != null )
-//            dataState.datasource = Id.fromString(dsStr);
-//        else {
-//            LOG.error("No datasource: "+JSON.toStringFlat(sourceObj));
-//            throw new DeltaException("No datasource: "+JSON.toStringFlat(sourceObj));
-//        }
-//
-//        String name = JSONX.getStrOrNull(sourceObj, F_NAME);
-//        if ( name != null )
-//            dataState.name = name;
-//        else {
-//            LOG.error("No datasource name: "+JSON.toStringFlat(sourceObj));
-//            throw new DeltaException("No datasource name: "+JSON.toStringFlat(sourceObj));
-//        }
-//
-//        String uri = JSONX.getStrOrNull(sourceObj, F_URI);
-//        if ( uri != null )
-//            dataState.uri = uri;
-//
-//        String typeName = JSONX.getStrOrNull(sourceObj, F_STORAGE);
-//        LocalStorageType storage = LocalStorageType.fromString(typeName);
-////        if ( storage == null )
-////            throw new DeltaException("No storage type: "+JSON.toStringFlat(sourceObj));
-//        dataState.storage = storage;
-//    }
-// }

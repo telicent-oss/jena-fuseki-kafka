@@ -28,7 +28,8 @@ public class ConnectorFK {
     // Source
     private final String topic;
     // Destination
-    private final String serviceName;
+    private final String datasetName;
+    private final String endpoint;
     // State tracking.
     private final String stateFile;
 
@@ -36,9 +37,10 @@ public class ConnectorFK {
     private final Properties kafkaProps;
     private State state = State.INIT;
 
-    public ConnectorFK(String topic, String serviceName, String stateFile, Properties kafkaProps) {
+    public ConnectorFK(String topic, String datasetName, String endpoint, String stateFile, Properties kafkaProps) {
         this.topic = topic;
-        this.serviceName = serviceName;
+        this.datasetName = datasetName;
+        this.endpoint = endpoint;
         this.stateFile = stateFile;
         this.kafkaProps = kafkaProps;
         this.state = State.INIT;
@@ -52,8 +54,12 @@ public class ConnectorFK {
         return topic;
     }
 
-    public String getService() {
-        return serviceName;
+    public String getDataset() {
+        return datasetName;
+    }
+
+    public String getEndpoint() {
+        return endpoint;
     }
 
     public String getStateFile() {

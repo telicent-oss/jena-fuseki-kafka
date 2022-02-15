@@ -18,8 +18,10 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.assembler.JA;
 import org.apache.jena.assembler.Mode;
@@ -34,6 +36,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.impl.Util;
 import org.apache.jena.riot.other.G;
+import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.RowSet;
@@ -51,13 +54,15 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     public static String getNS() { return NS; }
 
     private static Resource tKafkaConnector = ResourceFactory.createResource(NS+"Connector");
-    private static Node pServiceName     = NodeFactory.createURI(NS+"serviceName");
-    private static Node pService         = NodeFactory.createURI(NS+"service");
-    private static Node pKafkaTopic      = NodeFactory.createURI(NS+"topic");
-    private static Node pStateFile       = NodeFactory.createURI(NS+"stateFile");
-    private static Node pKafkaProperty   = NodeFactory.createURI(NS+"config");
+    private static Node pDatabaseName       = NodeFactory.createURI(NS+"datasetName");
+    private static Node pEndpointName       = NodeFactory.createURI(NS+"service");          // Optional
+
+    private static Node pKafkaTopic         = NodeFactory.createURI(NS+"topic");
+    private static Node pStateFile          = NodeFactory.createURI(NS+"stateFile");
+    private static Node pKafkaProperty      = NodeFactory.createURI(NS+"config");
     private static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
-    private static Node pKafkaGroupId = NodeFactory.createURI(NS+"groupId");
+    private static Node pKafkaGroupId       = NodeFactory.createURI(NS+"groupId");
+    private static String noServiceName     = "";
 
     public static Resource getType() {
         return tKafkaConnector;
@@ -73,16 +78,32 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             return createSub(graph, node, type);
         } catch (RuntimeException ex) {
             System.err.println(ex.getMessage());
+            ex.printStackTrace();
             return null;
         }
     }
 
     private ConnectorFK createSub(Graph graph, Node node, Node type) {
+        /*
+         * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
+         *
+         * [] rdf:type jenakafka:Connector ;
+         *     fk:topic             "TOPIC";
+         *     fk:bootstrapServers  "localhost:9092";
+         *     fk:stateFile         "dir/filename.state" ;
+         *     fk:databaseName      "/ds";
+         *     fk:serviceName       "upload"";
+         *
+         *     fk:groupId
+         */
+
         // Required!
         String topic = getString(graph, node, pKafkaTopic);
 
-        String serviceName = serviceName(graph, node);
-        serviceName = DataAccessPoint.canonical(serviceName);
+        String datasetName = datasetName(graph, node);
+        datasetName = DataAccessPoint.canonical(datasetName);
+
+        String endpoint = endpointName(graph, node);
 
         String bootstrapServers = getString(graph, node, pKafkaBootstrapServers);
         String stateFile = getString(graph, node, pStateFile);
@@ -119,20 +140,20 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerDispatch.class.getName());
 
-        return new ConnectorFK(topic, serviceName, stateFile, kafkaProps);
+        return new ConnectorFK(topic, datasetName, endpoint, stateFile, kafkaProps);
     }
 
-    private String serviceName(Graph graph, Node node) {
-        String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
-                                            ,"PREFIX fk:     <"+NS+">"
-                                            ,"PREFIX fuseki: <"+FusekiVocab.NS+">"
-                                            ,""
-                                            );
+    private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
+                                                        ,"PREFIX fk:     <"+NS+">"
+                                                        ,"PREFIX fuseki: <"+FusekiVocab.NS+">"
+                                                        ,"" );
+
+    private String datasetName(Graph graph, Node node) {
         String queryString = StrUtils.strjoinNL
                 ( PREFIXES
                 , "SELECT ?n { "
                 , "   OPTIONAL { ?X fk:service/fuseki:name ?N1 }"
-                , "   OPTIONAL { ?X fk:serviceName ?N2 }"
+                , "   OPTIONAL { ?X fk:datasetName ?N2 }"
                 , "   BIND(COALESCE(?N1, ?N2, '') AS ?n)"
                 , "}"
                 );
@@ -141,20 +162,42 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 .substitution("X", node)
                 .build()
                 .select();
-        if ( !rowSet.hasNext() ) {
-            /* error */
-        }
+
+        if ( !rowSet.hasNext() )
+            throw new FusekiKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
         Binding row = rowSet.next();
-        if ( rowSet.hasNext() ) {
-            /* error */
-        }
+        if ( rowSet.hasNext() )
+            throw new FusekiKafkaException("Multiple datasetNames: "+NodeFmtLib.displayStr(node));
+
         Node n = row.get("n");
-        if ( !n.isLiteral() ) {/* error */}
+        if ( n == null )
+            throw new FusekiKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
+
+        if ( ! Util.isSimpleString(n) )
+            throw new FusekiKafkaException("Dataset name is not a string: "+NodeFmtLib.displayStr(node));
         String name = n.getLiteralLexicalForm();
-        if ( name.isEmpty() ) {
-            /* error */
-        }
+        if ( StringUtils.isBlank(name) )
+            throw new FusekiKafkaException("Dataset name is blank: "+NodeFmtLib.displayStr(node));
         return name;
+    }
+
+    private String endpointName(Graph graph, Node node) {
+        List<Node> x = G.listSP(graph, node, pEndpointName);
+        if ( x.isEmpty() )
+            return noServiceName;
+        if ( x.size() > 1 )
+            throw new FusekiKafkaException("Multiple service names: "+NodeFmtLib.displayStr(node));
+        Node n = x.get(0);
+        if ( ! Util.isSimpleString(n) )
+            throw new FusekiKafkaException("Service name is not a string: "+NodeFmtLib.displayStr(n));
+        String epName = n.getLiteralLexicalForm();
+        if ( StringUtils.isBlank(epName) )
+            return noServiceName;
+        if ( epName.contains("/") )
+            throw new FusekiKafkaException("Service name can not contain \"/\": "+NodeFmtLib.displayStr(n));
+        if ( epName.contains(" ") )
+            throw new FusekiKafkaException("Service name can not contain spaces: "+NodeFmtLib.displayStr(n));
+        return epName;
     }
 
     private static String getString(Graph graph, Node node, Node property) {

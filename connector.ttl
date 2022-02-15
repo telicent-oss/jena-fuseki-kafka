@@ -8,7 +8,7 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 <#connector> rdf:type fk:Connector ;
     fk:bootstrapServers "localhost:9092";
     fk:topic            "RDF";
-    fk:serviceName      "ds";
+    fk:databaseName      "ds";
     fk:stateFile        "Databases/RDF.state";
 ##     fk:config ( "K1" "V1") ;
 ##     fk:config ( "K2" "V2") ;

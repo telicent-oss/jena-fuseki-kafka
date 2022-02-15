@@ -57,8 +57,7 @@ public class FK_DumpTopic {
         String topic = conn.getTopic();
 
         // Client-side state management.
-        PersistentState state = PersistentState.createEphemeral();
-        DataState dState = new DataState(state, "", conn.getTopic());
+        DataState dState = DataState.createEphemeral(conn.getTopic());
         long lastOffset = dState.getOffset();
 
         // -- Props
