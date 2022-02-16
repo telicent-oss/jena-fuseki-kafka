@@ -37,9 +37,13 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 /**
  * Deserialize and dispatch to a RequestDispatcher.
- * This goes though the Fuseki dispatch-logging cycle.
+ * This can be the Fuseki dispatch-logging cycle.
+ * * <p>
+ * This class is for code use.
+ * <p>
+ * Use {@link DeserializerDispatch} in Fuseki.
  *
- * @see DeserializerAction
+ * @see DeserializeDataset
  */
 public class DeserializerDispatch implements Deserializer<Void> {
 

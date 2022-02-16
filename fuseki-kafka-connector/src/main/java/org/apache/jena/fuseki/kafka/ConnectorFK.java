@@ -30,6 +30,8 @@ public class ConnectorFK {
     // Destination
     private final String datasetName;
     private final String endpoint;
+    private final boolean syncTopic;
+    private final boolean replayTopic;
     // State tracking.
     private final String stateFile;
 
@@ -37,10 +39,14 @@ public class ConnectorFK {
     private final Properties kafkaProps;
     private State state = State.INIT;
 
-    public ConnectorFK(String topic, String datasetName, String endpoint, String stateFile, Properties kafkaProps) {
+    public ConnectorFK(String topic, String datasetName, String endpoint, String stateFile,
+                       boolean syncTopic, boolean replayTopic,
+                       Properties kafkaProps) {
         this.topic = topic;
         this.datasetName = datasetName;
         this.endpoint = endpoint;
+        this.syncTopic = syncTopic;
+        this.replayTopic = replayTopic;
         this.stateFile = stateFile;
         this.kafkaProps = kafkaProps;
         this.state = State.INIT;
@@ -60,6 +66,14 @@ public class ConnectorFK {
 
     public String getEndpoint() {
         return endpoint;
+    }
+
+    public boolean getSyncTopic() {
+        return syncTopic;
+    }
+
+    public boolean getReplayTopic() {
+        return replayTopic;
     }
 
     public String getStateFile() {

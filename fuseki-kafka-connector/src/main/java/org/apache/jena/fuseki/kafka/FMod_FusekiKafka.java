@@ -24,6 +24,7 @@ import java.util.*;
 
 import javax.servlet.ServletContext;
 
+import org.apache.jena.assembler.Assembler;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
@@ -63,7 +64,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     public void prepare(FusekiServer.Builder builder, Set<String> names, Model configModel) {
         List<Resource> connectors = GraphUtils.findRootsByType(configModel, KafkaConnectorAssembler.getType()) ;
         if ( connectors.isEmpty() ) {
-            FmtLog.error(LOG, "No connector in server configuration");
+            //FmtLog.error(LOG, "No connector in server configuration");
             return;
         }
 
@@ -72,9 +73,15 @@ public class FMod_FusekiKafka implements FusekiModule {
             return;
         }
 
+        connectors.forEach(c->oneConnector(builder, c, configModel));
+    }
+
+    public void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
+
         ConnectorFK conn;
         try {
-            conn = (ConnectorFK)AssemblerUtils.build(configModel, KafkaConnectorAssembler.getType());
+            //conn = (ConnectorFK)AssemblerUtils.build(configModel, KafkaConnectorAssembler.getType());
+            conn = (ConnectorFK)Assembler.general.open(connector) ;
         } catch (JenaException ex) {
             FmtLog.error(LOG, "Failed to build a connector", ex);
             return;
@@ -85,8 +92,9 @@ public class FMod_FusekiKafka implements FusekiModule {
 
         DatasetGraph dsg = builder.getDataset(datasetName);
         if ( dsg == null )
-            throw new FusekiKafkaException("No datsets for '"+conn.getDataset()+"'");
+            throw new FusekiKafkaException("No datasets for '"+conn.getDataset()+"'");
         PersistentState state = new PersistentState(conn.getStateFile());
+
         DataState dataState = DataState.restoreOrCreate(state, datasetName, endpoint, conn.getTopic());
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d", conn.getTopic(), lastOffset);
@@ -136,25 +144,73 @@ public class FMod_FusekiKafka implements FusekiModule {
         consumer.assign(partitions);
 
         // -- Choose start point.
+        // If true, ignore topic state and start at current.
+        boolean syncTopic = conn.getSyncTopic();
+        boolean replayTopic = conn.getReplayTopic();
 
         // LAST offset processed
         long stateOffset = dataState.getOffset();
         if ( stateOffset < 0 ) {
             FmtLog.info(LOG, "Initialize from topic %s", conn.getTopic());
-            consumer.seekToBeginning(Arrays.asList(topicPartition));
-        } else {}
-
-        // Offset of NEXT record to be read.
-        long topicPosition = consumer.position(topicPartition);
-
-        FmtLog.info(LOG, "State=%d  Next offset=%d", stateOffset, topicPosition);
-        if ( (stateOffset >= 0) && (stateOffset >= topicPosition) ) {
-            FmtLog.info(LOG, "Adjust state record %d -> %d", stateOffset, topicPosition-1);
-            dataState.setOffset(topicPosition-1);
+            //consumer.seekToBeginning(Arrays.asList(topicPartition)); BUG
+            replayTopic = true;
         }
+
+        if ( replayTopic ) {
+            setupReplayTopic(consumer, topicPartition, dataState);
+        } else if ( syncTopic ) {
+            setupSyncTopic(consumer, topicPartition, dataState);
+        } else {
+            setupNoSyncTopic(consumer, topicPartition, dataState);
+        }
+
+        // Do now.
+        oneTopicPoll(consumer, dataState);
 
         // ASYNC
         startTopicPoll(consumer, dataState, "Kafka:"+conn.getTopic());
+    }
+
+    /** Set to catch up on the topic at the next (first) call. */
+    private void setupSyncTopic(Consumer<String, Void> consumer, TopicPartition topicPartition, DataState dataState) {
+        long topicPosition = consumer.position(topicPartition);
+        long stateOffset = dataState.getOffset();
+
+        FmtLog.info(LOG, "State=%d  Topic next offset=%d", stateOffset, topicPosition);
+        if ( (stateOffset >= 0) && (stateOffset >= topicPosition) ) {
+            FmtLog.info(LOG, "Adjust state record %d -> %d", stateOffset, topicPosition-1);
+            stateOffset = topicPosition-1;
+            dataState.setOffset(stateOffset);
+        } else if ( topicPosition != stateOffset+1) {
+            FmtLog.info(LOG, "Set sync %d -> %d", stateOffset, topicPosition-1);
+            consumer.seek(topicPartition, stateOffset+1);
+        } else {
+            FmtLog.info(LOG, "Up to date: %d -> %d", stateOffset, topicPosition-1);
+        }
+        // XXX SYNC NOW
+    }
+
+    /** Set to jump to the front of the topic, and so not resync on the the next (first) call. */
+    private void setupNoSyncTopic(Consumer<String, Void> consumer, TopicPartition topicPartition, DataState dataState) {
+        long topicPosition = consumer.position(topicPartition);
+        long stateOffset = dataState.getOffset();
+        FmtLog.info(LOG, "No sync: State=%d  Topic offset=%d", stateOffset, topicPosition);
+        dataState.setOffset(topicPosition);
+    }
+
+    /** Set to jump to the start of the topic. */
+    private void setupReplayTopic(Consumer<String, Void> consumer, TopicPartition topicPartition, DataState dataState) {
+        String topic = dataState.getTopic();
+        long topicPosition = consumer.position(topicPartition);
+        long stateOffset = dataState.getOffset();
+        FmtLog.info(LOG, "Replay: Old state=%d  Topic offset=%d", stateOffset, topicPosition);
+        // Assumes offsets from 0 (no expiry)
+
+        // Here or in FK.receiverStep
+        Map<TopicPartition, Long> m = consumer.beginningOffsets(List.of(topicPartition));
+        long beginning = m.get(topicPartition);
+        consumer.seek(topicPartition, beginning);
+        dataState.setOffset(beginning);
     }
 
     private void startTopicPoll(Consumer<String, Void> consumer, DataState dataState, String label) {
@@ -168,12 +224,16 @@ public class FMod_FusekiKafka implements FusekiModule {
 
     private static void topicPoll(Consumer<String, Void> consumer, DataState dataState) {
         for(;;) {
-            long lastOffsetState = dataState.getOffset();
-            boolean somethingReceived = FK.receiver(consumer, dataState);
-            if ( somethingReceived ) {
-                long newOffset = dataState.getOffset();
-                FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
-            }
+           oneTopicPoll(consumer, dataState);
+        }
+    }
+
+    private static void oneTopicPoll(Consumer<String, Void> consumer, DataState dataState) {
+        long lastOffsetState = dataState.getOffset();
+        boolean somethingReceived = FK.receiver(consumer, dataState);
+        if ( somethingReceived ) {
+            long newOffset = dataState.getOffset();
+            FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
         }
     }
 }

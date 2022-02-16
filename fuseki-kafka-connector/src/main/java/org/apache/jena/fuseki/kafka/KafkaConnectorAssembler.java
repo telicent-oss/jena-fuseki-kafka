@@ -59,6 +59,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     private static Node pKafkaTopic         = NodeFactory.createURI(NS+"topic");
     private static Node pStateFile          = NodeFactory.createURI(NS+"stateFile");
+
+    private static Node pSyncTopic          = NodeFactory.createURI(NS+"syncTopic");
+    private static Node pReplayTopic        = NodeFactory.createURI(NS+"replayTopic");
+
     private static Node pKafkaProperty      = NodeFactory.createURI(NS+"config");
     private static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
     private static Node pKafkaGroupId       = NodeFactory.createURI(NS+"groupId");
@@ -92,23 +96,38 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *     fk:bootstrapServers  "localhost:9092";
          *     fk:stateFile         "dir/filename.state" ;
          *     fk:databaseName      "/ds";
+         * ## Optional - with defaults
+         *
+         *     ## false means don't sync on startup.
+         *     fk:syncTopic         true;
+         *
+         *     ## false means replay from the start (ignore sync)
+         *     fk:replayTopic       false;
+         *
+         * ??  fk:restart
+         *
+         *     ## Datasets service name
          *     fk:serviceName       "upload"";
          *
          *     fk:groupId
          */
 
         // Required!
-        String topic = getString(graph, node, pKafkaTopic);
+        String topic = Assem2.getString(graph, node, pKafkaTopic);
 
         String datasetName = datasetName(graph, node);
         datasetName = DataAccessPoint.canonical(datasetName);
 
         String endpoint = endpointName(graph, node);
 
-        String bootstrapServers = getString(graph, node, pKafkaBootstrapServers);
-        String stateFile = getString(graph, node, pStateFile);
+        String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers);
 
-        String groupId = getStringOrDft(graph, node, pKafkaGroupId, "TelicentApp1");
+        Boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, true);
+        Boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, false);
+
+        String stateFile = Assem2.getString(graph, node, pStateFile);
+
+        String groupId = Assem2.getStringOrDft(graph, node, pKafkaGroupId, "JenaFusekiKafka");
 
         // ----
         Properties kafkaProps = new Properties();
@@ -140,7 +159,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerDispatch.class.getName());
 
-        return new ConnectorFK(topic, datasetName, endpoint, stateFile, kafkaProps);
+        return new ConnectorFK(topic, datasetName, endpoint, stateFile, topicSync.booleanValue(), replayTopic.booleanValue(), kafkaProps);
     }
 
     private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
@@ -186,34 +205,18 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         if ( x.isEmpty() )
             return noServiceName;
         if ( x.size() > 1 )
-            throw new FusekiKafkaException("Multiple service names: "+NodeFmtLib.displayStr(node));
+            throw Assem2.error(node, "Multiple service names: "+NodeFmtLib.displayStr(node));
         Node n = x.get(0);
         if ( ! Util.isSimpleString(n) )
-            throw new FusekiKafkaException("Service name is not a string: "+NodeFmtLib.displayStr(n));
+            throw Assem2.error(node, "Service name is not a string: "+NodeFmtLib.displayStr(n));
         String epName = n.getLiteralLexicalForm();
         if ( StringUtils.isBlank(epName) )
             return noServiceName;
         if ( epName.contains("/") )
-            throw new FusekiKafkaException("Service name can not contain \"/\": "+NodeFmtLib.displayStr(n));
+            throw Assem2.error(node, "Service name can not contain \"/\": "+NodeFmtLib.displayStr(n));
         if ( epName.contains(" ") )
-            throw new FusekiKafkaException("Service name can not contain spaces: "+NodeFmtLib.displayStr(n));
+            throw Assem2.error(node, "Service name can not contain spaces: "+NodeFmtLib.displayStr(n));
         return epName;
-    }
-
-    private static String getString(Graph graph, Node node, Node property) {
-        Node x = G.getOneSP(graph, node, property);
-        if ( Util.isSimpleString(x) )
-            return x.getLiteralLexicalForm();
-        throw new FusekiKafkaException("Not a string for: "+property);
-    }
-
-    private static String getStringOrDft(Graph graph, Node node, Node property, String defaultString) {
-        Node x = G.getZeroOrOneSP(graph, node, property);
-        if ( x == null )
-            return defaultString;
-        if ( Util.isSimpleString(x) )
-            return x.getLiteralLexicalForm();
-        throw new FusekiKafkaException("Not a string for: "+property);
     }
 }
 

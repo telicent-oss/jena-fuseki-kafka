@@ -9,6 +9,9 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     fk:bootstrapServers "localhost:9092";
     fk:topic            "RDF";
     fk:databaseName      "ds";
+    ## Whether to re-sync from te topic at start-up
+    ## false makes Kafka just a message transport but is easier during development.
+    fk:topicSync        false ;
     fk:stateFile        "Databases/RDF.state";
 ##     fk:config ( "K1" "V1") ;
 ##     fk:config ( "K2" "V2") ;

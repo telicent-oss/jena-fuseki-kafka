@@ -74,7 +74,7 @@ public class FK_SyncDB {
         StringDeserializer strDeser = new StringDeserializer();
 
         // Do work in deserializer or return a function that is the handler.
-        Deserializer<Void> reqDer = new DeserializerAction(dsg);
+        Deserializer<Void> reqDer = new DeserializeDataset(dsg);
 
         Consumer<String, Void> consumer = new KafkaConsumer<String, Void>(cProps, strDeser, reqDer);
         TopicPartition topicPartition = new TopicPartition(topic, 0);

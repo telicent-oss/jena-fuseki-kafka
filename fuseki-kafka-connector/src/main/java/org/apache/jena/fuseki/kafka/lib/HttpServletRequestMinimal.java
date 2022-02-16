@@ -406,12 +406,16 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
 
     @Override
     public Enumeration<String> getHeaders(String name) {
-        return null;
+
+        String v = headers.get(name);
+        if ( v == null )
+            return Collections.enumeration(List.of());
+        return Collections.enumeration(List.of(v));
     }
 
     @Override
     public Enumeration<String> getHeaderNames() {
-        return null;
+        return Collections.enumeration(headers.keySet());
     }
 
     @Override

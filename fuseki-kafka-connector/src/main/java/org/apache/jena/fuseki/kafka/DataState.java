@@ -25,6 +25,7 @@ import java.util.Objects;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.atlas.json.JSON;
 import org.apache.jena.atlas.json.JsonObject;
+import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.kafka.refs.RefBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,9 +52,7 @@ public class DataState {
     }
 
     public static DataState create(PersistentState state) {
-        InputStream bout = new ByteArrayInputStream(state.getBytes());
-        JsonObject obj = JSON.parse(bout);
-        return fromJson(obj);
+        return fromJson(state);
     }
 
     private DataState(RefBytes state, String datasetName, String endpoint, String topic) {
@@ -87,7 +86,7 @@ public class DataState {
         // Existing.
         InputStream bout = new ByteArrayInputStream(state.getBytes());
         JsonObject obj = JSON.parse(bout);
-        DataState dataState = fromJson(obj);
+        DataState dataState = fromJson(state);
         if ( ! dataState.datasetName.equals(datasetName) )
             throw new FusekiKafkaException("Dataset name does not match: this="+dataState.datasetName+ " / read=" +datasetName);
         if ( ! Objects.equals(dataState.endpoint, endpoint) )
@@ -104,10 +103,12 @@ public class DataState {
         JsonObject obj = asJson();
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try ( IndentedWriter b = new IndentedWriter(output) ) {
-            b.setFlatMode(true);
+            //b.setFlatMode(true);
             JSON.write(b, obj);
             b.println();
         }
+
+        FmtLog.info(LOG, "Offset = %d", offset);
         state.setBytes(output.toByteArray());
     }
 
@@ -148,7 +149,12 @@ public class DataState {
         this.offset = offset;
     }
 
-    private static DataState fromJson(JsonObject obj) {
+
+
+    private static DataState fromJson(RefBytes state) {
+        InputStream bout = new ByteArrayInputStream(state.getBytes());
+        JsonObject obj = JSON.parse(bout);
+
         String datasetName = obj.getString(fDataset);
         if ( datasetName == null )
             throw new FusekiKafkaException("No dataset name: "+JSON.toStringFlat(obj));
@@ -161,7 +167,7 @@ public class DataState {
             throw new FusekiKafkaException("No offset: "+JSON.toStringFlat(obj));
         long offset = offsetNum.longValue();
 
-        DataState dataState = new DataState(null, datasetName, endpoint, topic);
+        DataState dataState = new DataState(state, datasetName, endpoint, topic);
         dataState.offset = offset;
         return dataState;
     }

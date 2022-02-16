@@ -55,15 +55,17 @@ public class FK {
         long lastOffset = lastOffsetState;
         int count = cRec.count();
 
-        for ( ConsumerRecord<String, Void> rec : cRec ) {
-            long offset = rec.offset();
-            //FmtLog.info(FusekiKafka.LOG, "Record Offset %s", offset);
-            if ( offset != lastOffset+1)
-                FmtLog.warn(FusekiKafka.LOG, "WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", offset, lastOffset);
+        FmtLog.info(FusekiKafka.LOG, "receiver: from %d , count = %d", lastOffset, count);
 
-//            rec.headers().forEach(h->{
-//                System.out.println("H: "+h.key()+" = "+Bytes.bytes2string(h.value()));
-//            });
+        for ( ConsumerRecord<String, Void> rec : cRec ) {
+//            rec.key();
+//            rec.value();
+
+            long offset = rec.offset();
+            FmtLog.info(FusekiKafka.LOG, "Record Offset %s", offset);
+            // This happens in replay or catch up. Not a warning.
+//            if ( offset != lastOffset+1)
+//                FmtLog.warn(FusekiKafka.LOG, "WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", offset, lastOffset);
             lastOffset = offset;
         }
         return lastOffset;

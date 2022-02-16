@@ -36,6 +36,21 @@ import org.apache.kafka.common.serialization.Deserializer;
  */
 public abstract class AbstractDeserializerRDF implements Deserializer<Void> {
 
+    // Deserialization to Void means the deserializer returns null.
+    // All the work happens inside the dersrializer itself.
+    //
+    // The body of Kafka message has variable syntax so a typed deserializer does not
+    // work very well,. It could return byte[] which would be a copy.
+    //
+    // This abstract class has a helper structure that inspects the headers for
+    // SPARQL Update or RDF data then calls the action for that type.
+    //
+    // Fuseki implements Deserializer<Void> directly.
+    //
+    // Both ways avoid copying it out of the kafka message into a byte[] (which is longer
+    // lived - once a deserializer return from "deserialize" the buffer may be reused).
+
+
     protected AbstractDeserializerRDF() {}
 
     protected void action(String contentType, String topic, InputStream data) {

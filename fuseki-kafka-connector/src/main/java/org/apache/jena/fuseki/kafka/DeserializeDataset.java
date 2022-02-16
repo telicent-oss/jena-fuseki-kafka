@@ -34,18 +34,22 @@ import org.apache.jena.update.UpdateRequest;
 import org.slf4j.Logger;
 
 /**
- * Deserialize and directly call perform an action on a dataset.
+ * Deserialize and directly perform an action on a dataset.
  * This does not go though the Fuseki dispatch-logging cycle.
+ * <p>
+ * This class is for Fuseki use.
+ * <p>
+ * Use {@link DeserializeDataset} in code.
  *
  * @see DeserializerDispatch
  */
-public class DeserializerAction extends AbstractDeserializerRDF {
+public class DeserializeDataset extends AbstractDeserializerRDF {
 
     private static Logger LOG = FusekiKafka.LOG;
     private final DatasetGraph dataset;
     private static AtomicLong counter = new AtomicLong(0);
 
-    public DeserializerAction(DatasetGraph dataset) {
+    public DeserializeDataset(DatasetGraph dataset) {
         this.dataset = dataset;
     }
 
