@@ -18,56 +18,90 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import java.time.Duration;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.jena.atlas.logging.FmtLog;
-import org.apache.jena.atlas.logging.Log;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.jena.atlas.io.IO;
+import org.apache.jena.atlas.lib.Bytes;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFParser;
+import org.apache.jena.riot.system.StreamRDF;
+import org.apache.jena.riot.system.StreamRDFLib;
+import org.apache.jena.update.UpdateFactory;
+import org.apache.jena.update.UpdateRequest;
+import org.apache.kafka.common.header.Headers;
 
-/** Cmd support library */
 public class FK {
 
-    private FK() {}
-
     /**
-     * Once round the polling loop, updating the record.
-     * Return true if some processing happened.
+     * Kafka headers to a Map. If there are multiple headers with the same key name,
+     * only the last header value goes in the map.
      */
-    public static boolean receiver(Consumer<String, Void> consumer, DataState dState) {
-        final long lastOffsetState = dState.getOffset();
-        try {
-            long newOffset = FK.receiverStep(dState.getOffset(), consumer);
-            if ( newOffset == lastOffsetState )
-                return false;
-            dState.setOffset(newOffset);
-            return true;
-        } catch (RuntimeException ex) {
-            Log.error(FusekiKafka.LOG, ex.getMessage(), ex);
-            return false;
-        }
+    public static Map<String, String> headerToMap(Headers headers) {
+        Map<String, String> map = new HashMap<>();
+        headers.forEach(header->{
+            String hName = header.key();
+            String hValue = Bytes.bytes2string(header.value());
+            map.put(hName,  hValue);
+        });
+        return map;
     }
 
-    /** Do one Kafka consumer poll step. */
-    public static long receiverStep(long lastOffsetState, Consumer<String, Void> consumer) {
-        ConsumerRecords<String, Void> cRec = consumer.poll(Duration.ofMillis(1000));
-        long lastOffset = lastOffsetState;
-        int count = cRec.count();
+    /**
+     * Print incoming.
+     */
+    public static void print(ActionFK action) {
+        System.out.println("== Topic: "+action.getTopic());
+        System.out.println(action.getHeaders());
+        String dataStr = IO.readWholeFileAsUTF8(action.getBytes());
+        System.out.print(dataStr);
+        if ( ! dataStr.endsWith("\n") )
+            System.out.println();
+        System.out.println("--");
+    }
 
-        FmtLog.info(FusekiKafka.LOG, "receiver: from %d , count = %d", lastOffset, count);
+    /**
+     * Parse the action according to Content-Type and print the outcome parsing.
+     */
+    public static void parsePrint(ActionFK action) {
+        FKProcessor proc = new FKProcessor() {
+            @Override
+            protected void actionSparqlUpdate(String topic, InputStream data) {
+                //printRaw(topic, data);
+                UpdateRequest up = UpdateFactory.read(data);
+                String dataStr = up.toString();
+                print(topic, dataStr);
+            }
 
-        for ( ConsumerRecord<String, Void> rec : cRec ) {
-//            rec.key();
-//            rec.value();
+            @Override
+            protected void actionData(String topic, Lang lang, InputStream data) {
+                //printRaw(topic, data);
+                StringWriter sw = new StringWriter();
+                StreamRDF stream = StreamRDFLib.writer(sw);
+                RDFParser.source(data).lang(lang).parse(stream);
+                String dataStr = sw.toString();
+                print(topic, dataStr);
+            }
 
-            long offset = rec.offset();
-            FmtLog.info(FusekiKafka.LOG, "Record Offset %s", offset);
-            // This happens in replay or catch up. Not a warning.
-//            if ( offset != lastOffset+1)
-//                FmtLog.warn(FusekiKafka.LOG, "WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", offset, lastOffset);
-            lastOffset = offset;
-        }
-        return lastOffset;
+            private void printRaw(String topic, InputStream data) {
+                System.out.println("== Topic: "+topic);
+                String dataStr = IO.readWholeFileAsUTF8(data);
+                System.out.print(dataStr);
+                if ( ! dataStr.endsWith("\n") )
+                    System.out.println();
+                System.out.println();
+            }
+
+            private void print(String topic, String dataStr) {
+                System.out.println("== Topic: "+topic);
+                System.out.print(dataStr);
+                if ( ! dataStr.endsWith("\n") )
+                    System.out.println();
+                System.out.println("--");
+            }
+        };
+        proc.action(action.getContentType(), action.getTopic(), action.getBytes());
     }
 }

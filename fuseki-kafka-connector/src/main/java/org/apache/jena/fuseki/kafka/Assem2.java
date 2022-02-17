@@ -24,6 +24,7 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.rdf.model.impl.Util;
 import org.apache.jena.riot.other.G;
+import org.apache.jena.riot.other.RDFDataException;
 import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.graph.NodeConst;
 
@@ -33,24 +34,92 @@ import org.apache.jena.sparql.graph.NodeConst;
  */
 class Assem2 {
 
-    // Get required String
-    static String getString(Graph graph, Node node, Node property) {
+    /** Generator of exceptions for operations. */
+    public interface OnError {
+        RuntimeException exception(String errorMsg);
+    }
+
+    private static OnError dftErrorException = errorMsg -> new RDFDataException(errorMsg);
+
+//    /**
+//     * Get a required String from a object that is xsd:string.
+//     * <p>
+//     * If absent, multi-valued or not an xsd:string, then throw {@link RDFDataException}.
+//     */
+//    static String getString(Graph graph, Node node, Node property) {
+//        return getString(graph, node, property, dftErrorException);
+//    }
+
+    /**
+     * Get a required String from a object that is xsd:string.
+     * <p>
+     * If absent, multi-valued or not an xsd:string, then throw a custom runtime
+     * exception.
+     */
+    public static String getString(Graph graph, Node node, Node property, OnError onError) {
+        Objects.requireNonNull(graph);
+        Objects.requireNonNull(onError);
         Node x = G.getOneSP(graph, node, property);
         if ( Util.isSimpleString(x) )
             return x.getLiteralLexicalForm();
-        throw error(node, property, "Not a string");
+        throw onError(node, property, "Not a string", onError);
     }
 
-    static String getStringOrDft(Graph graph, Node node, Node property, String defaultString) {
+    public static RuntimeException onError(Node node, Node property, String errorMsg, OnError onError) {
+        String eMsg = NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+errorMsg;
+        return onError.exception(eMsg);
+    }
+
+    public static RuntimeException onError(Node node, String errorMsg, OnError onError) {
+        String eMsg = NodeFmtLib.displayStr(node)+" : "+errorMsg;
+        return onError.exception(eMsg);
+    }
+
+
+//    /**
+//     * Get a string from a URI or an xsd:string.
+//     * Otherwise throw {@link RDFDataException}.
+//     */
+//    public static String getAsString(Graph graph, Node node, Node property) {
+//        return getAsString(graph, node, property, dftErrorException);
+//    }
+
+    /**
+     * Get a string from a URI or an xsd:string.
+     * Otherwise throw a custom runtime exception.
+     */
+    public static String getAsString(Graph graph, Node node, Node property, OnError onError) {
+        Objects.requireNonNull(graph);
+        Objects.requireNonNull(onError);
+        Node obj = G.getOneSP(graph, node, property);
+        if ( obj == null )
+            return null;
+        if ( obj.isURI() )
+            return obj.getURI() ;
+        if ( Util.isSimpleString(obj) )
+            return obj.getLiteralLexicalForm();
+        throw onError(node, property, "Not a URI or a string", onError);
+    }
+
+    /**
+     * Get a String from an xsd:string or return a default value if no such subject-property.
+     * Error if the object is not a string or multi-valued.
+     */
+    public static String getStringOrDft(Graph graph, Node node, Node property, String defaultString, OnError onError) {
         Node x = G.getZeroOrOneSP(graph, node, property);
         if ( x == null )
             return defaultString;
         if ( Util.isSimpleString(x) )
             return x.getLiteralLexicalForm();
-        throw error(node, property, "Not a string");
+        throw onError(node, property, "Not a single-valued string for subject-property", onError);
     }
 
-    static Boolean getBooleanOrDft(Graph graph, Node node, Node property, Boolean dftValue) {
+    /**
+     * Get a boolean.
+     * Return null for no such subject-property.
+     * Error if the object is not a string.
+     */
+    public static Boolean getBooleanOrDft(Graph graph, Node node, Node property, Boolean dftValue, OnError onError) {
         Node x = G.getZeroOrOneSP(graph, node, property);
         if ( x == null )
             return dftValue;
@@ -58,14 +127,6 @@ class Assem2 {
             return false;
         if ( Objects.equals(x, NodeConst.TRUE) )
             return true;
-        throw error(node, property, "Not a boolean literal");
-    }
-
-    static FusekiKafkaException error(Node node, String msg) {
-        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
-    }
-
-    static FusekiKafkaException error(Node node, Node property, String msg) {
-        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
+        throw onError(node, property, "Not a single-valued boolean for subject-property", onError);
     }
 }

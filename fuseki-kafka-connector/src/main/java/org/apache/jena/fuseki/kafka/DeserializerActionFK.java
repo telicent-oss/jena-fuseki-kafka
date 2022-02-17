@@ -18,13 +18,28 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import org.apache.jena.riot.web.HttpNames;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.ByteArrayInputStream;
+import java.util.Map;
 
-public class FusekiKafka {
-    public static final String hContentType = HttpNames.hContentType;
-    public static final String hRequestType = "RT";
-    public static Logger LOG = LoggerFactory.getLogger("FusekiKafla");
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.serialization.Deserializer;
+
+/**
+ * Deserialize to an internal "request object"
+ */
+public class DeserializerActionFK implements Deserializer<ActionFK> {
+
+    public DeserializerActionFK() {}
+
+    @Override
+    public ActionFK deserialize(String topic, Headers headers, byte[] data) {
+        Map<String, String> requestHeaders = FK.headerToMap(headers);
+        ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
+        return new ActionFK(topic, requestHeaders, bytesIn);
+    }
+
+    @Override
+    public ActionFK deserialize(String topic, byte[] data) {
+        return deserialize(topic, null, data);
+    }
 }
-

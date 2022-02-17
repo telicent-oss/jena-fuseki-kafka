@@ -18,6 +18,8 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import static org.apache.jena.fuseki.kafka.Assem2.onError;
+
 import java.util.List;
 import java.util.Properties;
 
@@ -26,6 +28,7 @@ import org.apache.jena.assembler.Assembler;
 import org.apache.jena.assembler.JA;
 import org.apache.jena.assembler.Mode;
 import org.apache.jena.assembler.assemblers.AssemblerBase;
+import org.apache.jena.atlas.lib.IRILib;
 import org.apache.jena.atlas.lib.StrUtils;
 import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.FusekiVocab;
@@ -36,6 +39,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.impl.Util;
 import org.apache.jena.riot.other.G;
+import org.apache.jena.riot.other.RDFDataException;
 import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
@@ -87,6 +91,25 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         }
     }
 
+    static RDFDataException dataException(Node node, String msg) {
+        return new RDFDataException(NodeFmtLib.displayStr(node)+" : "+msg);
+    }
+
+    static RDFDataException dataException(Node node, Node property, String msg) {
+        return new RDFDataException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
+    }
+
+
+    private static Assem2.OnError errorException = errorMsg -> new FusekiKafkaException(errorMsg);
+
+    static FusekiKafkaException error(Node node, String msg) {
+        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
+    }
+
+    static FusekiKafkaException error(Node node, Node property, String msg) {
+        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
+    }
+
     private ConnectorFK createSub(Graph graph, Node node, Node type) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
@@ -113,21 +136,26 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          */
 
         // Required!
-        String topic = Assem2.getString(graph, node, pKafkaTopic);
+        String topic = Assem2.getString(graph, node, pKafkaTopic, errorException);
 
         String datasetName = datasetName(graph, node);
         datasetName = DataAccessPoint.canonical(datasetName);
 
         String endpoint = endpointName(graph, node);
 
-        String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers);
+        String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers, errorException);
 
-        Boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, true);
-        Boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, false);
+        Boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, true, errorException);
+        Boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, false, errorException);
 
-        String stateFile = Assem2.getString(graph, node, pStateFile);
+        String stateFile = Assem2.getAsString(graph, node, pStateFile, errorException);
+        // The file name can be a relative file name as a string or a
+        // file: can URL place the area next to the configuration file.
+        // Turn "file:/" to a filename.
+        if ( stateFile.startsWith("file:") )
+            stateFile = IRILib.IRIToFilename(stateFile);
 
-        String groupId = Assem2.getStringOrDft(graph, node, pKafkaGroupId, "JenaFusekiKafka");
+        String groupId = Assem2.getStringOrDft(graph, node, pKafkaGroupId, "JenaFusekiKafka", errorException);
 
         // ----
         Properties kafkaProps = new Properties();
@@ -157,7 +185,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
         // These are ignored if the deserializers are in the Kafka consumer constructor.
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerDispatch.class.getName());
+        kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
 
         return new ConnectorFK(topic, datasetName, endpoint, stateFile, topicSync.booleanValue(), replayTopic.booleanValue(), kafkaProps);
     }
@@ -205,17 +233,17 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         if ( x.isEmpty() )
             return noServiceName;
         if ( x.size() > 1 )
-            throw Assem2.error(node, "Multiple service names: "+NodeFmtLib.displayStr(node));
+            throw onError(node, "Multiple service names", errorException);
         Node n = x.get(0);
         if ( ! Util.isSimpleString(n) )
-            throw Assem2.error(node, "Service name is not a string: "+NodeFmtLib.displayStr(n));
+            throw onError(node, "Service name is not a string", errorException);
         String epName = n.getLiteralLexicalForm();
         if ( StringUtils.isBlank(epName) )
             return noServiceName;
         if ( epName.contains("/") )
-            throw Assem2.error(node, "Service name can not contain \"/\": "+NodeFmtLib.displayStr(n));
+            throw onError(node, "Service name can not contain \"/\"", errorException);
         if ( epName.contains(" ") )
-            throw Assem2.error(node, "Service name can not contain spaces: "+NodeFmtLib.displayStr(n));
+            throw onError(node, "Service name can not contain spaces", errorException);
         return epName;
     }
 }

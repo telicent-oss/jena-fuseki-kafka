@@ -73,27 +73,28 @@ public class FK_SyncDB {
         Properties cProps = conn.getKafkaProps();
         StringDeserializer strDeser = new StringDeserializer();
 
-        // Do work in deserializer or return a function that is the handler.
-        Deserializer<Void> reqDer = new DeserializeDataset(dsg);
+        Deserializer<ActionFK> reqDer = new DeserializerActionFK();
 
-        Consumer<String, Void> consumer = new KafkaConsumer<String, Void>(cProps, strDeser, reqDer);
-        TopicPartition topicPartition = new TopicPartition(topic, 0);
-        consumer.assign(Arrays.asList(topicPartition));
+        try ( Consumer<String, ActionFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer) ) {
+            TopicPartition topicPartition = new TopicPartition(topic, 0);
+            consumer.assign(Arrays.asList(topicPartition));
 
-        // Resume or start from the beginning.
-        long initialOffset = dState.getOffset();
-        if ( initialOffset < 0 )
-            consumer.seekToBeginning(Arrays.asList(topicPartition));
-        else
-            consumer.seek(topicPartition, initialOffset+1);
+            // Resume or start from the beginning.
+            long initialOffset = dState.getOffset();
+            if ( initialOffset < 0 )
+                consumer.seekToBeginning(Arrays.asList(topicPartition));
+            else
+                consumer.seek(topicPartition, initialOffset+1);
 
-        for ( ;; ) {
-            boolean somethingReceived = FK.receiver(consumer, dState);
-            if ( somethingReceived ) {
-                System.out.println("Offset: "+dState.getOffset());
-//                System.out.println("----");
-//                RDFDataMgr.write(System.out, dsg,  Lang.TRIG);
-//                System.out.println("----");
+            /// XXX Unfinished.
+            for ( ;; ) {
+//                boolean somethingReceived = false;
+//                if ( somethingReceived ) {
+//                    System.out.println("Offset: "+dState.getOffset());
+//                    System.out.println("----");
+//                    RDFDataMgr.write(System.out, dsg,  Lang.TRIG);
+//                    System.out.println("----");
+//                }
             }
         }
     }

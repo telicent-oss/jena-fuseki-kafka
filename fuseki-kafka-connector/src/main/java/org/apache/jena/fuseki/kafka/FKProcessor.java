@@ -29,31 +29,21 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.WebContent;
 import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.serialization.Deserializer;
 
 /**
- * Receive and dispatch incoming to SPARQL Update or RDF data.
+ * Process incoming to SPARQL Update or RDF data.
+ * <p>
+ * This is the simplified version of what Fuseki would do for an operation sent to
+ * the dataset URL. It splits RDF data from SPARQL Updates based on Content-Type.
  */
-public abstract class AbstractDeserializerRDF implements Deserializer<Void> {
+public abstract class FKProcessor {
 
-    // Deserialization to Void means the deserializer returns null.
-    // All the work happens inside the dersrializer itself.
-    //
-    // The body of Kafka message has variable syntax so a typed deserializer does not
-    // work very well,. It could return byte[] which would be a copy.
-    //
-    // This abstract class has a helper structure that inspects the headers for
-    // SPARQL Update or RDF data then calls the action for that type.
-    //
-    // Fuseki implements Deserializer<Void> directly.
-    //
-    // Both ways avoid copying it out of the kafka message into a byte[] (which is longer
-    // lived - once a deserializer return from "deserialize" the buffer may be reused).
+    protected FKProcessor() {}
 
-
-    protected AbstractDeserializerRDF() {}
-
-    protected void action(String contentType, String topic, InputStream data) {
+    /**
+     * Split SPARQL Update from RDF data.
+     */
+    protected void action(String topic, String contentType, InputStream data) {
         try {
             if ( WebContent.contentTypeSPARQLUpdate.equals(contentType) ) {
                 actionSparqlUpdate(topic, data);
@@ -64,13 +54,13 @@ public abstract class AbstractDeserializerRDF implements Deserializer<Void> {
                 actionData(topic, lang, data);
                 return;
             }
-            FmtLog.warn(FusekiKafka.LOG, "Topic = %s : Failed to handle '%s'",  topic, contentType);
+            FmtLog.warn(FusekiKafka.LOG, "Failed to handle '%s'",  contentType);
         } catch (RuntimeException ex) {
-            actionFailed(ex, contentType, topic, data);
+            actionFailed(topic, ex, contentType, data);
         }
     }
 
-    protected void actionFailed(RuntimeException ex, String contentType, String topic, InputStream data) {
+    protected void actionFailed(String topic, RuntimeException ex, String contentType, InputStream data) {
         ex.printStackTrace();
     }
 
@@ -78,17 +68,9 @@ public abstract class AbstractDeserializerRDF implements Deserializer<Void> {
 
     protected abstract void actionData(String topic, Lang lang, InputStream data);
 
-    @Override
-    final public Void deserialize(String topic, Headers headers, byte[] data) {
+    public void process(String topic, Headers headers, byte[] data) {
         ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
-        //ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         String contentType = Bytes.bytes2string(headers.lastHeader(hContentType).value());
-        action(contentType, topic, bytesIn);
-        return null;
-    }
-
-    @Override
-    final public Void deserialize(String topic, byte[] data) {
-        return deserialize(topic, null, data);
+        action(topic, contentType, bytesIn);
     }
 }

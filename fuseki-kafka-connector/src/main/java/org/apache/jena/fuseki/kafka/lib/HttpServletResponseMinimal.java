@@ -40,18 +40,18 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     private final OutputStream output;
     private boolean hasCommitted = false;
     private int status = 200;
-    
+
     public HttpServletResponseMinimal(OutputStream output) {
         this.output= output ;
     }
-    
+
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
         if ( hasCommitted )
             throw new IllegalStateException();
         return new ServletOutputStreamX(output, ()-> { hasCommitted = true; } );
     }
-    
+
     static class ServletOutputStreamX extends ServletOutputStream {
         private final OutputStream output;
         private final Runnable commitHook;
@@ -70,15 +70,15 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
         public void write(byte b[], int off, int len) throws IOException {
             output.write(b, off, len);
         }
-        
+
         @Override
         public void write(int b) throws IOException { output.write(b); }
-        
+
         @Override
         public void close() throws IOException { flush(); output.close(); }
-        
+
         @Override
-        public void flush() throws IOException { output.flush(); commitHook.run(); } 
+        public void flush() throws IOException { output.flush(); commitHook.run(); }
     }
 
     @Override
@@ -175,7 +175,7 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     }
 
     @Override
-    public void setContentLengthLong(long len) {    
+    public void setContentLengthLong(long len) {
         setHeader(HttpNames.hContentLength, Long.toString(len));
     }
 
@@ -220,11 +220,13 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
         return headers.get(name);
     }
 
+    public Map<String, String> headers() { return headers; }
+
     @Override
     public Collection<String> getHeaders(String name) {
         String x = getHeader(name);
         if ( x == null )
-            return List.of(); 
+            return List.of();
         return List.of(x);
     }
 

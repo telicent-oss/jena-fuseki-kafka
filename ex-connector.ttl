@@ -5,14 +5,17 @@ PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
+## Kafka -> /ds/upload
+
 <#connector> rdf:type fk:Connector ;
-    fk:bootstrapServers "localhost:9092";
-    fk:topic            "RDF";
-    fk:databaseName      "ds";
-    ## Whether to re-sync from te topic at start-up
+    fk:bootstrapServers   "localhost:9092";
+    fk:topic              "RDF";
+    fk:datasetName        "ds";
+    ## fk:service            "upload";
+    ## Whether to re-sync from the topic at start-up
     ## false makes Kafka just a message transport but is easier during development.
-    fk:topicSync        false ;
-    fk:stateFile        "Databases/RDF.state";
+    fk:topicSync          false ;
+    fk:stateFile          "Databases/RDF.state";
 ##     fk:config ( "K1" "V1") ;
 ##     fk:config ( "K2" "V2") ;
     .
