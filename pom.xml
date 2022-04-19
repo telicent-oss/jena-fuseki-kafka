@@ -6,8 +6,8 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>io.telicent</groupId>
-  <artifactId>fuseki-kafka</artifactId>
+  <groupId>io.telicent.jena</groupId>
+  <artifactId>jena-kafka</artifactId>
   <packaging>pom</packaging>
   <version>0.0.0-SNAPSHOT</version>
 
@@ -33,9 +33,9 @@
   </properties>
 
   <modules>
-    <module>fuseki-kafka-connector</module>
-    <module>fuseki-kafka-client</module>
-    <!--<module>fuseki-kafka-server</module>-->
+    <module>jena-kafka-connector</module>
+    <module>jena-fuseki-kafka-module</module>
+    <module>jena-kafka-client</module>
   </modules>
 
   <dependencyManagement>

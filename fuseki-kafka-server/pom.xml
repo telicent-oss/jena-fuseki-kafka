@@ -8,21 +8,23 @@
 
   <artifactId>fuseki-kafka-server</artifactId>
   <packaging>jar</packaging>
+  
+  <name>Fuseki server with Kafka connector</name>
+  <description>Apache Jena Fuseki server with Kafka connector</description>
 
   <parent>
-    <groupId>io.telicent</groupId>
-    <artifactId>fuseki-kafka</artifactId>
+    <groupId>io.telicent.jena</groupId>
+    <artifactId>jena-kafka</artifactId>
     <version>0.0.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent> 
 
-  <name>Fuseki-Kafka Server</name>
 
   <dependencies>
 
     <dependency>
-      <groupId>io.telicent</groupId>
-      <artifactId>fuseki-kafka-connector</artifactId>
+      <groupId>io.telicent.jena</groupId>
+      <artifactId>jena-fuseki-kafka-module</artifactId>
       <version>${project.version}</version>
     </dependency>
 
