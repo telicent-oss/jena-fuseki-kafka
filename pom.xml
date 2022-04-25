@@ -36,17 +36,26 @@
     <module>jena-kafka-connector</module>
     <module>jena-fuseki-kafka-module</module>
     <module>jena-kafka-client</module>
+
+    <!-- Creates a server jar with this module bundled with in it.
+         Now: preferred to use a drop-in module-jar and the fuseki-main script.
+    <module>fuseki-kafka-server</module>
+    -->
+
+    <!-- Create a drop-in lib/ jar -->
+    <module>fuseki-kafka-module-jar</module>
+
   </modules>
 
   <dependencyManagement>
     <dependencies>
 
       <!--
-          <dependency>
+        <dependency>
           <groupId>org.apache.kafka</groupId>
           <artifactId>kafka-streams</artifactId>
           <version>${ver.kafka}</version>
-          </dependency>
+        </dependency>
       -->
 
       <dependency>
@@ -71,6 +80,13 @@
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-main</artifactId>
+        <version>${ver.jena}</version>
+      </dependency>
+
+      <!-- The combined jar for Fuseki main -->
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-fuseki-server</artifactId>
         <version>${ver.jena}</version>
       </dependency>
 
@@ -131,7 +147,16 @@
       </plugin>
 
     </plugins>
-
   </build>
+
+  <!--
+<distributionManagement>
+   <repository>
+     <id>github</id>
+     <name>GitHub OWNER Apache Maven Packages</name>
+     <url>https://maven.pkg.github.com/OWNER/REPOSITORY</url>
+   </repository>
+</distributionManagement>
+-->
 
 </project>

@@ -54,18 +54,27 @@ PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 <#connector> rdf:type fk:Connector ;
-    # Destination Fuseki service    
-    fk:serviceName      "ds";
-
-    # Using Kafka-RAFT
-    fk:bootstrapServers "localhost:9092";
-
     # Kafka topic
     fk:topic            "RDF";
+
+    # Destination Fuseki service    
+    fk:fusekiServiceName  "ds";
+
+    # Using Kafka-RAFT
+    fk:bootstrapServers   "localhost:9092";
 
     # File used to track the state (the last offset processes)
     # Used across Fuseki restarts.
     fk:stateFile        "Databases/RDF.state";
+
+    # Kafka GroupId - default "JenaFusekiKafka"
+    # fk:groupId          "JenaFusekiKafka";
+
+    # What to do on start up.
+    # Normally this is "sync" which is the default value.
+    # If replay is true, then on start-up the whole topic is replayed.
+    #    fk:replayTopic      true;
+    #    fk:syncTopic        true;
 
 ## Additional Kafka client properties.
 ##   fk:config ( "key" "value") ;
@@ -82,4 +91,3 @@ to get a runnable jar in `target/`.
 ```
    java -jar target/fuseki-kafka-VER.jar --config config.ttl
 ```
-

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+## Licensed under the terms of http://www.apache.org/licenses/LICENSE-2.0
+
+ARGS="$@"
+
+## Environment variables.
+## One area? HOME==BASE?
+FUSEKI_HOME="${FUSEKI_HOME:-$PWD}"
+
+##FUSEKI_BASE="${FUSEKI_BASE:-$FUSEKI_HOME}"
+
+## Override of th Fuseki jar file location. Usually unset.
+
+#FUSEKI_JAR=
+unset FUSEKI_JAR
+
+## Diretcory of extra jars - Fuseki modules and dependencies.
+FUSEKI_LIB="$FUSEKI_HOME"'/lib'
+
+## Settings.
+## Name of the jar entry point.
+MAIN=org.apache.jena.fuseki.main.cmds.FusekiMainCmd
+
+
+DEBUG=
+VERBOSE=
+
+function debug() {
+    [[ -n $DEBUG ]] || return 
+    local MSG="$1"
+    echo "$MSG" 1>&2
+}
+
+## ---- Find java.
+if [ -z "$JAVA" ]
+then
+    if [ -z "$JAVA_HOME" ]
+    then
+	JAVA="$(which java)"
+    else
+        JAVA="$JAVA_HOME/bin/java"
+    fi
+fi
+
+if [ -z "$JAVA" ]
+then
+    (
+	echo "Cannot find a Java JDK."
+	echo "Please set either set JAVA or JAVA_HOME and put java (>=1.11) in your PATH."
+    ) 1>&2
+  exit 1
+fi
+
+debug "JAVA=$JAVA"
+
+## ---- Find the Fuseki jar file.
+## Usually in the same directory as the script.
+function find_jar() {
+    local DIR="$FUSEKI_HOME"
+
+    local JAR="$(find_jar1 $DIR)"
+
+    if [[ -z $JAR ]]
+    then
+	 JAR="$(find_jar1 $PWD)"
+    fi
+    
+    if [[ -z $JAR ]] ; then
+	 JAR="$(find_jar1 $PWD/target)"
+    fi
+    echo "$JAR"
+}
+
+function find_jar1() {
+    local DIR="$1"
+    local JAR="$(echo "$DIR"/jena-fuseki-server-*.jar)"
+    
+    if [[ ! -e $JAR ]]
+    then
+	JAR=""
+    fi
+    echo "$JAR"
+}
+
+## Try a few places.
+FUSEKI_JAR="${FUSEKI_JAR:-$(find_jar)}"
+
+if [[ $? -ne 0 ]] ; then
+    echo "Failed to find a FUSEKI_JAR" 1>&2
+    exit 1
+fi
+
+if [[ ! -e "$FUSEKI_JAR" ]]
+then
+    echo "Can't find Fuseki server jar file '$FUSEKI_JAR'" 1>&2
+    exit 1
+fi
+
+if [[ $VERBOSE == 'true' ]]
+then
+    (
+	echo "FUSEKI_HOME = $FUSEKI_HOME"
+	echo "FUSEKI_JAR  = $FUSEKI_JAR"
+	echo "FUSEKI_LIB  = $FUSEKI_LIB"
+    ) 1>&2
+fi
+
+exec $JAVA -cp "$FUSEKI_JAR:$FUSEKI_LIB"'/*' "$MAIN" $ARGS
