@@ -10,8 +10,9 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 <#connector> rdf:type fk:Connector ;
     fk:bootstrapServers   "localhost:9092";
     fk:topic              "RDF";
-    fk:datasetName        "ds";
-    ## fk:service            "upload";
+    fk:fusekiServiceName  "ds";
+
+## fk:service            "upload";
     ## Whether to re-sync from the topic at start-up
     ## false makes Kafka just a message transport but is easier during development.
     fk:topicSync          false ;

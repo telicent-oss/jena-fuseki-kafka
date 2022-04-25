@@ -6,11 +6,11 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>fuseki-kafka-server</artifactId>
+  <artifactId>fuseki-kafka-module-jar</artifactId>
   <packaging>jar</packaging>
   
-  <name>Fuseki server with Kafka connector</name>
-  <description>Apache Jena Fuseki server with Kafka connector</description>
+  <name>Jena-Kafka Connector module jar</name>
+  <description>Apache Jena Fuseki server Kafka connector</description>
 
   <parent>
     <groupId>io.telicent.jena</groupId>
@@ -19,26 +19,40 @@
     <relativePath>..</relativePath>
   </parent> 
 
-
   <dependencies>
 
     <dependency>
       <groupId>io.telicent.jena</groupId>
       <artifactId>jena-fuseki-kafka-module</artifactId>
       <version>${project.version}</version>
-    </dependency>
+      <exclusions>
 
-    <dependency>
-      <groupId>org.apache.jena</groupId>
-      <artifactId>jena-fuseki-server</artifactId>
-      <version>../
+        <!-- Exclude dependencies available in fuseki-main -->
+        <exclusion>
+          <groupId>org.apache.jena</groupId>
+          <artifactId>jena-fuseki-server</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.jena</groupId>
+          <artifactId>jena-fuseki-main</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.jena</groupId>
+          <artifactId>apache-jena-libs</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <!--
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j-impl</artifactId>
+        </exclusion>
+        -->
+      </exclusions>
     </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-
+    
   </dependencies>
 
   <build>
@@ -54,8 +68,6 @@
           <transformers>  
             <transformer implementation=
                   "org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-              <mainClass>org.apache.jena.fuseki.main.cmds.FusekiMainCmd</mainClass>
-              <!-- https://issues.apache.org/jira/browse/LOG4J2-2537 -->
               <manifestEntries>
                 <Multi-Release>true</Multi-Release>
               </manifestEntries>
@@ -69,6 +81,19 @@
               <addHeader>false</addHeader>
             </transformer>
           </transformers>
+
+          <artifactSet>
+            <!--
+            <includes>
+              <include>io.telicent.jena:jena-fuseki-kafka-module</include>
+              <include>io.telicent.jena:jena-kafka-connector</include>
+              <include>org.apache.kafka:kafka-clients</include>
+              <include>com.github.luben:zstd-jni</include>
+              <include>org.lz4:lz4-java</include>
+              <include>org.xerial.snappy:snappy-java</include>
+            </includes>
+            -->
+          </artifactSet>
 
           <filters>
             <filter>

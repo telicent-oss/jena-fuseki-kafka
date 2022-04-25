@@ -119,7 +119,7 @@ class Assem2 {
      * Return null for no such subject-property.
      * Error if the object is not a string.
      */
-    public static Boolean getBooleanOrDft(Graph graph, Node node, Node property, Boolean dftValue, OnError onError) {
+    public static boolean getBooleanOrDft(Graph graph, Node node, Node property, boolean dftValue, OnError onError) {
         Node x = G.getZeroOrOneSP(graph, node, property);
         if ( x == null )
             return dftValue;
