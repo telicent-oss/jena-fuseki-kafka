@@ -149,14 +149,17 @@
     </plugins>
   </build>
 
-  <!--
-<distributionManagement>
-   <repository>
-     <id>github</id>
-     <name>GitHub OWNER Apache Maven Packages</name>
-     <url>https://maven.pkg.github.com/OWNER/REPOSITORY</url>
-   </repository>
-</distributionManagement>
--->
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub Telicent Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/telicent-io/repo1</url>
+      <snapshots>
+        <enabled>true</enabled>
+        <updatePolicy>daily</updatePolicy>
+        <checksumPolicy>fail</checksumPolicy> 
+      </snapshots>
+    </repository>
+  </distributionManagement>
 
 </project>

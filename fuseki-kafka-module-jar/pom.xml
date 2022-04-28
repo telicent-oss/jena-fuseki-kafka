@@ -26,30 +26,10 @@
       <artifactId>jena-fuseki-kafka-module</artifactId>
       <version>${project.version}</version>
       <exclusions>
-
-        <!-- Exclude dependencies available in fuseki-main -->
-        <exclusion>
-          <groupId>org.apache.jena</groupId>
-          <artifactId>jena-fuseki-server</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.jena</groupId>
-          <artifactId>jena-fuseki-main</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.jena</groupId>
-          <artifactId>apache-jena-libs</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
         </exclusion>
-        <!--
-        <exclusion>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-slf4j-impl</artifactId>
-        </exclusion>
-        -->
       </exclusions>
     </dependency>
     
