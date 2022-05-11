@@ -99,7 +99,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         }
 
         String datasetName = conn.getDataset();
-        String endpoint = conn.getEndpoint();
+        String endpoint = conn.getRemoteEndpoint();
 
         DatasetGraph dsg = builder.getDataset(datasetName);
         if ( dsg == null )
@@ -124,18 +124,19 @@ public class FMod_FusekiKafka implements FusekiModule {
             return;
 
         String dataset = conn.getDataset();
-        String endpoint = conn.getEndpoint();
+        String remoteEndpoint = conn.getRemoteEndpoint();
+        String requestURI = dataset;
 
-        String requestURI = conn.getDataset();
-        if ( requestURI != null && !requestURI.isBlank() )
-            requestURI = requestURI + "/" + endpoint;
+        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
+                    conn.isLocalDataset() ? dataset : remoteEndpoint
+                );
 
-        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(), requestURI);
         DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
 
         DataService dSrv = server.getDataAccessPointRegistry().get(dataset).getDataService();
         DatasetGraph dsg = dSrv.getDataset();
 
+        // The HttpServletRequest is created by FKRequestProcessor.dispatch.
         RequestDispatcher dispatcher = (req, resp) -> Dispatcher.dispatch(req, resp);
 
         // -- Kafka Props
@@ -149,7 +150,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         TopicPartition topicPartition = new TopicPartition(conn.getTopic(), 0);
         Collection<TopicPartition> partitions = Arrays.asList(topicPartition);
         consumer.assign(partitions);
-        RequestProcessor requestProcessor = new RequestProcessor(dispatcher, requestURI, servletContext);
+        FKRequestProcessor requestProcessor = new FKRequestProcessor(dispatcher, requestURI, servletContext);
 
         // -- Choose start point.
         // If true, ignore topic state and start at current.
@@ -195,7 +196,6 @@ public class FMod_FusekiKafka implements FusekiModule {
         } else {
             FmtLog.info(LOG, "Up to date: %d -> %d", stateOffset, topicPosition - 1);
         }
-        // XXX SYNC NOW
     }
 
     /**
@@ -224,7 +224,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         dataState.setOffset(beginning);
     }
 
-    private void startTopicPoll(RequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
+    private void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
         Runnable task = () -> topicPoll(requestProcessor, consumer, dataState);
         // Executor
         Thread thread = new Thread(task, label);
@@ -233,13 +233,13 @@ public class FMod_FusekiKafka implements FusekiModule {
         thread.start();
     }
 
-    private static void topicPoll(RequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+    private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
         for ( ;; ) {
             oneTopicPoll(requestProcessor, consumer, dataState);
         }
     }
 
-    private static void oneTopicPoll(RequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+    private static void oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
         long lastOffsetState = dataState.getOffset();
         boolean somethingReceived = requestProcessor.receiver(consumer, dataState);
         if ( somethingReceived ) {

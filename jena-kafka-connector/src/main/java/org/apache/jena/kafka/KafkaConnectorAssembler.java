@@ -86,7 +86,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static Node pFusekiDatasetName     = NodeFactory.createURI(NS+"datasetName");       // Old name.
 
     // Currently unused - will be a remote SPARQL endpoint to use this connector as a replay.
-    private static Node pEndpointName          = NodeFactory.createURI(NS+"remoteEndpoint");           // Optional
+    private static Node pRemoteEndpointName    = NodeFactory.createURI(NS+"remoteEndpoint");
 
     private static Node pKafkaTopic            = NodeFactory.createURI(NS+"topic");
     private static Node pStateFile             = NodeFactory.createURI(NS+"stateFile");
@@ -100,8 +100,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
 
     // Values.
-    private static String noEndpointName       = "";
-    private static String noFusekiServiceName  = "";
     private static boolean dftSyncTopic        = true;
     private static boolean dftReplayTopic      = false;
     private static String dftKafkaGroupId      = "JenaFusekiKafka";
@@ -155,6 +153,9 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *     fk:fusekiServiceName "/ds";
          *
          * ## Optional - with defaults
+         *     ## Endpoint of the fk:fusekiServiceName (the dataset)(.
+         *     fk:fusekiServiceEndpoint "";
+         *
          *     fk:groupId           "JenaFusekiKafka";
          *
          *     ## false means don't sync on startup.
@@ -173,8 +174,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String datasetName = datasetName(graph, node);
         datasetName = /*DataAccessPoint.*/canonical(datasetName);
 
-        String endpoint = endpointName(graph, node);
-
+        String remoteEndpoint = remoteEndpointName(graph, node);
         String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers, errorException);
 
         boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
@@ -219,7 +219,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
 
-        return new ConnectorFK(topic, datasetName, endpoint, stateFile, topicSync, replayTopic, kafkaProps);
+        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, topicSync, replayTopic, kafkaProps);
     }
 
     private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
@@ -231,7 +231,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 ( PREFIXES
                 , "SELECT ?n { "
                 , "   OPTIONAL { ?X ?fusekiServiceName ?N1 }"
-                , "   OPTIONAL { ?X ?fusekiDatasetName ?N2 }"
+                , "   OPTIONAL { ?X ?fusekiDatasetName ?N2 }" // Old name.
                 , "   BIND(COALESCE( ?N1, ?N2, '' ) AS ?n)"
                 , "}"
                 );
@@ -261,10 +261,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return name;
     }
 
-    private String endpointName(Graph graph, Node node) {
-        List<Node> x = G.listSP(graph, node, pEndpointName);
+    private String remoteEndpointName(Graph graph, Node node) {
+        List<Node> x = G.listSP(graph, node, pRemoteEndpointName);
         if ( x.isEmpty() )
-            return noEndpointName;
+            return FusekiKafka.noRemoteEndpointName;
         if ( x.size() > 1 )
             throw onError(node, "Multiple service names", errorException);
         Node n = x.get(0);
@@ -272,7 +272,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             throw onError(node, "Service name is not a string", errorException);
         String epName = n.getLiteralLexicalForm();
         if ( StringUtils.isBlank(epName) )
-            return noEndpointName;
+            return FusekiKafka.noRemoteEndpointName;
         if ( epName.contains("/") )
             throw onError(node, "Service name can not contain \"/\"", errorException);
         if ( epName.contains(" ") )

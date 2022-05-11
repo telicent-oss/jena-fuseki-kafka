@@ -38,14 +38,17 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
-public class RequestProcessor {
+/**
+ * The enine for the Kafka-Fuseki connector.
+ */
+public class FKRequestProcessor {
     // --> rename!
 
     private final RequestDispatcher dispatcher;
     private final ServletContext servletContext;
     private final String requestURI;
 
-    public RequestProcessor(RequestDispatcher dispatcher, String requestURI, ServletContext servletContext) {
+    public FKRequestProcessor(RequestDispatcher dispatcher, String requestURI, ServletContext servletContext) {
         this.dispatcher = dispatcher;
         this.requestURI = requestURI;
         // ServletContext

@@ -57,7 +57,10 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     # Kafka topic
     fk:topic            "RDF";
 
-    # Destination Fuseki service    
+    # Destination Fuseki service
+    # This can be the dataset or a specific endpoint ("ds/kafkaIncoming")
+    # with the necessary fuseki:operation.
+    
     fk:fusekiServiceName  "ds";
 
     # Using Kafka-RAFT
