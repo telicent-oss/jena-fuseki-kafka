@@ -9,18 +9,15 @@ FUSEKI_HOME="${FUSEKI_HOME:-$PWD}"
 
 ##FUSEKI_BASE="${FUSEKI_BASE:-$FUSEKI_HOME}"
 
-## Override of th Fuseki jar file location. Usually unset.
-
+## Server jar (if unset, the script search for the file)
 #FUSEKI_JAR=
-unset FUSEKI_JAR
 
-## Diretcory of extra jars - Fuseki modules and dependencies.
+## Directory of extra jars - Fuseki modules and dependencies.
 FUSEKI_LIB="$FUSEKI_HOME"'/lib'
 
 ## Settings.
 ## Name of the jar entry point.
 MAIN=org.apache.jena.fuseki.main.cmds.FusekiMainCmd
-
 
 DEBUG=
 VERBOSE=
