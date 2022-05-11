@@ -21,6 +21,9 @@ package org.apache.jena.kafka;
 import java.io.ByteArrayInputStream;
 import java.util.Map;
 
+import org.apache.jena.atlas.logging.Log;
+import org.apache.jena.riot.WebContent;
+import org.apache.jena.riot.web.HttpNames;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Deserializer;
 
@@ -29,11 +32,20 @@ import org.apache.kafka.common.serialization.Deserializer;
  */
 public class DeserializerActionFK implements Deserializer<ActionFK> {
 
+    private static String defaultContentType = WebContent.contentTypeNQuads;
+
     public DeserializerActionFK() {}
 
     @Override
     public ActionFK deserialize(String topic, Headers headers, byte[] data) {
         Map<String, String> requestHeaders = FK.headerToMap(headers);
+
+        // Default Content-Type to NQuads
+        if ( ! requestHeaders.containsKey(HttpNames.hContentType) ) {
+            Log.warn(FusekiKafka.LOG, "No Content-Type - defaulting to "+defaultContentType);
+            requestHeaders.put(HttpNames.hContentType, defaultContentType);
+        }
+
         ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
         return new ActionFK(topic, requestHeaders, bytesIn);
     }

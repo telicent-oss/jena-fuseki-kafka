@@ -33,7 +33,6 @@ public class ActionFK {
         this.topic = topic;
         this.headers = headers;
         this.bytes = bytes;
-
     }
 
     public String getTopic() {
