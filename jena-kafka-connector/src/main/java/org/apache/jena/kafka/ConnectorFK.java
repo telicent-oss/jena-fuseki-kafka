@@ -53,10 +53,11 @@ public class ConnectorFK {
         this.stateFile = stateFile;
         this.kafkaProps = kafkaProps;
         this.state = State.INIT;
-        if ( endpoint != null && fusekiServiceName != null )
-            Log.warn(this, "ConnectorFK built with both Fuseki service name and remote endppint URL");
-        if ( endpoint == null && fusekiServiceName == null )
-            Log.warn(this, "ConnectorFK built with no Fuseki service name nor remote endppint URL");
+        boolean hasEndpoint = ( endpoint != null && ! endpoint.isEmpty() );
+        if ( hasEndpoint && fusekiServiceName != null )
+            Log.warn(this, "ConnectorFK built with both Fuseki service name and remote endpoint URL");
+        if ( ! hasEndpoint && fusekiServiceName == null )
+            Log.warn(this, "ConnectorFK built with no Fuseki service name nor remote endpoint URL");
     }
 
     public void start() {
