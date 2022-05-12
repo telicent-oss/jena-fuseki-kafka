@@ -20,6 +20,7 @@ package org.apache.jena.fuseki.kafka;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
+import java.time.Duration;
 import java.util.*;
 
 import javax.servlet.ServletContext;
@@ -122,16 +123,17 @@ public class FMod_FusekiKafka implements FusekiModule {
         ConnectorFK conn = (ConnectorFK)servletContext.getAttribute(attrConnectionFK);
         if ( conn == null )
             return;
+        DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
+        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
+                    conn.isLocalDataset() ? conn.getDataset() : conn.getRemoteEndpoint()
+                );
+        addConnectorToServer(conn, server, dataState);
+    }
 
+    public static void addConnectorToServer(ConnectorFK conn, FusekiServer server, DataState dataState) {
         String dataset = conn.getDataset();
         String remoteEndpoint = conn.getRemoteEndpoint();
         String requestURI = dataset;
-
-        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
-                    conn.isLocalDataset() ? dataset : remoteEndpoint
-                );
-
-        DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
 
         DataService dSrv = server.getDataAccessPointRegistry().get(dataset).getDataService();
         DatasetGraph dsg = dSrv.getDataset();
@@ -150,7 +152,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         TopicPartition topicPartition = new TopicPartition(conn.getTopic(), 0);
         Collection<TopicPartition> partitions = Arrays.asList(topicPartition);
         consumer.assign(partitions);
-        FKRequestProcessor requestProcessor = new FKRequestProcessor(dispatcher, requestURI, servletContext);
+        FKRequestProcessor requestProcessor = new FKRequestProcessor(dispatcher, requestURI, server.getServletContext());
 
         // -- Choose start point.
         // If true, ignore topic state and start at current.
@@ -173,15 +175,15 @@ public class FMod_FusekiKafka implements FusekiModule {
             setupNoSyncTopic(consumer, topicPartition, dataState);
         }
 
-        // Do now.
-        oneTopicPoll(requestProcessor, consumer, dataState);
+        // Do now for some catchup.
+        oneTopicPoll(requestProcessor, consumer, dataState, Duration.ofMillis(500));
 
         // ASYNC
         startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + conn.getTopic());
     }
 
     /** Set to catch up on the topic at the next (first) call. */
-    private void setupSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
 
@@ -202,7 +204,7 @@ public class FMod_FusekiKafka implements FusekiModule {
      * Set to jump to the front of the topic, and so not resync on the the next
      * (first) call.
      */
-    private void setupNoSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupNoSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
         FmtLog.info(LOG, "No sync: State=%d  Topic offset=%d", stateOffset, topicPosition);
@@ -210,7 +212,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     /** Set to jump to the start of the topic. */
-    private void setupReplayTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupReplayTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
@@ -224,7 +226,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         dataState.setOffset(beginning);
     }
 
-    private void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
+    private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
         Runnable task = () -> topicPoll(requestProcessor, consumer, dataState);
         // Executor
         Thread thread = new Thread(task, label);
@@ -233,18 +235,22 @@ public class FMod_FusekiKafka implements FusekiModule {
         thread.start();
     }
 
+    /** Polling task loop.*/
     private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+        Duration pollingDuration = Duration.ofMillis(5000);
         for ( ;; ) {
-            oneTopicPoll(requestProcessor, consumer, dataState);
+            boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
         }
     }
 
-    private static void oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+    /** A polling attempt either returns some records or waits the polling duration. */
+    private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
         long lastOffsetState = dataState.getOffset();
-        boolean somethingReceived = requestProcessor.receiver(consumer, dataState);
+        boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
         if ( somethingReceived ) {
             long newOffset = dataState.getOffset();
             FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
         }
+        return somethingReceived;
     }
 }

@@ -21,7 +21,6 @@ package org.apache.jena.kafka;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.Bytes;
 import org.apache.kafka.common.header.Headers;
 
@@ -41,16 +40,16 @@ public class FK {
         return map;
     }
 
-    /**
-     * Print incoming.
-     */
-    public static void print(ActionFK action) {
-        System.out.println("== Topic: "+action.getTopic());
-        System.out.println(action.getHeaders());
-        String dataStr = IO.readWholeFileAsUTF8(action.getBytes());
-        System.out.print(dataStr);
-        if ( ! dataStr.endsWith("\n") )
-            System.out.println();
-        System.out.println("--");
-    }
+//    /**
+//     * Print incoming.
+//     */
+//    public static void print(ActionFK action) {
+//        System.out.println("== Topic: "+action.getTopic());
+//        System.out.println(action.getHeaders());
+//        String dataStr = IO.readWholeFileAsUTF8(action.getBytes());
+//        System.out.print(dataStr);
+//        if ( ! dataStr.endsWith("\n") )
+//            System.out.println();
+//        System.out.println("--");
+//    }
 }

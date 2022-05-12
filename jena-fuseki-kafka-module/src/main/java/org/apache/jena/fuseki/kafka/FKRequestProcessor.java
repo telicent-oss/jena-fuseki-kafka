@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 /**
- * The enine for the Kafka-Fuseki connector.
+ * The engine for the Kafka-Fuseki connector.
  */
 public class FKRequestProcessor {
     // --> rename!
@@ -60,13 +61,18 @@ public class FKRequestProcessor {
      * Once round the polling loop, updating the record.
      * Return true if some processing happened.
      */
-    public boolean receiver(Consumer<String, ActionFK> consumer, DataState dState) {
-        final long lastOffsetState = dState.getOffset();
+    public boolean receiver(Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
+        Objects.requireNonNull(consumer);
+        Objects.requireNonNull(dataState);
+        if ( pollingDuration == null )
+            pollingDuration = Duration.ofSeconds(5000);
+
+        final long lastOffsetState = dataState.getOffset();
         try {
-            long newOffset = receiverStep(dState.getOffset(), consumer);
+            long newOffset = receiverStep(dataState.getOffset(), consumer, pollingDuration);
             if ( newOffset == lastOffsetState )
                 return false;
-            dState.setOffset(newOffset);
+            dataState.setOffset(newOffset);
             return true;
         } catch (RuntimeException ex) {
             Log.error(FusekiKafka.LOG, ex.getMessage(), ex);
@@ -75,8 +81,10 @@ public class FKRequestProcessor {
     }
 
     /** Do one Kafka consumer poll step. */
-    private long receiverStep(long lastOffsetState, Consumer<String, ActionFK> consumer) {
-        ConsumerRecords<String, ActionFK> cRec = consumer.poll(Duration.ofMillis(1000));
+    private long receiverStep(long lastOffsetState, Consumer<String, ActionFK> consumer, Duration pollingDuration) {
+        Objects.requireNonNull(pollingDuration);
+
+        ConsumerRecords<String, ActionFK> cRec = consumer.poll(pollingDuration);
         long lastOffset = lastOffsetState;
         int count = cRec.count();
 
