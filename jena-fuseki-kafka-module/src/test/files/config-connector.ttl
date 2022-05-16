@@ -1,0 +1,33 @@
+PREFIX fuseki:  <http://jena.apache.org/fuseki#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
+
+[] rdf:type fuseki:Server ;
+   fuseki:services (
+     :service
+   ) .
+
+:service rdf:type fuseki:Service ;
+    fuseki:name "ds" ;
+    fuseki:endpoint [ fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
+    fuseki:dataset :dataset ;
+    .
+
+:dataset rdf:type ja:MemoryDataset .
+
+# Fuseki-Kafka connector
+PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
+
+<#connector> rdf:type fk:Connector ;
+    fk:bootstrapServers    "localhost:9092";
+    fk:topic               "RDF";
+    fk:fusekiServiceName   "/ds";
+    
+    ##fk:syncTopic         false;
+    fk:replayTopic         true;
+    
+    fk:stateFile           "Replay-RDF.state";
+    .

@@ -25,7 +25,11 @@
     <ver.jena>4.6.0-SNAPSHOT</ver.jena>
     <ver.kafka>3.1.0</ver.kafka>
     <ver.log4j2>2.17.2</ver.log4j2>
-    <ver.junit>4.13.1</ver.junit>
+
+    <ver.junit4>4.13.2</ver.junit4>
+    <ver.junit5>5.8.2</ver.junit5>
+    <ver.junit5-platform>1.8.2</ver.junit5-platform>
+    <ver.testcontainers>1.17.1</ver.testcontainers>
     
     <java.version>11</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -99,7 +103,43 @@
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>${ver.junit}</version>
+        <version>${ver.junit4}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${ver.junit5}</version>
+        <scope>test</scope>
+      </dependency>
+    
+      <!--
+      <dependency>
+        <groupId>org.junit.platform</groupId>
+        <artifactId>junit-platform-suite</artifactId>
+        <version>${ver.junit5-platform}</version>
+        <scope>test</scope>
+      </dependency>
+      -->
+
+      <dependency>
+        <groupId>org.junit.vintage</groupId>
+        <artifactId>junit-vintage-engine</artifactId>
+        <version>${ver.junit5}</version>
+        <scope>test</scope>
+      </dependency>
+      <!-- For surefire -->
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-engine</artifactId>
+        <version>${ver.junit5}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>kafka</artifactId>
+        <version>${ver.testcontainers}</version>
         <scope>test</scope>
       </dependency>
 
@@ -120,7 +160,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-	      <version>2.12</version>
+	      <version>3.0.0-M6</version>
         <configuration>
           <includes>
             <include>**/TS_*.java</include>
