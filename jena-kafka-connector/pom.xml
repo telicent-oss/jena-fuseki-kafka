@@ -8,8 +8,8 @@
 
   <artifactId>jena-kafka-connector</artifactId>
   <packaging>jar</packaging>
-  <name>Jena-Kafka Connector</name>
-  <description>Jena-Kafka connector</description>
+  <name>Jena-Kafka : Connector</name>
+  <description>Jena-Kafka : Connector</description>
 
   <parent>
     <groupId>io.telicent.jena</groupId>

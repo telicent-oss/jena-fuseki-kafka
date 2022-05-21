@@ -117,6 +117,7 @@ public class TestFK {
 
     //@Test public void fk05_fuseki_config_connector() {}
     //   Need to figure out how to setup and pick up the Kafka broker port.
+    //     ServletAttributes.
     //   Maybe have a form of FusekiModule that calls out for Kafka setup and DataState.
 
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {

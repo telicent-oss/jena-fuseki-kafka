@@ -6,10 +6,10 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>fuseki-kafka-module-jar</artifactId>
+  <artifactId>jena-fmod-kafka</artifactId>
   <packaging>jar</packaging>
   
-  <name>Jena-Kafka Connector module jar</name>
+  <name>Jena-Kafka : Fuseki Module</name>
   <description>Apache Jena Fuseki server Kafka connector</description>
 
   <parent>

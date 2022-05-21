@@ -34,8 +34,7 @@ are sent, and "gsp-rw" for RDF data (any syntax supported by Jena).
     .
 ```
 
-See "[Configuring
-Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html)"
+See "[Configuring Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html)"
 for access control and other features.
 
 This project uses the Apache Jena Fuseki Main server and is configured with a
@@ -43,7 +42,7 @@ Fuseki configuration file.
 
 ## Connector Configuration
 
-The connector configuration goes in the Fuseki confiuration file.
+The connector configuration goes in the Fuseki configuration file.
 
 ```
 PREFIX :        <#>
@@ -55,7 +54,7 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 <#connector> rdf:type fk:Connector ;
     # Kafka topic
-    fk:topic            "RDF";
+    fk:topic              "RDF";
 
     # Destination Fuseki service
     # This can be the dataset or a specific endpoint ("ds/kafkaIncoming")
@@ -84,13 +83,46 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     .
 ```
 
-# Build
+### Build
 
 Run
 ```
    mvn clean package
 ```
-to get a runnable jar in `target/`.
+This includes running Apache Kafka via docker containers from
+`testcontainers.io`. There is a large, one time, download.
+There is a lot of logging output.
+
+This create a jar file `jena-fmod-kafka-VER.jar` in
+`jena-fmod-kafka/target/`
+
+Move this jar to 'lib/' in the directory you wish to run Fuseki with the
+Fuseki-Kafka connector.
+
+Copy the bash script `fuseki-main` to the same directory.
+
+### Run
+
+In the directory where you wish to run Fuseki:
+
+Get a copy of Fuseki Main:
+
 ```
-   java -jar target/fuseki-kafka-VER.jar --config config.ttl
+wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.5.0/jena-fuseki-server-4.5.0.jar
 ```
+
+then run `fuseki-main --conf config.ttl`
+
+where `config.ttl is the configuration file for the server including the
+connector setup.
+
+Windows uses can run `fuseki-main.bat` which may need adjusting for the coirrect
+version number of Fuseki.
+
+### Client
+
+`jena-fuseki-client` contains a script `fk` for operations on the Kafka topic.
+
+`fk send FILE` sends a file, using the file extension for the MIME type.
+
+`fk dump` dumps the Kafka topic.

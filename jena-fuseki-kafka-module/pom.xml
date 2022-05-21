@@ -9,7 +9,7 @@
   <artifactId>jena-fuseki-kafka-module</artifactId>
   <packaging>jar</packaging>
   <description>Apache Jena Fuseki module for Kafka connector</description>
-  <name>Jena Fuseki Module - Kafka Connector</name>
+  <name>Jena-Kafka : Fuseki-Kafka Connector Jar</name>
 
   <parent>
     <groupId>io.telicent.jena</groupId>
