@@ -41,7 +41,7 @@ public class ConnectorFK {
     private final String topic;
 
     // Destination - this Fuseki server
-    private final String fusekiServiceName;
+    private final String fusekiDispatchPath;
     // URL to replay the the request to.
     private final String remoteEndpoint;
 
@@ -54,11 +54,11 @@ public class ConnectorFK {
     private final Properties kafkaProps;
     private State state = State.INIT;
 
-    public ConnectorFK(String topic, String fusekiServiceName, String remoteEndpoint, String stateFile,
+    public ConnectorFK(String topic, String fusekiDispatchName, String remoteEndpoint, String stateFile,
                        boolean syncTopic, boolean replayTopic,
                        Properties kafkaProps) {
         this.topic = Objects.requireNonNull(topic, "topic");
-        this.fusekiServiceName = fusekiServiceName;
+        this.fusekiDispatchPath = fusekiDispatchName;
         this.remoteEndpoint = remoteEndpoint;
         this.syncTopic = syncTopic;
         this.replayTopic = replayTopic;
@@ -66,7 +66,7 @@ public class ConnectorFK {
         this.kafkaProps = kafkaProps;
         this.state = State.INIT;
 
-        boolean hasLocalFusekiService = StringUtils.isEmpty(fusekiServiceName);
+        boolean hasLocalFusekiService = StringUtils.isEmpty(fusekiDispatchName);
         boolean hasRemoteEndpoint = StringUtils.isEmpty(remoteEndpoint);
 
         if ( hasRemoteEndpoint && hasLocalFusekiService  )
@@ -84,25 +84,26 @@ public class ConnectorFK {
     }
 
     /**
-     * The destination Fuseki service for events on the Kafka topic.
-     * <p>
-     * Either they are dispatched to Fuseki, in the same JVM, and the connector
-     * destination is given by {@link #getDataset} or replayed on to a remote
-     * endpoint URL.
-     */
-    public String getDataset() {
-        return fusekiServiceName;
-    }
-
-    public boolean isLocalDataset() {
-        return ! StringUtils.isEmpty(fusekiServiceName);
-    }
-
-    /**
      * The destination of events on the Kafka topic.
      * <p>
      * Either they are dispatched to Fuseki, in the same JVM, and the connector
-     * destination is given by {@link #getDataset} or relayed to a remote endpoint URL.
+     * destination is given by {@link #getLocalDispatchPath} or replayed on to a remote
+     * endpoint URL given by {@link #getRemoteEndpoint}.
+     *
+     * @return HTTP path for local dispatch.
+     */
+    public String getLocalDispatchPath() {
+        return fusekiDispatchPath;
+    }
+
+    public boolean dispatchLocal() {
+        return ! StringUtils.isEmpty(fusekiDispatchPath);
+    }
+
+    /**
+     * The destination of events on the Kafka topic if remote.
+     *
+     * @return HTTP URL for remote dispatch.
      */
     public String getRemoteEndpoint() {
         return remoteEndpoint;
@@ -126,7 +127,7 @@ public class ConnectorFK {
 
     @Override
     public String toString() {
-        return "ConnectorFK [topic=" + topic + ", fusekiServiceName=" + fusekiServiceName + ", remoteEndpoint=" + remoteEndpoint + ", syncTopic="
+        return "ConnectorFK [topic=" + topic + ", fusekiDispatchName=" + fusekiDispatchPath + ", remoteEndpoint=" + remoteEndpoint + ", syncTopic="
                + syncTopic + ", replayTopic=" + replayTopic + ", stateFile=" + stateFile + ", kafkaProps=" + kafkaProps + ", state=" + state
                + "]";
     }

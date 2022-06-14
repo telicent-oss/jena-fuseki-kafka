@@ -131,7 +131,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return new RDFDataException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
     }
 
-
     private static Assem2.OnError errorException = errorMsg -> new FusekiKafkaException(errorMsg);
 
     static FusekiKafkaException error(Node node, String msg) {
@@ -153,9 +152,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *     fk:fusekiServiceName "/ds";
          *
          * ## Optional - with defaults
-         *     ## Endpoint of the fk:fusekiServiceName (the dataset)(.
-         *     fk:fusekiServiceEndpoint "";
-         *
          *     fk:groupId           "JenaFusekiKafka";
          *
          *     ## false means don't sync on startup.

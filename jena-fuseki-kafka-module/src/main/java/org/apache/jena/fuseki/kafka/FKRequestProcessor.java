@@ -126,9 +126,9 @@ public class FKRequestProcessor {
         dispatcher.dispatch(req, resp);
 
         InputStream respBytes;
-        if ( bytesOut.size() != 0 ) {
+        if ( bytesOut.size() != 0 )
             respBytes = new ByteArrayInputStream(bytesOut.toByteArray());
-        } else
+        else
             respBytes = InputStream.nullInputStream();
         ActionFK result = new ActionFK(topic, resp.headers(), respBytes);
         return result;

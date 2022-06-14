@@ -30,15 +30,16 @@ import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
-import org.apache.jena.fuseki.server.DataService;
 import org.apache.jena.fuseki.server.Dispatcher;
-import org.apache.jena.kafka.*;
+import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.kafka.ConnectorFK;
+import org.apache.jena.kafka.DeserializerActionFK;
+import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.PersistentState;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.JenaException;
-import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -99,17 +100,18 @@ public class FMod_FusekiKafka implements FusekiModule {
             return;
         }
 
-        String datasetName = conn.getDataset();
+        String dispatchURI = conn.getLocalDispatchPath();
         String endpoint = conn.getRemoteEndpoint();
 
-        DatasetGraph dsg = builder.getDataset(datasetName);
-        if ( dsg == null )
-            throw new FusekiKafkaException("No datasets for '" + conn.getDataset() + "'");
+//        // Endpoint to dataset.
+//        DatasetGraph dsg = builder.getDataset(datasetName);
+//        if ( dsg == null )
+//            throw new FusekiKafkaException("No datasets for '" + conn.getLocalEndpoint() + "'");
         PersistentState state = new PersistentState(conn.getStateFile());
 
-        DataState dataState = DataState.restoreOrCreate(state, datasetName, endpoint, conn.getTopic());
+        DataState dataState = DataState.restoreOrCreate(state, dispatchURI, endpoint, conn.getTopic());
         long lastOffset = dataState.getOffset();
-        FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, datasetName);
+        FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
 
         // Limitation. One connector per build.
         builder.addServletAttribute(attrConnectionFK, conn);
@@ -125,18 +127,17 @@ public class FMod_FusekiKafka implements FusekiModule {
             return;
         DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
         FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
-                    conn.isLocalDataset() ? conn.getDataset() : conn.getRemoteEndpoint()
+                    conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint()
                 );
         addConnectorToServer(conn, server, dataState);
     }
 
     public static void addConnectorToServer(ConnectorFK conn, FusekiServer server, DataState dataState) {
-        String dataset = conn.getDataset();
-        String remoteEndpoint = conn.getRemoteEndpoint();
-        String requestURI = dataset;
+        String localDispatchPath = conn.getLocalDispatchPath();
+        // Remote not (yet) supported.
+        //String remoteEndpoint = conn.getRemoteEndpoint();
 
-        DataService dSrv = server.getDataAccessPointRegistry().get(dataset).getDataService();
-        DatasetGraph dsg = dSrv.getDataset();
+        String requestURI = localDispatchPath;
 
         // The HttpServletRequest is created by FKRequestProcessor.dispatch.
         RequestDispatcher dispatcher = (req, resp) -> Dispatcher.dispatch(req, resp);

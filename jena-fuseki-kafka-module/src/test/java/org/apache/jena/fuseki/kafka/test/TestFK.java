@@ -41,7 +41,11 @@ import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.kafka.clients.FetchSessionHandler;
 import org.apache.kafka.clients.NetworkClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.junit.jupiter.api.*;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -52,11 +56,27 @@ public class TestFK {
     static { FusekiLogging.setLogging(); }
     private static final String TOPIC ="TEST";
     private static final String DSG ="/ds";
-    private static final int PORT = 4040;
     private static MockKafka mock;
     private static String DIR = "src/test/files";
 
+    // Logs to silence,
+    private static String [] XLOGS = {
+        AdminClientConfig.class.getName() ,
+        NetworkClient.class.getName() ,
+        FetchSessionHandler.class.getName() ,
+        ConsumerConfig.class.getName() ,
+        ProducerConfig.class.getName() ,
+        AppInfoParser.class.getName()
+    };
+
+    private static void adjustLogs(String level) {
+        for ( String logName : XLOGS ) {
+            LogCtl.setLevel(logName, level);
+        }
+    }
+
     @BeforeAll public static void beforeClass() {
+        adjustLogs("Warning");
         Log.info("TestFK","Starting testcontainer for Kafka");
         mock = new MockKafka();
         Properties consumerProps = new Properties();
@@ -78,12 +98,10 @@ public class TestFK {
     }
 
     @AfterAll public static void afterClass() {
-        LogCtl.setLevel(NetworkClient.class, "error");
-        LogCtl.setLevel(FetchSessionHandler.class, "error");
         Log.info("TestFK","Stopping testcontainer for Kafka");
+        LogCtl.setLevel(NetworkClient.class, "error");
         mock.stop();
-        LogCtl.setLevel(FetchSessionHandler.class, "info");
-        LogCtl.setLevel(NetworkClient.class, "info");
+        adjustLogs("info");
     }
 
     @Test public void fk01_topic() {
@@ -115,11 +133,6 @@ public class TestFK {
         assertEquals(3, count.get());
     }
 
-    //@Test public void fk05_fuseki_config_connector() {}
-    //   Need to figure out how to setup and pick up the Kafka broker port.
-    //     ServletAttributes.
-    //   Maybe have a form of FusekiModule that calls out for Kafka setup and DataState.
-
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
         // Automatic; but relying on a configuration file to find the connector description.
@@ -138,64 +151,4 @@ public class TestFK {
         server.start();
         return server;
     }
-
-//    public static String  ctForFile(String fn) {
-//        String ct = null;
-//        if ( ct == null ) {
-//            String ext = FileUtils.getFilenameExt(fn);
-//            if ( Lib.equals("ru", ext) )
-//                ct = WebContent.contentTypeSPARQLUpdate;
-//            else {
-//                Lang lang = RDFLanguages.filenameToLang(fn);
-//                if ( lang != null )
-//                    ct = lang.getContentType().getContentTypeStr();
-//            }
-//        }
-//        return ct;
-//    }
-//
-//    // Send files
-//    public static void send(MockKafka mock, Properties props, String...files) {
-//        try ( StringSerializer serString1 = new StringSerializer();
-//              StringSerializer serString2 = new StringSerializer();
-//              Producer<String, String> producer = new KafkaProducer<>(props, serString1, serString2)) {
-//
-//            for ( String fn : files ) {
-//                RecordMetadata res = sendFile(producer, null, TOPIC, fn);
-//                if ( res == null )
-//                    System.out.println("Error");
-//                else if ( ! res.hasOffset() )
-//                    System.out.println("No offset");
-//                else
-//                    System.out.println("Send: Offset = "+res.offset());
-//            }
-//        }
-//    }
-//
-//    private static RecordMetadata sendFile(Producer<String, String> producer, Integer partition, String topic, String fn) {
-//        String ct = ctForFile(fn);
-//        String body = IO.readWholeFileAsUTF8(fn);
-//        List<Header> headers = ( ct != null ) ? List.of(header(HttpNames.hContentType, ct)) : List.of();
-//        RecordMetadata res = sendBody(producer, partition, topic, headers, body);
-//        return res;
-//    }
-//
-//
-//    private static RecordMetadata sendBody(Producer<String, String> producer, Integer partition, String topic, List<Header> headers, String body) {
-//        try {
-//            ProducerRecord<String, String> pRec = new ProducerRecord<>(topic, partition, null, null, body, headers);
-//            Future<RecordMetadata> f = producer.send(pRec);
-//            RecordMetadata res = f.get();
-//            return res;
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        } catch (ExecutionException e) {
-//            e.printStackTrace();
-//        }
-//        return null;
-//    }
-//
-//    static Header header(String key, String value) {
-//        return new RecordHeader(key, value.getBytes(StandardCharsets.UTF_8));
-//    }
 }
