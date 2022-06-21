@@ -19,10 +19,12 @@
 package org.apache.jena.kafka.cmd;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.Lib;
@@ -53,6 +55,7 @@ public class FK_Send extends CmdGeneral {
     static final ArgDecl argServer      = new ArgDecl(ArgDecl.HasValue, "server", "s") ;
     static final ArgDecl argTopic       = new ArgDecl(ArgDecl.HasValue, "topic", "t") ;
     static final ArgDecl argContentType = new ArgDecl(ArgDecl.HasValue, "content-type", "ct") ;
+    static final ArgDecl argKafkaHeader = new ArgDecl(ArgDecl.HasValue, "header", "H") ;
 
     static {
         LogCtl.setLog4j2();
@@ -67,12 +70,15 @@ public class FK_Send extends CmdGeneral {
     private String server = null;
     private String topic = null;
     private String contentType = null;
+    private List<String> kafkaHeadersStr = null;
+    private List<Header> kafkaHeaders = null;
 
     public FK_Send(String... args) {
         super(args) ;
         super.add(argServer) ;
         super.add(argTopic) ;
         super.add(argContentType) ;
+        super.add(argKafkaHeader);
     }
 
     @Override
@@ -95,7 +101,12 @@ public class FK_Send extends CmdGeneral {
             throw new CmdException("No --topic (-t) argument");
         topic = getValue(argTopic);
 
+        kafkaHeadersStr = super.getValues(argKafkaHeader);
+        kafkaHeaders = kafkaHeadersStr.stream().map(h->kafkaHeader(h)).collect(Collectors.toList());
+        // Add a content type header.
         contentType = super.getValue(argContentType);
+        if ( contentType != null )
+            kafkaHeaders.add(kafkaHeader(HttpNames.hContentType, contentType));
     }
 
     private static RecordMetadata send(Producer<String, String> producer, Integer partition, String topic, List<Header> headers, String body) {
@@ -112,10 +123,6 @@ public class FK_Send extends CmdGeneral {
         return null;
     }
 
-    static Header header(String key, String value) {
-        return new RecordHeader(key, value.getBytes(StandardCharsets.UTF_8));
-    }
-
     @Override
     protected void exec() {
         if ( getPositional().isEmpty() )
@@ -127,30 +134,54 @@ public class FK_Send extends CmdGeneral {
               Producer<String, String> producer = new KafkaProducer<>(props, serString1, serString2)) {
 
             for ( String fn : getPositional() ) {
-                String ct = contentType;
-                if ( ct == null ) {
-                    String ext = FileUtils.getFilenameExt(fn);
-                    if ( Lib.equals("ru", ext) )
-                        ct = WebContent.contentTypeSPARQLUpdate;
-                    else {
-                        Lang lang = RDFLanguages.filenameToLang(fn);
-                        if ( lang != null )
-                            ct = lang.getContentType().getContentTypeStr();
-                    }
-                }
-                if ( ct == null )
-                    throw new CmdException("Failed to determine the Content-type for '"+fn+"'");
-                List<Header> headers = List.of(header(HttpNames.hContentType, ct));
-                String body = IO.readWholeFileAsUTF8(fn);
-                RecordMetadata res = send(producer, null, topic, headers, body);
-                if ( res == null )
-                    System.out.println("Error");
-                else if ( ! res.hasOffset() )
-                    System.out.println("No offset");
-                else
-                    System.out.println("Send: Offset = "+res.offset());
+                exec1(producer, fn);
             }
         }
+    }
+
+    protected void exec1(Producer<String, String> producer, String fn) {
+        List<Header> sendHeaders = new ArrayList<>();
+        sendHeaders.addAll(kafkaHeaders);
+        boolean hasContentType = kafkaHeaders.stream().anyMatch(h->h.key().equalsIgnoreCase(HttpNames.hContentType));
+        if ( ! hasContentType ) {
+            String ct = chooseContentType(fn);
+            if ( ct == null )
+                throw new CmdException("Failed to determine the Content-type for '"+fn+"'");
+            sendHeaders.add(kafkaHeader(HttpNames.hContentType, ct));
+        }
+
+        String body = IO.readWholeFileAsUTF8(fn);
+        RecordMetadata res = send(producer, null, topic, sendHeaders, body);
+        if ( res == null )
+            System.out.println("Error");
+        else if ( ! res.hasOffset() )
+            System.out.println("No offset");
+        else
+            System.out.println("Send: Offset = "+res.offset());
+    }
+
+
+    private String chooseContentType(String fn) {
+        String ext = FileUtils.getFilenameExt(fn);
+        if ( Lib.equals("ru", ext) )
+            return WebContent.contentTypeSPARQLUpdate;
+        Lang lang = RDFLanguages.filenameToLang(fn);
+        if ( lang != null )
+            return lang.getContentType().getContentTypeStr();
+        return null;
+    }
+
+    private static Header kafkaHeader(String key_value) {
+        String[] a = key_value.split(":",2);
+        if ( a.length != 2 )
+            throw new CmdException("Bad header (format is \"name: value\"): "+key_value);
+        String key = a[0].trim();
+        String value = a[1].trim();
+        return kafkaHeader(key, value);
+    }
+
+    static Header kafkaHeader(String key, String value) {
+        return new RecordHeader(key, value.getBytes(StandardCharsets.UTF_8));
     }
 }
 
