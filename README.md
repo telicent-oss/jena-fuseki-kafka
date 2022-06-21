@@ -119,6 +119,13 @@ connector setup.
 Windows uses can run `fuseki-main.bat` which may need adjusting for the coirrect
 version number of Fuseki.
 
+### Publish - deploy with maven
+
+Run
+```
+   mvn clean deploy
+```
+
 ### Client
 
 `jena-fuseki-client` contains a script `fk` for operations on the Kafka topic.
