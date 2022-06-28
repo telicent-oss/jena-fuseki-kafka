@@ -40,9 +40,9 @@ public class ConnectorFK {
     // Source
     private final String topic;
 
-    // Destination - this Fuseki server
+    // Destination - URI path in this Fuseki server
     private final String fusekiDispatchPath;
-    // URL to replay the the request to.
+    // URL to replay the request to.
     private final String remoteEndpoint;
 
     private final boolean syncTopic;
@@ -70,9 +70,9 @@ public class ConnectorFK {
         boolean hasRemoteEndpoint = StringUtils.isEmpty(remoteEndpoint);
 
         if ( hasRemoteEndpoint && hasLocalFusekiService  )
-            Log.warn(this, "ConnectorFK built with both Fuseki service name and remote endpoint URL");
+            Log.warn(this, "ConnectorFK built with both a local dispatch path and remote endpoint URL");
         if ( ! hasRemoteEndpoint && ! hasLocalFusekiService )
-            Log.warn(this, "ConnectorFK built with no Fuseki service name nor remote endpoint URL");
+            Log.warn(this, "ConnectorFK built with no local dispatch path nor remote endpoint URL");
     }
 
     public void start() {

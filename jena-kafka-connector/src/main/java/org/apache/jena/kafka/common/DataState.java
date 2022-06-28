@@ -35,13 +35,14 @@ import org.slf4j.LoggerFactory;
 public class DataState {
     static Logger LOG = LoggerFactory.getLogger(DataState.class);
 
+    // Rename as "localDispatch" and "remoteEndpoint"
     private static String fDataset = "dataset";
     private static String fEndpoint = "endpoint";
     private static String fTopic = "topic";
     private static String fOffset = "offset";
 
-    private final String datasetName;
-    private final String endpoint;
+    private final String dispatchPath;
+    private final String remoteEndpoint;
     private final String topic;
     private final RefBytes state;
     private long offset;
@@ -56,31 +57,24 @@ public class DataState {
         return fromJson(state);
     }
 
-    private DataState(RefBytes state, String datasetName, String endpoint, String topic) {
+    private DataState(RefBytes state, String localDispatchPath, String remoteEndpoint, String topic) {
         this.state = state;
         this.offset = 0;
-        this.datasetName = datasetName;
-        if ( endpoint == null )
-            endpoint = "";
-        this.endpoint = endpoint;
+        this.dispatchPath = localDispatchPath;
+        if ( remoteEndpoint == null )
+            remoteEndpoint = "";
+        this.remoteEndpoint = remoteEndpoint;
         this.topic = topic;
         this.offset = -1;
-
-//  if ( ! this.datasetName.equals(datasetName) )
-//      throw new FusekiKafkaException("Dataset name does not match: this="+this.datasetName+ " / read=" +datasetName);
-//  if ( ! Objects.equals(this.endpoint, endpoint) )
-//      throw new FusekiKafkaException("Endpoint name does not match: this="+this.endpoint+ " / read=" +endpoint);
-//  if ( ! this.topic.equals(topic) )
-//      throw new FusekiKafkaException("Topic does not match: this="+this.datasetName+ " / read=" +topic);
     }
 
-    public static DataState restoreOrCreate(RefBytes state, String datasetName, String endpoint, String topic) {
+    public static DataState restoreOrCreate(RefBytes state, String localDispatchPath, String remoteEndpoint, String topic) {
         Objects.requireNonNull(state);
         Objects.requireNonNull(topic);
-        Objects.requireNonNull(datasetName);
+        Objects.requireNonNull(localDispatchPath);
 
         if ( state.getBytes().length == 0 ) {
-            DataState dataState = new DataState(state, datasetName, endpoint, topic);
+            DataState dataState = new DataState(state, localDispatchPath, remoteEndpoint, topic);
             return dataState;
         }
 
@@ -88,13 +82,17 @@ public class DataState {
         InputStream bout = new ByteArrayInputStream(state.getBytes());
         JsonObject obj = JSON.parse(bout);
         DataState dataState = fromJson(state);
-        if ( ! dataState.datasetName.equals(datasetName) )
-            throw new FusekiKafkaException("Dataset name does not match: this="+dataState.datasetName+ " / read=" +datasetName);
-        if ( ! Objects.equals(dataState.endpoint, endpoint) )
-            throw new FusekiKafkaException("Endpoint name does not match: this="+dataState.endpoint+ " / read=" +endpoint);
-        if ( ! dataState.topic.equals(topic) )
-            throw new FusekiKafkaException("Topic does not match: this="+dataState.datasetName+ " / read=" +topic);
+        checkExpectedSettings(dataState, localDispatchPath, remoteEndpoint, topic);
         return dataState;
+    }
+
+    private static void checkExpectedSettings(DataState dataState, String localDispatchPath, String remoteEndpoint, String topic) {
+        if ( ! dataState.dispatchPath.equals(localDispatchPath) )
+            throw new FusekiKafkaException("Dataset name does not match: loaded="+dataState.dispatchPath+ " / expected=" +localDispatchPath);
+        if ( ! Objects.equals(dataState.remoteEndpoint, remoteEndpoint) )
+            throw new FusekiKafkaException("Endpoint name does not match: loaded="+dataState.remoteEndpoint+ " / expected=" +remoteEndpoint);
+        if ( ! dataState.topic.equals(topic) )
+            throw new FusekiKafkaException("Topic does not match: loaded="+dataState.dispatchPath+ " / expected=" +topic);
     }
 
     private void writeState() {
@@ -121,8 +119,8 @@ public class DataState {
 
     private JsonObject asJson() {
         return JSON.buildObject(builder->builder
-                                            .pair(fDataset, datasetName)
-                                            .pair(fEndpoint, endpoint)
+                                            .pair(fDataset, dispatchPath)
+                                            .pair(fEndpoint, remoteEndpoint)
                                             .pair(fTopic,   topic)
                                             .pair(fOffset,  offset)
         );
@@ -141,12 +139,12 @@ public class DataState {
             throw new FusekiKafkaException("No offset: "+JSON.toStringFlat(obj));
         long offset = offsetNum.longValue();
 
-        if ( ! this.datasetName.equals(datasetName) )
-            throw new FusekiKafkaException("Dataset name does not match: this="+this.datasetName+ " / read=" +datasetName);
-        if ( ! Objects.equals(this.endpoint, endpoint) )
-            throw new FusekiKafkaException("Endpoint name does not match: this="+this.endpoint+ " / read=" +endpoint);
+        if ( ! this.dispatchPath.equals(datasetName) )
+            throw new FusekiKafkaException("Dataset name does not match: this="+this.dispatchPath+ " / read=" +datasetName);
+        if ( ! Objects.equals(this.remoteEndpoint, endpoint) )
+            throw new FusekiKafkaException("Endpoint name does not match: this="+this.remoteEndpoint+ " / read=" +endpoint);
         if ( ! this.topic.equals(topic) )
-            throw new FusekiKafkaException("Topic does not match: this="+this.datasetName+ " / read=" +topic);
+            throw new FusekiKafkaException("Topic does not match: this="+this.dispatchPath+ " / read=" +topic);
         this.offset = offset;
     }
 
@@ -183,7 +181,7 @@ public class DataState {
     }
 
     public String getDatasetName() {
-        return datasetName;
+        return dispatchPath;
     }
 
     public String getTopic() {

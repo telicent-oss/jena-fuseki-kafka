@@ -92,8 +92,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     public void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
         ConnectorFK conn;
         try {
-            // conn = (ConnectorFK)AssemblerUtils.build(configModel,
-            // KafkaConnectorAssembler.getType());
+            // conn = (ConnectorFK)AssemblerUtils.build(configModel,KafkaConnectorAssembler.getType());
             conn = (ConnectorFK)Assembler.general.open(connector);
         } catch (JenaException ex) {
             FmtLog.error(LOG, "Failed to build a connector", ex);
@@ -101,15 +100,16 @@ public class FMod_FusekiKafka implements FusekiModule {
         }
 
         String dispatchURI = conn.getLocalDispatchPath();
-        String endpoint = conn.getRemoteEndpoint();
+        String remoteEndpoint = conn.getRemoteEndpoint();
 
 //        // Endpoint to dataset.
+//        String datasetName = datasetName(dispatchURI);
 //        DatasetGraph dsg = builder.getDataset(datasetName);
 //        if ( dsg == null )
 //            throw new FusekiKafkaException("No datasets for '" + conn.getLocalEndpoint() + "'");
         PersistentState state = new PersistentState(conn.getStateFile());
 
-        DataState dataState = DataState.restoreOrCreate(state, dispatchURI, endpoint, conn.getTopic());
+        DataState dataState = DataState.restoreOrCreate(state, dispatchURI, remoteEndpoint, conn.getTopic());
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
 
