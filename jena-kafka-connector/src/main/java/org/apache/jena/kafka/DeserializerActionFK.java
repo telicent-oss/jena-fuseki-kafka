@@ -45,6 +45,12 @@ public class DeserializerActionFK implements Deserializer<ActionFK> {
             requestHeaders.put(HttpNames.hContentType, defaultContentType);
         }
 
+        // Content-Length
+        if ( ! requestHeaders.containsKey(HttpNames.hContentLength) ) {
+            String contentLengthStr = Integer.toString(data.length);
+            requestHeaders.put(HttpNames.hContentLength, contentLengthStr);
+        }
+
         ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
         return new ActionFK(topic, requestHeaders, bytesIn);
     }
