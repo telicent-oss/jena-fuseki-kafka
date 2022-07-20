@@ -21,7 +21,22 @@
     </license>
   </licenses>
 
+  <issueManagement>
+    <url>https://github.com/telcient-io/jena-fuseki-kafka</url>
+  </issueManagement>
+
+  <scm>
+    <connection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</connection>
+    <developerConnection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</developerConnection>
+    <url>https://github.com/telicent-io/jena-fuseki-kafka</url>
+    <tag>HEAD</tag>
+  </scm>
+
   <properties>
+    <java.version>17</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
+
     <ver.jena>4.5.0</ver.jena>
     <ver.kafka>3.1.0</ver.kafka>
     <ver.log4j2>2.17.2</ver.log4j2>
@@ -30,10 +45,6 @@
     <ver.junit5>5.8.2</ver.junit5>
     <ver.junit5-platform>1.8.2</ver.junit5-platform>
     <ver.testcontainers>1.17.1</ver.testcontainers>
-    
-    <java.version>11</java.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
   </properties>
 
   <modules>
