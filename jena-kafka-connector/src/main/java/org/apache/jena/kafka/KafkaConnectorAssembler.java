@@ -76,24 +76,32 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static String NS = "http://jena.apache.org/fuseki/kafka#";
     public static String getNS() { return NS; }
 
+    /** Type of a connector description */
     private static Resource tKafkaConnector = ResourceFactory.createResource(NS+"Connector");
 
     // Preferred:   "fusekiServiceName"
     // Alternative: "datasetName"
 
+    /** Destination dataset and endpoint for dispatching Kafka events. */
     private static Node pFusekiServiceName     = NodeFactory.createURI(NS+"fusekiServiceName");
+    /** @deprecated Use {@link pFusekiServiceName} */
+    @Deprecated
     private static Node pFusekiDatasetName     = NodeFactory.createURI(NS+"datasetName");       // Old name.
 
-    // Currently unused - will be a remote SPARQL endpoint to use this connector as a replay.
+    /** Currently unused - will be a remote SPARQL endpoint to use this connector as a relay. */
     private static Node pRemoteEndpointName    = NodeFactory.createURI(NS+"remoteEndpoint");
 
+    /** Kafka topic to listen to */
     private static Node pKafkaTopic            = NodeFactory.createURI(NS+"topic");
+    /** File used to record topic and last read offset */
     private static Node pStateFile             = NodeFactory.createURI(NS+"stateFile");
 
-    // What to do at startup:
+    /** Sync on startup? */
     private static Node pSyncTopic             = NodeFactory.createURI(NS+"syncTopic");
+    /** Replay whole topic on startup? */
     private static Node pReplayTopic           = NodeFactory.createURI(NS+"replayTopic");
 
+    // Kafka cluster
     private static Node pKafkaProperty         = NodeFactory.createURI(NS+"config");
     private static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
     private static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
