@@ -55,7 +55,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * <p>
  * Illustration, required settings for use in Fuseki:
  * <pre>
- * <#connector> rdf:type fk:Connector ;
+ * &lt;#connector&gt; rdf:type fk:Connector ;
  *   # Destination Fuseki service name (when used with Fuseki).
  *   fk:fusekiServiceName   "ds";
  *
@@ -68,7 +68,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  *   # File used to track the state (the last offset processes)
  *   # Used across Fuseki restarts.
  *   fk:stateFile           "Databases/RDF.state";
- *
  *    .
  * </pre>
  */
