@@ -33,6 +33,11 @@ gradle-app.setting
 *.iml
 *.ipr
 
+## Editor backups
+*~
+.#*
+\#*
+
 # Compiled class file
 *.class
 
