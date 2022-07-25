@@ -3,7 +3,6 @@
 
 ## ------------------------
 ## This will override the setting in POM
-## e.g. 0.8.2 when the POM says 0.9.0-SNAPSHOT
 
 export VER=0.1.0
 VER_NEXT=0.2.0-SNAPSHOT
