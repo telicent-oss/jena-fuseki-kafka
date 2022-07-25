@@ -49,12 +49,6 @@
     <module>jena-kafka-connector</module>
     <module>jena-fuseki-kafka-module</module>
     <module>jena-kafka-client</module>
-
-    <!-- Creates a server jar with this module bundled with in it.
-         Now: preferred to use a drop-in module-jar and the fuseki-main script.
-    <module>fuseki-kafka-server</module>
-    -->
-
     <!-- Create a drop-in lib/ jar -->
     <module>jena-fmod-kafka</module>
 
