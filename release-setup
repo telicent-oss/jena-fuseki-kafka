@@ -7,20 +7,21 @@
 
 export VER=0.1.0
 VER_NEXT=0.2.0-SNAPSHOT
-
-##REPO="-Dmaven.repo.local=..separatemaven local repo ..
-
+TAG="v$VER"
 ## Set release and next version.
-## If not set, mvn release:prepare wil ask for them.
-MVN_VER="-DreleaseVersion=$VER -DdevelopmentVersion=$VER_NEXT -Dtag=v$VER"
+## If not set, mvn release:prepare will ask for them.
+MVN_VER="-DreleaseVersion=$VER -DdevelopmentVersion=$VER_NEXT -Dtag=$TAG"
+export MVN_ARGS="$MVN_VER"
 
+## Extras:
+## Different local repo for release build:
+##REPO="-Dmaven.repo.local=..separate maven local repo ..
 ## If signing artifacts
 ##export KEY="-Darguments=-Dgpg.keyname=SIGNATURE"
+##export MVN_ARGS="$REPO $KEY $MVN_VER"
 
-export MVN_ARGS="$REPO $KEY $MVN_VER"
-##echo "MVN_ARGS   \$REPO \$KEY \$MVN_VER"
-
-echo "Release: $VER, next development $VER_NEXT"
+echo "Release: $VER, next development $VER_NEXT, tagged=$TAG"
+echo "MVN_ARGS=$MVN_ARGS"
 echo "## Dry run release"
 echo "  mvn \$MVN_ARGS -DdryRun=true release:clean release:prepare"
 

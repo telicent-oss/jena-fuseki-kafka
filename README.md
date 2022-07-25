@@ -101,6 +101,26 @@ Fuseki-Kafka connector.
 
 Copy the bash script `fuseki-main` to the same directory.
 
+### Release
+
+Edit and commit `release-setup` to set the correct versions.
+
+```
+source release-setup
+```
+
+Dry run 
+```
+mvn $MVN_ARGS -DdryRun=true release:clean release:prepare
+```
+
+and for real
+
+```
+mvn $MVN_ARGS release:clean release:prepare
+mvn $MVN_ARGS release:perform
+```
+
 ### Run
 
 In the directory where you wish to run Fuseki:
