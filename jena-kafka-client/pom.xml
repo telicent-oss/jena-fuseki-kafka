@@ -17,6 +17,13 @@
     <relativePath>..</relativePath>
   </parent> 
 
+  <!--
+      Breaks javadoc (3.4.0)
+  <properties>
+    <automatic.module.name>io.telicent.jena.kafka.client</automatic.module.name>
+  </properties>
+  -->
+
   <dependencies>
 
     <dependency>
@@ -59,5 +66,32 @@
     </dependency>
 
   </dependencies>
+
+  <!--
+      See above about Automatic-Module-Name
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+	      <version>3.2.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  -->
 
 </project>

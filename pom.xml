@@ -42,7 +42,7 @@
     <ver.junit4>4.13.2</ver.junit4>
     <ver.junit5>5.8.2</ver.junit5>
     <ver.junit5-platform>1.8.2</ver.junit5-platform>
-    <ver.testcontainers>1.17.1</ver.testcontainers>
+    <ver.testcontainers>1.17.3</ver.testcontainers>
   </properties>
 
   <modules>
@@ -172,14 +172,12 @@
                 <goal>jar-no-fork</goal>
               </goals>
             </execution>
-            <!--
-              <execution> 
-                <id>attach-sources-test</id> 
-                <goals> 
+            <execution> 
+              <id>attach-sources-test</id> 
+              <goals> 
                 <goal>test-jar-no-fork</goal> 
-                </goals>
-              </execution>
-            -->
+              </goals>
+            </execution>
           </executions>
       </plugin>
       
