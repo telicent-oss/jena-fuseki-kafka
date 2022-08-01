@@ -266,13 +266,14 @@
 
   <distributionManagement>
     <repository>
-      <id>github</id>
-      <name>GitHub Telicent Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/telicent-io/repo1</url>
+      <id>aws-codeartifact-telicent</id>
+      <name>Telicent Apache Maven Packages (AWS CodeArtifact)</name>
+      <url>https://telicent-098669589541.d.codeartifact.eu-west-2.amazonaws.com/maven/telicent-code-artifacts/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
       <snapshots>
         <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-        <checksumPolicy>fail</checksumPolicy> 
       </snapshots>
     </repository>
   </distributionManagement>
