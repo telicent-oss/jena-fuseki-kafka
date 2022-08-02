@@ -36,8 +36,10 @@
     <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
 
     <ver.jena>4.5.0</ver.jena>
-    <ver.kafka>3.1.0</ver.kafka>
-    <ver.log4j2>2.17.2</ver.log4j2>
+    <ver.kafka>3.2.1</ver.kafka> 
+
+    <ver.slf4j>1.7.36</ver.slf4j>
+    <ver.log4j2>2.18.0</ver.log4j2>
 
     <ver.junit4>4.13.2</ver.junit4>
     <ver.junit5>5.8.2</ver.junit5>
@@ -76,6 +78,14 @@
         <artifactId>apache-jena-libs</artifactId>
         <version>${ver.jena}</version>
         <type>pom</type>
+        <exclusions>
+          <!-- Drags in older version which are picked up by the enforcer -->
+          <exclusion>
+            <groupId>com.github.jsonld-java</groupId>
+            <artifactId>jsonld-java</artifactId>
+          </exclusion>
+        </exclusions>
+
       </dependency>
 
       <dependency>
@@ -98,9 +108,22 @@
       </dependency>
 
       <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${ver.slf4j}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-slf4j-impl</artifactId>
         <version>${ver.log4j2}</version>
+        <exclusions>
+          <!-- Apache Kafka client pulls in org.osgi:org.osgi.core:jar -->
+          <exclusion>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       
       <dependency>
@@ -161,6 +184,12 @@
         </configuration>
       </plugin>
       
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.2.2</version>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
@@ -259,6 +288,58 @@
           <overWriteReleases>false</overWriteReleases>
           <overWriteIfNewer>true</overWriteIfNewer>
         </configuration>
+      </plugin>
+
+      <!-- Run the enforcer plugin automatically at compile time -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>enforce</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration combine.self="override">
+              <rules>
+                <dependencyConvergence />
+                <requirePluginVersions>
+                  <message>Best practice is to always define plugin versions!</message>
+                  <banLatest>true</banLatest>
+                  <banRelease>true</banRelease>
+                </requirePluginVersions>
+                <requireReleaseDeps>
+                  <message>No SNAPSHOT dependencies are allowed!</message>
+                  <onlyWhenRelease>true</onlyWhenRelease>
+                </requireReleaseDeps>
+                <requireMavenVersion>
+                  <version>3.8.1</version>
+                </requireMavenVersion>
+              </rules>
+              <fail>true</fail>
+              <failFast>false</failFast>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.2.0</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-install-plugin</artifactId>
+        <version>3.0.1</version>
+      </plugin>
+      
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.9.1</version>
       </plugin>
 
     </plugins>
