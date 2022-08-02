@@ -79,13 +79,24 @@
         <version>${ver.jena}</version>
         <type>pom</type>
         <exclusions>
-          <!-- Drags in older version which are picked up by the enforcer -->
           <exclusion>
-            <groupId>com.github.jsonld-java</groupId>
-            <artifactId>jsonld-java</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
 
+      <!--
+           jsonld-java pulls in an older version causing an issue
+           signalled by the enforcer
+           plugin.
+           Fixed at Jena 4.6.0.
+      -->
+
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.11.0</version>
       </dependency>
 
       <dependency>

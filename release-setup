@@ -4,8 +4,8 @@
 ## ------------------------
 ## This will override the setting in POM
 
-export VER=0.1.0
-VER_NEXT=0.2.0-SNAPSHOT
+export VER=0.2.0
+VER_NEXT=0.3.0-SNAPSHOT
 TAG="v$VER"
 ## Set release and next version.
 ## If not set, mvn release:prepare will ask for them.

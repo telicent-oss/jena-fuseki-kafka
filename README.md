@@ -40,6 +40,8 @@ for access control and other features.
 This project uses the Apache Jena Fuseki Main server and is configured with a
 Fuseki configuration file.
 
+Java17 or later is required.
+
 ## Connector Configuration
 
 The connector configuration goes in the Fuseki configuration file.
@@ -83,7 +85,7 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     .
 ```
 
-### Build
+## Build
 
 Run
 ```
@@ -101,6 +103,21 @@ Fuseki-Kafka connector.
 
 Copy the bash script `fuseki-main` to the same directory.
 
+### Deploy with maven
+
+Make sure you have authorized with AWS CodeArtifact (valid for 12 hours):
+
+```
+export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain telicent --domain-owner 098669589541 --query authorizationToken --output text`
+```
+
+([Documentation](https://eu-west-2.console.aws.amazon.com/codesuite/codeartifact/d/098669589541/telicent/r/telicent-code-artifacts?packages-meta=eyJmIjp7fSwicyI6e30sIm4iOjIwLCJpIjowfQ&region=eu-west-2#).)
+
+Run
+```
+   mvn clean deploy
+```
+
 ### Release
 
 Edit and commit `release-setup` to set the correct versions.
@@ -108,6 +125,10 @@ Edit and commit `release-setup` to set the correct versions.
 ```
 source release-setup
 ```
+This prints the dry-run command.
+
+If you hvae run this file, then change it, simply source the file again.
+
 
 Dry run 
 ```
@@ -121,7 +142,21 @@ mvn $MVN_ARGS release:clean release:prepare
 mvn $MVN_ARGS release:perform
 ```
 
-### Run
+### Rollback
+
+If things go wrong, and it is just in the release steps:
+
+```
+mvn $MVN_ARGS release:rollback
+```
+
+otherwise, checkout out from git or reset the version manually with:
+
+```
+mvn versions:set -DnewVersion=...-SNAPSHOT
+```
+
+## Run
 
 In the directory where you wish to run Fuseki:
 
@@ -139,14 +174,7 @@ connector setup.
 Windows uses can run `fuseki-main.bat` which may need adjusting for the coirrect
 version number of Fuseki.
 
-### Publish - deploy with maven
-
-Run
-```
-   mvn clean deploy
-```
-
-### Client
+## Client
 
 `jena-fuseki-client` contains a script `fk` for operations on the Kafka topic.
 
