@@ -356,17 +356,24 @@
     </plugins>
   </build>
 
+  <repositories>
+    <repository>
+      <id>apache-snapshots</id>
+      <url>https://repository.apache.org/content/repositories/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <distributionManagement>
     <repository>
       <id>aws-codeartifact-telicent</id>
       <name>Telicent Apache Maven Packages (AWS CodeArtifact)</name>
       <url>https://telicent-098669589541.d.codeartifact.eu-west-2.amazonaws.com/maven/telicent-code-artifacts/</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
     </repository>
   </distributionManagement>
 
