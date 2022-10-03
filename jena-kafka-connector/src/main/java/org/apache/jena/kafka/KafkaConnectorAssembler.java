@@ -152,7 +152,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *
-         * [] rdf:type jenakafka:Connector ;
+         * [] rdf:type fk:Connector ;
          *     fk:topic             "TOPIC";
          *     fk:bootstrapServers  "localhost:9092";
          *     fk:stateFile         "dir/filename.state" ;
