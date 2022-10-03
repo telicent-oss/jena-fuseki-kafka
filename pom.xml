@@ -7,7 +7,7 @@
   <groupId>io.telicent.jena</groupId>
   <artifactId>jena-kafka</artifactId>
   <packaging>pom</packaging>
-  <version>0.3.0</version>
+  <version>0.4.0-SNAPSHOT</version>
 
   <name>Apache Jena Fuseki-Kafka Connector</name>
   <description>Fuseki Module : Kafka Connector</description>
@@ -27,7 +27,7 @@
     <connection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</connection>
     <developerConnection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</developerConnection>
     <url>https://github.com/telicent-io/jena-fuseki-kafka</url>
-    <tag>v0.3.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <properties>
