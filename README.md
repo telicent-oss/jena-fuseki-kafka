@@ -7,17 +7,23 @@ License: Apache License 2.0.
 See [LICENSE](./LICENSE).
 
 The Fuseki-Kafka connector receives Kafka events on a topic and applies them to
-a Fuseki server. In effect, it is the same as if an HTTP POST request is sent to
+a Fuseki service endpoint. In effect, it is the same as if an HTTP POST request is sent to
 the Fuseki service.
 
 The Kafka event must have a Kafka message header "Content-Type" set to the MIME
 type of the content. No other headers are required.
 
-SPARQL Update is supported.
-RDF data is added into the dataset of the service.
+Supported MIME types:
+* An RDF triples or quads format - any synatx supported by 
+  Apache Jena - `application/n-triples`, `text/turtle`, ...
+* SPARQL Update
 
-The Fuseki service must be configured with the "update" if SPARQL Update request
-are sent, and "gsp-rw" for RDF data (any syntax supported by Jena).
+
+The Fuseki service must be configured with the appropriate operations.
+`fuseki:gsp-rw` or `fuseki:upload` for pushing RDF into a dataset; 
+`fuseki:update` for SPARQL Update.
+The Fuseki implementation of th SPARQL Graph Store Protocol is extended to
+support data set to the dataset without graph name.
 
 ```
 :service rdf:type fuseki:Service ;
@@ -93,7 +99,6 @@ Run
 ```
 This includes running Apache Kafka via docker containers from
 `testcontainers.io`. There is a large, one time, download.
-There is a lot of logging output.
 
 This create a jar file `jena-fmod-kafka-VER.jar` in
 `jena-fmod-kafka/target/`
@@ -127,8 +132,8 @@ source release-setup
 ```
 This prints the dry-run command.
 
-If you hvae run this file, then change it, simply source the file again.
-
+If you need to change the setup, edit this file, commit it and simply source the
+file again.
 
 Dry run 
 ```
@@ -163,7 +168,7 @@ In the directory where you wish to run Fuseki:
 Get a copy of Fuseki Main:
 
 ```
-wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.5.0/jena-fuseki-server-4.5.0.jar
+wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.6.1/jena-fuseki-server-4.6.1.jar
 ```
 
 then run `fuseki-main --conf config.ttl`

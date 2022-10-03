@@ -2,10 +2,10 @@
 # Source me
 
 ## ------------------------
-## This will override the setting in POM
+## This will override the settings in POM
 
-export VER=0.2.0
-VER_NEXT=0.3.0-SNAPSHOT
+export VER=0.3.0
+VER_NEXT=0.4.0-SNAPSHOT
 TAG="v$VER"
 ## Set release and next version.
 ## If not set, mvn release:prepare will ask for them.
@@ -19,7 +19,7 @@ export MVN_ARGS="$MVN_VER"
 ##export KEY="-Darguments=-Dgpg.keyname=SIGNATURE"
 ##export MVN_ARGS="$REPO $KEY $MVN_VER"
 
-echo "Release: $VER, next development $VER_NEXT, tagged=$TAG"
+echo "Release: $VER, next development: $VER_NEXT, tagged: $TAG"
 echo "MVN_ARGS=$MVN_ARGS"
 echo "## Dry run release"
 echo "  mvn \$MVN_ARGS -DdryRun=true release:clean release:prepare"
