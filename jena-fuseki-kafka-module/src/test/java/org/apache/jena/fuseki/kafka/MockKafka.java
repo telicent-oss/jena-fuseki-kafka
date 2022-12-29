@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka.test;
+package org.apache.jena.fuseki.kafka;
 
 import java.util.Collection;
 import java.util.List;

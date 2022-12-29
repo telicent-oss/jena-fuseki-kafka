@@ -17,9 +17,9 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     fk:fusekiServiceName  "/ds";
     
     ## Whether to re-sync from the topic at start-up.
-    ## false makes Fueki-Kafka just a message transport
+    ## false makes Fuseki-Kafka just a message transport
     ## but is easier during development.
-    fk:topicSync          false ;
+    fk:syncTopic          false ;
 
     ## If true, ignore topicSync=true and play from the start of the topic.
     ## fk:replayTopic        false ;

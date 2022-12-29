@@ -85,22 +85,23 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     // Alternative: "datasetName"
 
     /** Destination dataset and endpoint for dispatching Kafka events. */
-    private static Node pFusekiServiceName     = NodeFactory.createURI(NS+"fusekiServiceName");
+    public static Node pFusekiServiceName     = NodeFactory.createURI(NS+"fusekiServiceName");
     /** @deprecated Use {@link pFusekiServiceName} */
     @Deprecated
-    private static Node pFusekiDatasetName     = NodeFactory.createURI(NS+"datasetName");       // Old name.
+    private static Node pFusekiDatasetName    = NodeFactory.createURI(NS+"datasetName");       // Old name.
 
     /** Currently unused - will be a remote SPARQL endpoint to use this connector as a relay. */
-    private static Node pRemoteEndpointName    = NodeFactory.createURI(NS+"remoteEndpoint");
+    public static Node pRemoteEndpointName    = NodeFactory.createURI(NS+"remoteEndpoint");
 
     /** Kafka topic to listen to */
-    private static Node pKafkaTopic            = NodeFactory.createURI(NS+"topic");
+    public static Node pKafkaTopic            = NodeFactory.createURI(NS+"topic");
     /** File used to record topic and last read offset */
-    private static Node pStateFile             = NodeFactory.createURI(NS+"stateFile");
+    public static Node pStateFile             = NodeFactory.createURI(NS+"stateFile");
 
     /** Sync on startup? */
-    private static Node pSyncTopic             = NodeFactory.createURI(NS+"syncTopic");
+    public static Node pSyncTopic             = NodeFactory.createURI(NS+"syncTopic");
     /** Replay whole topic on startup? */
+
     private static Node pReplayTopic           = NodeFactory.createURI(NS+"replayTopic");
     /**
      * Destination for dumped events.
@@ -117,14 +118,14 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static Node pEventSource             = NodeFactory.createURI(NS+"eventSource");
 
     // Kafka cluster
-    private static Node pKafkaProperty         = NodeFactory.createURI(NS+"config");
-    private static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
-    private static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
+    public static Node pKafkaProperty         = NodeFactory.createURI(NS+"config");
+    public static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
+    public static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
 
     // Values.
-    private static boolean dftSyncTopic        = true;
-    private static boolean dftReplayTopic      = false;
-    private static String dftKafkaGroupId      = "JenaFusekiKafka";
+    private static boolean dftSyncTopic       = true;
+    private static boolean dftReplayTopic     = false;
+    public static String dftKafkaGroupId      = "JenaFusekiKafka";
 
     public static Resource getType() {
         return tKafkaConnector;
@@ -195,7 +196,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String remoteEndpoint = remoteEndpointName(graph, node);
         String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers, errorException);
 
-        boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
+        boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, dftReplayTopic, errorException);
 
         String eventSource = Assem2.getStringOrDft(graph, node, pEventSource, null, errorException);
@@ -253,7 +254,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
 
-        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, topicSync, replayTopic, kafkaProps, verbose, (x)->logOutput);
+        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, syncTopic, replayTopic, kafkaProps, verbose, (x)->logOutput);
     }
 
     private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"

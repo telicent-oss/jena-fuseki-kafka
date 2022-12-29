@@ -22,13 +22,17 @@ import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.servlet.ServletContext;
 
 import org.apache.jena.assembler.Assembler;
+import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
 import org.apache.jena.fuseki.server.Dispatcher;
 import org.apache.jena.kafka.ActionFK;
@@ -60,7 +64,6 @@ public class FMod_FusekiKafka implements FusekiModule {
 
     private static final String attrNS = KafkaConnectorAssembler.getNS();
     private static final String attrConnectionFK = attrNS + "connectorFK";
-    private static final String attrDataState = attrNS + "dataState";
 
     private String modName = UUID.randomUUID().toString();
 
@@ -80,19 +83,12 @@ public class FMod_FusekiKafka implements FusekiModule {
             // FmtLog.error(LOG, "No connector in server configuration");
             return;
         }
-
-        if ( connectors.size() > 1 ) {
-            FmtLog.warn(LOG, "Multiple connector configurations");
-            return;
-        }
-
         connectors.forEach(c -> oneConnector(builder, c, configModel));
     }
 
-    public void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
+    /*package*/ void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
         ConnectorFK conn;
         try {
-            // conn = (ConnectorFK)AssemblerUtils.build(configModel,KafkaConnectorAssembler.getType());
             conn = (ConnectorFK)Assembler.general.open(connector);
         } catch (JenaException ex) {
             FmtLog.error(LOG, "Failed to build a connector", ex);
@@ -113,26 +109,62 @@ public class FMod_FusekiKafka implements FusekiModule {
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
 
-        // Limitation. One connector per build.
-        builder.addServletAttribute(attrConnectionFK, conn);
-        builder.addServletAttribute(attrDataState, dataState);
+        Pair<ConnectorFK, DataState> pair = Pair.create(conn, dataState);
+        addServletAttribute(builder, attrConnectionFK, pair);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addServletAttribute(Builder builder, String attribute, Object obj) {
+        Object x = builder.getServletAttribute(attribute);
+        List<Object> values;
+        if ( x == null )
+            values = new ArrayList<>();
+        else if ( !(x instanceof List<?> ) ) {
+            FmtLog.warn(LOG, "Not a list for attribute %s", attribute);
+            return;
+        } else {
+            values = (List<Object>)x;
+        }
+        values.add(obj);
+        builder.addServletAttribute(attribute, values);
     }
 
     @Override
     public void serverBeforeStarting(FusekiServer server) {
-        // -- Wire connector
-        ServletContext servletContext = server.getServletContext();
-        ConnectorFK conn = (ConnectorFK)servletContext.getAttribute(attrConnectionFK);
-        if ( conn == null )
+        List<Pair<ConnectorFK, DataState>> connectors = connectors(server);
+        if ( connectors == null )
             return;
-        DataState dataState = (DataState)servletContext.getAttribute(attrDataState);
-        FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
-                    conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint()
-                );
-        addConnectorToServer(conn, server, dataState);
+        connectors.forEach(pair->{
+            ConnectorFK conn = pair.getLeft();
+            DataState dataState = pair.getRight();
+            FmtLog.info(LOG, "Starting connector between topic %s and %s", conn.getTopic(),
+                        conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint()
+                    );
+            addConnectorToServer(conn, server, dataState);
+        });
     }
 
-    public static void addConnectorToServer(ConnectorFK conn, FusekiServer server, DataState dataState) {
+    @Override
+    public void serverStopped(FusekiServer server) {
+        List<Pair<ConnectorFK, DataState>> connectors = connectors(server);
+        if ( connectors == null )
+            return;
+        connectors.forEach(pair->{
+            ConnectorFK conn = pair.getLeft();
+            DataState dataState = pair.getRight();
+        });
+    }
+
+    private static List<Pair<ConnectorFK, DataState>> connectors(FusekiServer server) {
+        ServletContext servletContext = server.getServletContext();
+        Object obj = servletContext.getAttribute(attrConnectionFK);
+        @SuppressWarnings("unchecked")
+        List<Pair<ConnectorFK, DataState>> connectors = (List<Pair<ConnectorFK, DataState>>)obj;
+        return connectors;
+    }
+
+
+    static void addConnectorToServer(ConnectorFK conn, FusekiServer server, DataState dataState) {
         String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
         //String remoteEndpoint = conn.getRemoteEndpoint();
@@ -233,13 +265,25 @@ public class FMod_FusekiKafka implements FusekiModule {
         dataState.setOffset(beginning);
     }
 
+    private static ExecutorService threads = threadExecutor();
+
+    private static ExecutorService threadExecutor() {
+        return Executors.newFixedThreadPool(1, runnable -> {
+            Thread th = new Thread(runnable);
+            th.setDaemon(true);
+            return th;
+        });
+    }
+
+    /** The background threads */
+    static void resetPollThreads() {
+        threads.shutdown();
+        threads = threadExecutor();
+    }
+
     private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
         Runnable task = () -> topicPoll(requestProcessor, consumer, dataState);
-        // Executor
-        Thread thread = new Thread(task, label);
-        // Not ideal but transactions will protect the dataset.
-        thread.setDaemon(true);
-        thread.start();
+        threads.submit(task);
     }
 
     /** Polling task loop.*/
@@ -260,4 +304,45 @@ public class FMod_FusekiKafka implements FusekiModule {
         }
         return somethingReceived;
     }
+
+    // Better? One scheduled executor.
+    // Completes with Kakfa and polling duration.
+//  private static List<Runnable> tasks = new CopyOnWriteArrayList<Runnable>();
+//
+//  private static ScheduledExecutorService threads = threadExecutor();
+//
+//  private static ScheduledExecutorService threadExecutor() {
+//      return Executors.newScheduledThreadPool(1);
+//  }
+//
+//  /** The background threads */
+//  static void resetPollThreads() {
+//      threads.shutdown();
+//      threads = threadExecutor();
+//  }
+//
+//  private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
+//      Duration pollingDuration = Duration.ofMillis(5000);
+//      Runnable task = () -> oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
+//      threads.scheduleAtFixedRate(task, 500, 10000, TimeUnit.MILLISECONDS);
+//  }
+//
+////  /** Polling task loop.*/
+////  private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+////      Duration pollingDuration = Duration.ofMillis(5000);
+////      for ( ;; ) {
+////          boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
+////      }
+////  }
+//
+//  /** A polling attempt either returns some records or waits the polling duration. */
+//  private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
+//      long lastOffsetState = dataState.getOffset();
+//      boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
+//      if ( somethingReceived ) {
+//          long newOffset = dataState.getOffset();
+//          FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
+//      }
+//      return somethingReceived;
+//  }
 }

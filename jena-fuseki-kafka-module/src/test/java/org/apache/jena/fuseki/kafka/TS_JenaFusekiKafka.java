@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka.test;
+package org.apache.jena.fuseki.kafka;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
-
-@RunWith(Suite.class)
-@Suite.SuiteClasses( {
-    TestFK.class
-})
+//import org.junit.runner.RunWith;
+//import org.junit.runners.Suite;
+//
+//@RunWith(Suite.class)
+//@Suite.SuiteClasses( {
+//    TestFK.class
+//    , TestConfigFK.class
+//})
 
 public class TS_JenaFusekiKafka {}

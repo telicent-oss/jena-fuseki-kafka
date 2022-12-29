@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka.test;
+package org.apache.jena.fuseki.kafka;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +29,6 @@ import java.util.function.BiConsumer;
 
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.fuseki.kafka.FMod_FusekiKafka;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
@@ -46,6 +45,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.junit.After;
 import org.junit.jupiter.api.*;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -85,6 +85,10 @@ public class TestFK {
         producerProps.put("bootstrap.servers", mock.getServer());
     }
 
+    @After public void after() {
+        FMod_FusekiKafka.resetPollThreads();
+    }
+
     Properties consumerProps() {
         Properties consumerProps = new Properties();
         consumerProps.put("bootstrap.servers", mock.getServer());
@@ -115,16 +119,7 @@ public class TestFK {
         FKLib.send(producerProps(), TOPIC, List.of(DIR+"/data-nq"));
     }
 
-    @Test public void fk03_fuseki() {
-        DataState dataState = DataState.createEphemeral(TOPIC);
-        FusekiServer server = startFuseki(dataState, consumerProps());
-        String URL = "http://localhost:"+server.getHttpPort()+DSG;
-        RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-        assertEquals(2, count);
-    }
-
-    @Test public void fk04_receive() {
+    @Test public void fk03_receive() {
         Properties cProps = consumerProps();
         DataState dataState = DataState.createEphemeral(TOPIC);
         AtomicInteger count = new AtomicInteger(0);
@@ -133,10 +128,18 @@ public class TestFK {
         assertEquals(3, count.get());
     }
 
+    @Test public void fk04_fuseki() {
+        DataState dataState = DataState.createEphemeral(TOPIC);
+        FusekiServer server = startFuseki(dataState, consumerProps());
+        String URL = "http://localhost:"+server.getHttpPort()+DSG;
+        RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
+        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        assertEquals(2, count);
+    }
+
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
-        // Automatic; but relying on a configuration file to find the connector description.
-        // ServletContext?
+        // Automatic
         //FusekiModules.add(new FMod_FusekiKafka());
         FusekiServer server = FusekiServer.create()
                 .port(0)
