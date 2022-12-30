@@ -40,7 +40,8 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
     private final InputStream inputStream;
     private final ServletContext servletContext;
 
-    public HttpServletRequestMinimal(String requestURI, Map<String, String> headers, Map<String, String> parameters, InputStream inputStream, ServletContext servletContext) {
+    public HttpServletRequestMinimal(String requestURI, Map<String, String> headers, Map<String, String> parameters,
+                                     InputStream inputStream, ServletContext servletContext) {
         this.requestURI = requestURI;
         this.headers = headers;
         this.parameters = parameters;
@@ -52,7 +53,8 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
 
     @Override
     public String getCharacterEncoding() {
-        return "UTF-8";
+        // Workaround for jena 4.7.0 (getCharacterEncoding must be LC for RDF patch).
+        return "UTF-8".toLowerCase();
     }
 
     @Override

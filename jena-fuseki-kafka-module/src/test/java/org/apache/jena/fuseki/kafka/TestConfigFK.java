@@ -35,6 +35,7 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFParser;
+import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.other.G;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
@@ -86,6 +87,7 @@ public class TestConfigFK {
         mock.createTopic("RDF0");
         mock.createTopic("RDF1");
         mock.createTopic("RDF2");
+        mock.createTopic("RDF_Patch");
     }
 
     @AfterAll public static void afterClass2() {
@@ -126,7 +128,7 @@ public class TestConfigFK {
                 //.verbose(true)
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
-        FKLib.send(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
         server.start();
         try {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
@@ -153,9 +155,9 @@ public class TestConfigFK {
                 .build();
         // Two triples in topic 2
         // One triple in topic 1
-        FKLib.send(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
-        FKLib.send(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
-        FKLib.send(producerProps(), TOPIC2, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
+        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/data.ttl"));
         // Do after the "send" so the first poll picks them up.
         server.start();
         try {
@@ -182,13 +184,38 @@ public class TestConfigFK {
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         // One triple on each topic.
-        FKLib.send(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
-        FKLib.send(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
+        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
         server.start();
         try {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds0";
             int count = count(URL);
             assertEquals(2, count);
+        } finally { server.stop(); }
+    }
+
+
+    // RDF Patch
+    @Test public void fk04_fuseki_patch() {
+        String TOPIC = "RDF_Patch";
+        Graph graph = configuration(DIR+"/config-connector-patch.ttl", mock.getServer());
+        FileOps.ensureDir(STATE_DIR);
+        FileOps.clearDirectory(STATE_DIR);
+
+        // Configuration knows the topic name.
+        FusekiServer server = FusekiServer.create()
+                .port(0)
+                //.verbose(true)
+                .parseConfig(ModelFactory.createModelForGraph(graph))
+                .build();
+        FKLib.sendString(producerProps(), TOPIC, WebContent.contentTypeSPARQLUpdate, "CLEAR ALL");
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/patch1.rdfp"));
+        server.start();
+        try {
+            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
+            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
+            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+            assertEquals(4, count);
         } finally { server.stop(); }
     }
 

@@ -18,8 +18,6 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import static org.apache.jena.kafka.FusekiKafka.hContentType;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
@@ -29,6 +27,7 @@ import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.WebContent;
+import org.apache.jena.riot.web.HttpNames;
 import org.apache.kafka.common.header.Headers;
 
 /**
@@ -36,6 +35,8 @@ import org.apache.kafka.common.header.Headers;
  * <p>
  * This is the simplified version of what Fuseki would do for an operation sent to
  * the dataset URL. It splits RDF data from SPARQL Updates based on Content-Type.
+ * <p>
+ * The Fuseki dispatch is {@link FKRequestProcessor} which uses Fuseki dispatch on operation type.
  */
 public abstract class FKProcessor {
 
@@ -43,7 +44,7 @@ public abstract class FKProcessor {
 
     public void process(String topic, Headers headers, byte[] data) {
         ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
-        String contentType = Bytes.bytes2string(headers.lastHeader(hContentType).value());
+        String contentType = Bytes.bytes2string(headers.lastHeader(HttpNames.hContentType).value());
         action(topic, contentType, bytesIn);
     }
 
@@ -56,6 +57,11 @@ public abstract class FKProcessor {
                 actionSparqlUpdate(topic, data);
                 return;
             }
+            if ( WebContent.contentTypePatch.equals(contentType) ) {
+                System.err.println("PATCH");
+                return;
+            }
+
             Lang lang = RDFLanguages.contentTypeToLang(contentType);
             if ( lang != null ) {
                 actionData(topic, lang, data);
@@ -72,6 +78,8 @@ public abstract class FKProcessor {
     }
 
     protected abstract void actionSparqlUpdate(String topic, InputStream data);
+
+    protected abstract void actionRDFPatch(String topic, Lang lang, InputStream data);
 
     protected abstract void actionData(String topic, Lang lang, InputStream data);
 

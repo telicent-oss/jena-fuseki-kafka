@@ -41,6 +41,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 /**
  * The engine for the Kafka-Fuseki connector.
+ * <p>
+ * See {@link FKProcessor} for plain dispatch.
  */
 public class FKRequestProcessor {
     // --> rename!

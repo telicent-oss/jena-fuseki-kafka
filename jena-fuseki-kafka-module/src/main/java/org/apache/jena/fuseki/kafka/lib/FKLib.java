@@ -51,8 +51,11 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
 
 public class FKLib {
+
+    private static Logger LOG = FusekiKafka.LOG;
 
     // -- send file
     public static String  ctForFile(String fn) {
@@ -61,6 +64,8 @@ public class FKLib {
             String ext = FileUtils.getFilenameExt(fn);
             if ( Lib.equals("ru", ext) )
                 ct = WebContent.contentTypeSPARQLUpdate;
+            else if ( Lib.equals("rdfp", ext) )
+                ct = WebContent.contentTypePatch;
             else {
                 Lang lang = RDFLanguages.filenameToLang(fn);
                 if ( lang != null )
@@ -78,11 +83,19 @@ public class FKLib {
         return producer;
     }
 
-    public static void send(Properties props, String topic, List<String> files) {
+    public static void sendFiles(Properties props, String topic, List<String> files) {
         try ( StringSerializer serString1 = new StringSerializer();
               StringSerializer serString2 = new StringSerializer();
               Producer<String, String> producer = producer(props) ) {
-            send(producer, null, topic, files);
+            sendFiles(producer, null, topic, files);
+        }
+    }
+
+    public static void sendString(Properties props, String topic, String contentType, String content) {
+        try ( StringSerializer serString1 = new StringSerializer();
+              StringSerializer serString2 = new StringSerializer();
+              Producer<String, String> producer = producer(props) ) {
+            sendString(producer, null, topic, contentType, content);
         }
     }
 
@@ -90,19 +103,30 @@ public class FKLib {
         return new RecordHeader(key, value.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static void send(Producer<String, String> producer, Integer partition, String topic, List<String> files) {
+    private static void sendFiles(Producer<String, String> producer, Integer partition, String topic, List<String> files) {
         for ( String fn : files ) {
             RecordMetadata res = sendFile(producer, partition, topic, fn);
             if ( res == null )
-                System.out.println("Error");
+                LOG.error("Error: sendFile");
             else if ( ! res.hasOffset() )
-                System.out.println("No offset");
+                LOG.error("No offset");
             else
-                System.out.println("Send: Offset = "+res.offset());
+                LOG.info("Send: Offset = "+res.offset());
         }
     }
 
-    public static RecordMetadata sendFile(Producer<String, String> producer, Integer partition, String topic, String fn) {
+    private static void sendString(Producer<String, String> producer, Integer partition, String topic, String contentType, String content) {
+        List<Header> headers = ( contentType != null ) ? List.of(header(HttpNames.hContentType, contentType)) : List.of();
+        RecordMetadata res = sendBody(producer, partition, topic, headers, content);
+        if ( res == null )
+            LOG.error("Error: sendFile");
+        else if ( ! res.hasOffset() )
+            LOG.error("No offset");
+        else
+            LOG.info("Send: Offset = "+res.offset());
+    }
+
+    private static RecordMetadata sendFile(Producer<String, String> producer, Integer partition, String topic, String fn) {
         String ct = ctForFile(fn);
         String body = IO.readWholeFileAsUTF8(fn);
         List<Header> headers = ( ct != null ) ? List.of(header(HttpNames.hContentType, ct)) : List.of();
@@ -110,7 +134,7 @@ public class FKLib {
         return res;
     }
 
-    public static RecordMetadata sendBody(Producer<String, String> producer, Integer partition, String topic, List<Header> headers, String body) {
+    private static RecordMetadata sendBody(Producer<String, String> producer, Integer partition, String topic, List<Header> headers, String body) {
         try {
             ProducerRecord<String, String> pRec = new ProducerRecord<>(topic, partition, null, null, body, headers);
             Future<RecordMetadata> f = producer.send(pRec);

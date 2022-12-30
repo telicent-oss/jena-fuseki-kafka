@@ -24,6 +24,8 @@ import java.io.StringWriter;
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.fuseki.kafka.FKProcessor;
 import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.rdfpatch.RDFPatch;
+import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.StreamRDF;
@@ -44,6 +46,14 @@ public class FKPrintRequest {
                 //printRaw(topic, data);
                 UpdateRequest up = UpdateFactory.read(data);
                 String dataStr = up.toString();
+                print(topic, dataStr);
+            }
+
+            @Override
+            protected void actionRDFPatch(String topic, Lang lang, InputStream data) {
+                //printRaw(topic, data);
+                RDFPatch patch = RDFPatchOps.read(data);
+                String dataStr = patch.toString();
                 print(topic, dataStr);
             }
 
@@ -73,6 +83,7 @@ public class FKPrintRequest {
                     System.out.println();
                 System.out.println("--");
             }
+
         };
         proc.action(action.getContentType(), action.getTopic(), action.getBytes());
     }

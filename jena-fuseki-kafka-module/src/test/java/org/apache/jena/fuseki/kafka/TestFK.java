@@ -115,8 +115,8 @@ public class TestFK {
     }
 
     @Test public void fk02_send() {
-        FKLib.send(producerProps(), TOPIC, List.of(DIR+"/data.ttl",DIR+"/update.ru"));
-        FKLib.send(producerProps(), TOPIC, List.of(DIR+"/data-nq"));
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl",DIR+"/update.ru"));
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data-nq"));
     }
 
     @Test public void fk03_receive() {
@@ -148,7 +148,7 @@ public class TestFK {
                 .build();
         ConnectorFK conn = new ConnectorFK(TOPIC, DSG, null/*remoteEndpoint*/, null/*stateFile*/,
                                            false/*syncTopic*/, true/*replayTopic*/,
-                                           consumerProps);
+                                           consumerProps, false, (x)->System.out);
         // Manual call to setup the server.
         FMod_FusekiKafka.addConnectorToServer(conn, server, dataState);
         server.start();
