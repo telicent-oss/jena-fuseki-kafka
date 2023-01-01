@@ -16,27 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.jena.kafka;
+package org.apache.jena.fuseki.kafka;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.jena.util.Metadata;
 
-import org.apache.jena.atlas.lib.Bytes;
-import org.apache.kafka.common.header.Headers;
+public class Meta {
+    /** The root name for metadata */
+    public static final String MPATH         = "io.telicent.jena.fuseki-kafka";
 
-public class FK {
+    static private String metadataLocation  = "io/telicent/jena/fuseki-kafka.properties.xml";
 
-    /**
-     * Kafka headers to a Map. If there are multiple headers with the same key name,
-     * only the last header value goes in the map.
-     */
-    public static Map<String, String> headerToMap(Headers headers) {
-        Map<String, String> map = new HashMap<>();
-        headers.forEach(header->{
-            String hName = header.key();
-            String hValue = Bytes.bytes2string(header.value());
-            map.put(hName,  hValue);
-        });
-        return map;
-    }
+    static private Metadata metadata        = new Metadata(metadataLocation);
+
+    /** The product name */
+    public static final String NAME         = metadata.get(MPATH+".name", "FK");
+
+    /** The full name of the current ARQ version */
+    public static final String VERSION      = metadata.get(MPATH+".version", "unknown");
+
+    /** The date and time at which this release was built */
+    public static final String BUILD_DATE   = metadata.get(MPATH+".build.datetime", "unset");
 }

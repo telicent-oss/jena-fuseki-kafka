@@ -20,6 +20,7 @@ package org.apache.jena.kafka;
 
 import static org.apache.jena.kafka.Assem2.onError;
 
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
 
@@ -30,6 +31,7 @@ import org.apache.jena.assembler.Mode;
 import org.apache.jena.assembler.assemblers.AssemblerBase;
 import org.apache.jena.atlas.lib.IRILib;
 import org.apache.jena.atlas.lib.StrUtils;
+import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -100,6 +102,19 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static Node pSyncTopic             = NodeFactory.createURI(NS+"syncTopic");
     /** Replay whole topic on startup? */
     private static Node pReplayTopic           = NodeFactory.createURI(NS+"replayTopic");
+    /**
+     * Destination for dumped events.
+     * A destination of "" is stdout. "stdout" and "stderr" map to the channels of the same name.
+     */
+    private static Node pEventLog             = NodeFactory.createURI(NS+"eventLog");
+
+    /**
+     * Read events from a source instead of Kafka.
+     * <p>
+     * A source is a directory of files, one file per event, and the filenames must
+     * contain an index number and end ".http".
+     */
+    private static Node pEventSource             = NodeFactory.createURI(NS+"eventSource");
 
     // Kafka cluster
     private static Node pKafkaProperty         = NodeFactory.createURI(NS+"config");
@@ -183,6 +198,22 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         boolean topicSync = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, dftReplayTopic, errorException);
 
+        String eventSource = Assem2.getStringOrDft(graph, node, pEventSource, null, errorException);
+        if ( eventSource != null )
+            Log.warn(this, "Event source not supported");
+
+        String logDestination = Assem2.getStringOrDft(graph, node, pEventLog, null, errorException);
+        boolean verbose = logDestination != null;
+        @SuppressWarnings("resource")
+        PrintStream logOutput =
+                logDestination == null ? null :
+                    switch(logDestination) {
+                            case "", "stdout" -> System.out;
+                            case "stderr" -> System.err;
+                            // For now - later, filename base.
+                            default -> null;
+                    };
+
         String stateFile = Assem2.getAsString(graph, node, pStateFile, errorException);
         // The file name can be a relative file name as a string or a
         // file: can URL place the area next to the configuration file.
@@ -222,7 +253,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
 
-        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, topicSync, replayTopic, kafkaProps);
+        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, topicSync, replayTopic, kafkaProps, verbose, (x)->logOutput);
     }
 
     private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"

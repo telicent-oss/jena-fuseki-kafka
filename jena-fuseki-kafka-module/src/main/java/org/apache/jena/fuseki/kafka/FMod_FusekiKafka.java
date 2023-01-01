@@ -175,6 +175,12 @@ public class FMod_FusekiKafka implements FusekiModule {
         } else {
             setupNoSyncTopic(consumer, topicPartition, dataState);
         }
+        
+        String versionString = Meta.VERSION;
+        if ( conn.getLocalDispatchPath() != null )
+            FmtLog.info(LOG, "Start FusekiKafka (%s) : Topic = %s : Dataset = %s", versionString,  conn.getTopic(), conn.getLocalDispatchPath());
+        else
+            FmtLog.info(LOG, "Start FusekiKafka (%s) : Topic = %s : Relay = %s", versionString,  conn.getTopic(), conn.getRemoteEndpoint());
 
         // Do now for some catchup.
         oneTopicPoll(requestProcessor, consumer, dataState, Duration.ofMillis(500));

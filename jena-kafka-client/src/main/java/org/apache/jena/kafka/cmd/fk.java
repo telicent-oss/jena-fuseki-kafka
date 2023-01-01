@@ -35,7 +35,6 @@ public class fk {
         if ( args.length == 0 ) {
             System.err.println("Usage: fk SUB ARGS...");
             System.exit(1);
-            //throw new CmdException("Usage: shacl SUB ARGS...");
         }
 
         String cmd = args[0];

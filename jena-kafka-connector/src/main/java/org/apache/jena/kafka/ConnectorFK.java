@@ -18,8 +18,10 @@
 
 package org.apache.jena.kafka;
 
+import java.io.PrintStream;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.function.Function;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.Log;
@@ -47,6 +49,9 @@ public class ConnectorFK {
 
     private final boolean syncTopic;
     private final boolean replayTopic;
+    private boolean verbose = false;
+    private final Function<Integer, PrintStream> output;
+
     // State tracking.
     private final String stateFile;
 
@@ -54,9 +59,11 @@ public class ConnectorFK {
     private final Properties kafkaProps;
     private State state = State.INIT;
 
+
+
     public ConnectorFK(String topic, String fusekiDispatchName, String remoteEndpoint, String stateFile,
-                       boolean syncTopic, boolean replayTopic,
-                       Properties kafkaProps) {
+                       boolean syncTopic, boolean replayTopic, Properties kafkaProps,
+                       boolean verbose, Function<Integer, PrintStream> output) {
         this.topic = Objects.requireNonNull(topic, "topic");
         this.fusekiDispatchPath = fusekiDispatchName;
         this.remoteEndpoint = remoteEndpoint;
@@ -64,6 +71,8 @@ public class ConnectorFK {
         this.replayTopic = replayTopic;
         this.stateFile = stateFile;
         this.kafkaProps = kafkaProps;
+        this.verbose = verbose;
+        this.output = output;
         this.state = State.INIT;
 
         boolean hasLocalFusekiService = StringUtils.isEmpty(fusekiDispatchName);
@@ -115,6 +124,14 @@ public class ConnectorFK {
 
     public boolean getReplayTopic() {
         return replayTopic;
+    }
+
+    public boolean verbose() {
+        return verbose;
+    }
+
+    public Function<Integer, PrintStream> output() {
+        return output;
     }
 
     public String getStateFile() {

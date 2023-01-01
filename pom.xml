@@ -35,7 +35,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
 
-    <ver.jena>4.6.1</ver.jena>
+    <ver.jena>4.7.0-SNAPSHOT</ver.jena>
     <ver.kafka>3.2.1</ver.kafka> 
 
     <ver.slf4j>1.7.36</ver.slf4j>
@@ -184,6 +184,21 @@
   </dependencyManagement>
 
   <build>
+
+    <resources>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <includes>
+          <include>io/telicent/jena/fuseki-kafka.properties.xml</include>
+        </includes>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+
     <plugins>
 
       <plugin>

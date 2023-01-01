@@ -83,7 +83,7 @@ public class FK_SyncDB {
         Properties cProps = conn.getKafkaProps();
         StringDeserializer strDeser = new StringDeserializer();
 
-        Deserializer<ActionFK> reqDer = new DeserializerActionFK();
+        Deserializer<ActionFK> reqDer = new DeserializerActionFK(false, null);
 
         try ( Consumer<String, ActionFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer) ) {
             TopicPartition topicPartition = new TopicPartition(topic, 0);

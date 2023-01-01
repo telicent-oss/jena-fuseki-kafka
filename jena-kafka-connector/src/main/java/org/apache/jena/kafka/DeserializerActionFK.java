@@ -19,8 +19,11 @@
 package org.apache.jena.kafka;
 
 import java.io.ByteArrayInputStream;
+import java.io.PrintStream;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.jena.atlas.lib.StrUtils;
 import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.kafka.common.header.Headers;
@@ -31,13 +34,54 @@ import org.apache.kafka.common.serialization.Deserializer;
  */
 public class DeserializerActionFK implements Deserializer<ActionFK> {
 
-    private static String defaultContentType = WebContent.contentTypeNQuads;
+    /*
+     * Verbose mode - dumps incoming Kafka event to an output stream.
+     * The purpose is to be able to capture events
+     *
+     */
 
-    public DeserializerActionFK() {}
+    private final static String defaultContentType = WebContent.contentTypeNQuads;
+    private final Function<Integer, PrintStream> output;
+    private boolean verbose = false;
+
+    /**
+     * New DeserializerActionFK
+     * @param verbose
+     *      Dump events.
+     * @param output
+     *      Supply a {@code PrintStream} for dump output.
+     *      The output is thread-safe.
+     *      The output is flushed after each event.
+     */
+    public DeserializerActionFK(boolean verbose, Function<Integer, PrintStream> output) {
+        this.verbose = verbose;
+        this.output = output;
+    }
+
+    public DeserializerActionFK() {
+        this(false, null);
+    }
+
+    private int counter = 0;
 
     @Override
     public ActionFK deserialize(String topic, Headers headers, byte[] data) {
         Map<String, String> requestHeaders = FK.headerToMap(headers);
+
+        if ( verbose && output != null ) {
+            synchronized(this) {
+                counter++;
+                PrintStream out = output.apply(counter);
+                out.printf("## %d ##\n", counter);
+                headers.forEach(h->out.println(h.key()+": "+StrUtils.fromUTF8bytes(h.value())));
+                out.println();
+                String x = StrUtils.fromUTF8bytes(data);
+                out.print(x);
+                if ( ! x.endsWith("\n") )
+                    out.println();
+                out.flush();
+            }
+        }
 
         // Default Content-Type to NQuads
         if ( ! requestHeaders.containsKey(HttpNames.hContentType) ) {

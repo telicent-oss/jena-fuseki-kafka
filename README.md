@@ -146,6 +146,9 @@ and for real
 mvn $MVN_ARGS release:clean release:prepare
 mvn $MVN_ARGS release:perform
 ```
+After `release:perform` the local git repo status may say it is ahead of the
+upstream github repo by 2 commits. It isn't - they should be in-step but not 
+sync'ed. Do a `git pull` and then `git status` should say "up-to-date". 
 
 ### Rollback
 
