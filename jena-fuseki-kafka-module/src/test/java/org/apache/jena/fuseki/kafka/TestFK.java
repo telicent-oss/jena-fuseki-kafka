@@ -62,6 +62,7 @@ public class TestFK {
     // Logs to silence,
     private static String [] XLOGS = {
         AdminClientConfig.class.getName() ,
+        // NetworkClient is noisy with warnings about can't connect.
         NetworkClient.class.getName() ,
         FetchSessionHandler.class.getName() ,
         ConsumerConfig.class.getName() ,

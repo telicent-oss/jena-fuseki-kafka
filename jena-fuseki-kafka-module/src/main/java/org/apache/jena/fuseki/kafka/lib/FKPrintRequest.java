@@ -23,7 +23,7 @@ import java.io.StringWriter;
 
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.fuseki.kafka.FKProcessor;
-import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.riot.Lang;
@@ -37,7 +37,7 @@ public class FKPrintRequest {
     /**
      * Parse the action according to Content-Type and print the outcome parsing.
      */
-    public static void parsePrint(ActionFK action) {
+    public static void parsePrint(RequestFK action) {
         // If this is removed, change FKProcessor.action to protected
 
         FKProcessor proc = new FKProcessor() {

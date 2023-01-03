@@ -32,8 +32,9 @@ import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.kafka.lib.HttpServletRequestMinimal;
 import org.apache.jena.fuseki.kafka.lib.HttpServletResponseMinimal;
-import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.FusekiKafka;
+import org.apache.jena.kafka.ResponseFK;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -50,6 +51,7 @@ public class FKRequestProcessor {
     private final RequestDispatcher dispatcher;
     private final ServletContext servletContext;
     private final String requestURI;
+    private boolean skippingPolling = false;
 
     public FKRequestProcessor(RequestDispatcher dispatcher, String requestURI, ServletContext servletContext) {
         this.dispatcher = dispatcher;
@@ -63,12 +65,11 @@ public class FKRequestProcessor {
      * Once round the polling loop, updating the record.
      * Return true if some processing happened.
      */
-    public boolean receiver(Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
+    public boolean receiver(Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
         Objects.requireNonNull(consumer);
         Objects.requireNonNull(dataState);
         if ( pollingDuration == null )
             pollingDuration = Duration.ofSeconds(5000);
-
         final long lastOffsetState = dataState.getOffset();
         try {
             long newOffset = receiverStep(dataState.getOffset(), consumer, pollingDuration);
@@ -78,30 +79,40 @@ public class FKRequestProcessor {
             return true;
         } catch (RuntimeException ex) {
             Log.error(FusekiKafka.LOG, ex.getMessage(), ex);
+            skippingPolling = true;
             return false;
         }
     }
 
     /** Do one Kafka consumer poll step. */
-    private long receiverStep(long lastOffsetState, Consumer<String, ActionFK> consumer, Duration pollingDuration) {
+    private long receiverStep(long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
 
-        ConsumerRecords<String, ActionFK> cRec = consumer.poll(pollingDuration);
+        ConsumerRecords<String, RequestFK> cRec = consumer.poll(pollingDuration);
         long lastOffset = lastOffsetState;
         int count = cRec.count();
 
         if ( count != 0 )
             FmtLog.info(FusekiKafka.LOG, "receiver: from %d , count = %d", lastOffset, count);
 
-        for ( ConsumerRecord<String, ActionFK> rec : cRec ) {
-            lastOffset = processRequest(rec);
+        for ( ConsumerRecord<String, RequestFK> rec : cRec ) {
+            try {
+                lastOffset = processRequest(rec);
+            } catch(Throwable ex) {
+                // Something unexpected went wrong.
+                // Polling is asynchronous to the server.
+                // When shutting down, various things can go wrong.
+                // Log and ignore!
+                FusekiKafka.LOG.warn("Exception in dispatch: %s", ex.getMessage(), ex);
+                return lastOffset;
+            }
         }
         return lastOffset;
     }
 
-    private long processRequest(ConsumerRecord<String, ActionFK> rec) {
+    private long processRequest(ConsumerRecord<String, RequestFK> rec) {
         String key = rec.key();
-        ActionFK action = rec.value();
+        RequestFK action = rec.value();
         long offset = rec.offset();
         FmtLog.info(FusekiKafka.LOG, "Record Offset %s", offset);
 
@@ -114,9 +125,9 @@ public class FKRequestProcessor {
     }
 
     /**
-     * The logic to send an {@link ActionFK} to a {@link RequestDispatcher} which handled {@code HttpServlet} style operations.
+     * The logic to send an {@link RequestFK} to a {@link RequestDispatcher} which handled {@code HttpServlet} style operations.
      */
-    public static ActionFK dispatch(RequestDispatcher dispatcher, String topic, String requestURI, ActionFK request, ServletContext servletContext) {
+    public static ResponseFK dispatch(RequestDispatcher dispatcher, String topic, String requestURI, RequestFK request, ServletContext servletContext) {
         Map<String, String> requestParameters = Map.of();
 
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
@@ -124,15 +135,19 @@ public class FKRequestProcessor {
                                                                request.getBytes(), servletContext);
         HttpServletResponseMinimal resp = new HttpServletResponseMinimal(bytesOut);
 
-        // Do it!
-        dispatcher.dispatch(req, resp);
+        try {
+            dispatcher.dispatch(req, resp);
+        } catch (RuntimeException ex) {
+            FmtLog.info(FusekiKafka.LOG, "Exception in dispatch", ex);
+            throw ex;
+        }
 
         InputStream respBytes;
         if ( bytesOut.size() != 0 )
             respBytes = new ByteArrayInputStream(bytesOut.toByteArray());
         else
             respBytes = InputStream.nullInputStream();
-        ActionFK result = new ActionFK(topic, resp.headers(), respBytes);
+        ResponseFK result = new ResponseFK(topic, resp.headers(), respBytes);
         return result;
     }
 }

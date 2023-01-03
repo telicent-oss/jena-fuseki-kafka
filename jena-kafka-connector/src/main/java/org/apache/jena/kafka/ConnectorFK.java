@@ -30,9 +30,9 @@ import org.apache.jena.atlas.logging.Log;
  * Details of a connector to Kafka.
  * <p>
  * The machinery is in {@link DeserializerActionFK} which reads from kafka, and
- * creates a {@link ActionFK}.
+ * creates a {@link RequestFK}.
  * <p>
- * For Fuseki, the {@link ActionFK} is handled by {@code FKRequestProcessor} which
+ * For Fuseki, the {@link RequestFK} is handled by {@code FKRequestProcessor} which
  * dispatches the request to the main Fuseki execution path (includes Fuseki logging).
  */
 public class ConnectorFK {
@@ -58,8 +58,6 @@ public class ConnectorFK {
     // Kafka consumer setup.
     private final Properties kafkaProps;
     private State state = State.INIT;
-
-
 
     public ConnectorFK(String topic, String fusekiDispatchName, String remoteEndpoint, String stateFile,
                        boolean syncTopic, boolean replayTopic, Properties kafkaProps,

@@ -22,14 +22,14 @@ import java.io.InputStream;
 import java.util.Map;
 
 /**
- * Action record.
+ * Reponse record.
  */
-public class ActionFK {
+public class ResponseFK {
     private final Map<String, String> headers;
     private final InputStream bytes;
     private final String topic;
 
-    public ActionFK(String topic, Map<String, String> headers, InputStream bytes) {
+    public ResponseFK(String topic, Map<String, String> headers, InputStream bytes) {
         this.topic = topic;
         this.headers = headers;
         this.bytes = bytes;

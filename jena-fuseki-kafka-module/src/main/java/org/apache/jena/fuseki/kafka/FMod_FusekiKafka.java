@@ -25,17 +25,16 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.servlet.ServletContext;
-
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
+import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
 import org.apache.jena.fuseki.server.Dispatcher;
-import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ConnectorFK;
 import org.apache.jena.kafka.DeserializerActionFK;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
@@ -46,9 +45,12 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
+import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
@@ -62,8 +64,11 @@ public class FMod_FusekiKafka implements FusekiModule {
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
     }
 
-    private static final String attrNS = KafkaConnectorAssembler.getNS();
-    private static final String attrConnectionFK = attrNS + "connectorFK";
+    // The Fuseki modules build lifecycle is same-thread.
+    // This passes information from 'prepare' to 'serverBeforeStarting'
+
+    private ThreadLocal<List<Pair<ConnectorFK, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
+    //private Map<>
 
     private String modName = UUID.randomUUID().toString();
 
@@ -109,24 +114,17 @@ public class FMod_FusekiKafka implements FusekiModule {
         long lastOffset = dataState.getOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
 
-        Pair<ConnectorFK, DataState> pair = Pair.create(conn, dataState);
-        addServletAttribute(builder, attrConnectionFK, pair);
+        recordConnector(builder, conn, dataState);
     }
 
-    @SuppressWarnings("unchecked")
-    private void addServletAttribute(Builder builder, String attribute, Object obj) {
-        Object x = builder.getServletAttribute(attribute);
-        List<Object> values;
-        if ( x == null )
-            values = new ArrayList<>();
-        else if ( !(x instanceof List<?> ) ) {
-            FmtLog.warn(LOG, "Not a list for attribute %s", attribute);
-            return;
-        } else {
-            values = (List<Object>)x;
-        }
-        values.add(obj);
-        builder.addServletAttribute(attribute, values);
+    // Passing connector across stages by using a ThreadLocal.
+    private void recordConnector(Builder builder, ConnectorFK conn, DataState dataState) {
+        Pair<ConnectorFK, DataState> pair = Pair.create(conn, dataState);
+        buildState.get().add(pair);
+    }
+
+    private List<Pair<ConnectorFK, DataState>> connectors(FusekiServer server) {
+        return buildState.get();
     }
 
     @Override
@@ -145,6 +143,12 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     @Override
+    public void serverAfterStarting(FusekiServer server) {
+        // Clear up thread local.
+        buildState.remove();
+    }
+
+    @Override
     public void serverStopped(FusekiServer server) {
         List<Pair<ConnectorFK, DataState>> connectors = connectors(server);
         if ( connectors == null )
@@ -155,16 +159,8 @@ public class FMod_FusekiKafka implements FusekiModule {
         });
     }
 
-    private static List<Pair<ConnectorFK, DataState>> connectors(FusekiServer server) {
-        ServletContext servletContext = server.getServletContext();
-        Object obj = servletContext.getAttribute(attrConnectionFK);
-        @SuppressWarnings("unchecked")
-        List<Pair<ConnectorFK, DataState>> connectors = (List<Pair<ConnectorFK, DataState>>)obj;
-        return connectors;
-    }
-
-
     static void addConnectorToServer(ConnectorFK conn, FusekiServer server, DataState dataState) {
+        String topicName = conn.getTopic();
         String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
         //String remoteEndpoint = conn.getRemoteEndpoint();
@@ -178,11 +174,11 @@ public class FMod_FusekiKafka implements FusekiModule {
         Properties cProps = conn.getKafkaProps();
         StringDeserializer strDeser = new StringDeserializer();
 
-        Deserializer<ActionFK> reqDer = new DeserializerActionFK();
+        Deserializer<RequestFK> reqDer = new DeserializerActionFK();
 
         // -- Kafka
-        Consumer<String, ActionFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer);
-        TopicPartition topicPartition = new TopicPartition(conn.getTopic(), 0);
+        Consumer<String, RequestFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer);
+        TopicPartition topicPartition = new TopicPartition(topicName, 0);
         Collection<TopicPartition> partitions = Arrays.asList(topicPartition);
         consumer.assign(partitions);
         FKRequestProcessor requestProcessor = new FKRequestProcessor(dispatcher, requestURI, server.getServletContext());
@@ -200,6 +196,8 @@ public class FMod_FusekiKafka implements FusekiModule {
             replayTopic = true;
         }
 
+        checkKafkaTopicConnection(consumer, topicName);
+
         if ( replayTopic ) {
             setupReplayTopic(consumer, topicPartition, dataState);
         } else if ( syncTopic ) {
@@ -207,7 +205,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         } else {
             setupNoSyncTopic(consumer, topicPartition, dataState);
         }
-        
+
         String versionString = Meta.VERSION;
         if ( conn.getLocalDispatchPath() != null )
             FmtLog.info(LOG, "Start FusekiKafka (%s) : Topic = %s : Dataset = %s", versionString,  conn.getTopic(), conn.getLocalDispatchPath());
@@ -221,8 +219,33 @@ public class FMod_FusekiKafka implements FusekiModule {
         startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + conn.getTopic());
     }
 
+    /** Check connectivity so we can give specific messages */
+    private static void checkKafkaTopicConnection(Consumer<String, RequestFK> consumer, String topicName) {
+        //NetworkClient is noisy (warnings).
+        Class<?> cls = NetworkClient.class;
+        String logLevel = LogCtl.getLevel(cls);
+        LogCtl.setLevel(cls, "Error");
+        try {
+            // Short timeout - this is a check, processing tries to continue.
+            List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, Duration.ofMillis(5000));
+            if ( partitionInfo == null ) {
+                FmtLog.error(LOG, "Unexpected - PartitionInfo list is null");
+                return;
+            }
+            if ( partitionInfo .isEmpty() )
+                FmtLog.warn(LOG, "Successfully contacted Kafka but no partitions for topic %s", topicName);
+            else
+                FmtLog.info(LOG, "Successfully contacted Kafka tooic partition %s", partitionInfo);
+        } catch (TimeoutException ex) {
+            FmtLog.info(LOG, "Failed to contact Kafka broker for topic partition %s", topicName);
+            // No server => no topic.
+        } finally {
+            LogCtl.setLevel(cls, logLevel);
+        }
+    }
+
     /** Set to catch up on the topic at the next (first) call. */
-    private static void setupSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
 
@@ -243,7 +266,7 @@ public class FMod_FusekiKafka implements FusekiModule {
      * Set to jump to the front of the topic, and so not resync on the the next
      * (first) call.
      */
-    private static void setupNoSyncTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupNoSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
         FmtLog.info(LOG, "No sync: State=%d  Topic offset=%d", stateOffset, topicPosition);
@@ -251,7 +274,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     /** Set to jump to the start of the topic. */
-    private static void setupReplayTopic(Consumer<String, ActionFK> consumer, TopicPartition topicPartition, DataState dataState) {
+    private static void setupReplayTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
@@ -281,21 +304,25 @@ public class FMod_FusekiKafka implements FusekiModule {
         threads = threadExecutor();
     }
 
-    private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
+    private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, String label) {
         Runnable task = () -> topicPoll(requestProcessor, consumer, dataState);
         threads.submit(task);
     }
 
     /** Polling task loop.*/
-    private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
+    private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState) {
         Duration pollingDuration = Duration.ofMillis(5000);
         for ( ;; ) {
-            boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
+            try {
+                boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
+            } catch (Throwable th) {
+
+            }
         }
     }
 
     /** A polling attempt either returns some records or waits the polling duration. */
-    private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
+    private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
         long lastOffsetState = dataState.getOffset();
         boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
         if ( somethingReceived ) {

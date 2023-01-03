@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.kafka.ActionFK;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ConnectorFK;
 import org.apache.jena.kafka.DeserializerActionFK;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
@@ -83,9 +83,9 @@ public class FK_SyncDB {
         Properties cProps = conn.getKafkaProps();
         StringDeserializer strDeser = new StringDeserializer();
 
-        Deserializer<ActionFK> reqDer = new DeserializerActionFK(false, null);
+        Deserializer<RequestFK> reqDer = new DeserializerActionFK(false, null);
 
-        try ( Consumer<String, ActionFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer) ) {
+        try ( Consumer<String, RequestFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer) ) {
             TopicPartition topicPartition = new TopicPartition(topic, 0);
             consumer.assign(Arrays.asList(topicPartition));
 

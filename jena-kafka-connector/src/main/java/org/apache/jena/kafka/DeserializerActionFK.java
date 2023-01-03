@@ -32,7 +32,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 /**
  * Deserialize to an internal "request object"
  */
-public class DeserializerActionFK implements Deserializer<ActionFK> {
+public class DeserializerActionFK implements Deserializer<RequestFK> {
 
     /*
      * Verbose mode - dumps incoming Kafka event to an output stream.
@@ -65,7 +65,7 @@ public class DeserializerActionFK implements Deserializer<ActionFK> {
     private int counter = 0;
 
     @Override
-    public ActionFK deserialize(String topic, Headers headers, byte[] data) {
+    public RequestFK deserialize(String topic, Headers headers, byte[] data) {
         Map<String, String> requestHeaders = FK.headerToMap(headers);
 
         if ( verbose && output != null ) {
@@ -96,11 +96,11 @@ public class DeserializerActionFK implements Deserializer<ActionFK> {
         }
 
         ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
-        return new ActionFK(topic, requestHeaders, bytesIn);
+        return new RequestFK(topic, requestHeaders, bytesIn);
     }
 
     @Override
-    public ActionFK deserialize(String topic, byte[] data) {
+    public RequestFK deserialize(String topic, byte[] data) {
         return deserialize(topic, null, data);
     }
 }
