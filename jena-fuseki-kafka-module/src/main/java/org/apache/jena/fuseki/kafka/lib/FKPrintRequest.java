@@ -50,7 +50,7 @@ public class FKPrintRequest {
             }
 
             @Override
-            protected void actionRDFPatch(String topic, Lang lang, InputStream data) {
+            protected void actionRDFPatch(String topic, InputStream data) {
                 //printRaw(topic, data);
                 RDFPatch patch = RDFPatchOps.read(data);
                 String dataStr = patch.toString();

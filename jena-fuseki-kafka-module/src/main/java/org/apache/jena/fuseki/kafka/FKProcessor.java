@@ -58,7 +58,7 @@ public abstract class FKProcessor {
                 return;
             }
             if ( WebContent.contentTypePatch.equals(contentType) ) {
-                System.err.println("PATCH");
+                actionRDFPatch(topic, data);
                 return;
             }
 
@@ -79,7 +79,7 @@ public abstract class FKProcessor {
 
     protected abstract void actionSparqlUpdate(String topic, InputStream data);
 
-    protected abstract void actionRDFPatch(String topic, Lang lang, InputStream data);
+    protected abstract void actionRDFPatch(String topic, InputStream data);
 
     protected abstract void actionData(String topic, Lang lang, InputStream data);
 
