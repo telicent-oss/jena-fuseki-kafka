@@ -117,7 +117,7 @@ public class TestConfigFK {
 
     private static String STATE_DIR = "target/state";
 
-    @Test public void fk01_fuseki() {
+    @Test public void fk01_fuseki_data() {
         String TOPIC = "RDF0";
         Graph graph = configuration(DIR+"/config-connector.ttl", mock.getServer());
         FileOps.ensureDir(STATE_DIR);
@@ -140,7 +140,7 @@ public class TestConfigFK {
     }
 
     // Two connectors
-    @Test public void fk02_fuseki() {
+    @Test public void fk02_fuseki_two_connectors() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
         Graph graph = configuration(DIR+"/config-connector-2.ttl", mock.getServer());
@@ -172,7 +172,7 @@ public class TestConfigFK {
     }
 
     // Two connectors, one dataset
-    @Test public void fk03_fuseki() {
+    @Test public void fk03_fuseki_data_update() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
         Graph graph = configuration(DIR+"/config-connector-3.ttl", mock.getServer());
@@ -194,7 +194,6 @@ public class TestConfigFK {
             assertEquals(2, count);
         } finally { server.stop(); }
     }
-
 
     // RDF Patch
     @Test public void fk04_fuseki_patch() {
