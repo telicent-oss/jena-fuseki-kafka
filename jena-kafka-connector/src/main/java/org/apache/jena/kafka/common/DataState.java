@@ -26,7 +26,7 @@ import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.atlas.json.JSON;
 import org.apache.jena.atlas.json.JsonObject;
 import org.apache.jena.atlas.logging.FmtLog;
-import org.apache.jena.kafka.FusekiKafkaException;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.refs.RefBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,11 +88,11 @@ public class DataState {
 
     private static void checkExpectedSettings(DataState dataState, String localDispatchPath, String remoteEndpoint, String topic) {
         if ( ! dataState.dispatchPath.equals(localDispatchPath) )
-            throw new FusekiKafkaException("Dataset name does not match: loaded="+dataState.dispatchPath+ " / expected=" +localDispatchPath);
+            throw new JenaKafkaException("Dataset name does not match: loaded="+dataState.dispatchPath+ " / expected=" +localDispatchPath);
         if ( ! Objects.equals(dataState.remoteEndpoint, remoteEndpoint) )
-            throw new FusekiKafkaException("Endpoint name does not match: loaded="+dataState.remoteEndpoint+ " / expected=" +remoteEndpoint);
+            throw new JenaKafkaException("Endpoint name does not match: loaded="+dataState.remoteEndpoint+ " / expected=" +remoteEndpoint);
         if ( ! dataState.topic.equals(topic) )
-            throw new FusekiKafkaException("Topic does not match: loaded="+dataState.dispatchPath+ " / expected=" +topic);
+            throw new JenaKafkaException("Topic does not match: loaded="+dataState.dispatchPath+ " / expected=" +topic);
     }
 
     private void writeState() {
@@ -129,22 +129,22 @@ public class DataState {
     private void setFromJson(JsonObject obj) {
         String datasetName = obj.getString(fDataset);
         if ( datasetName == null )
-            throw new FusekiKafkaException("No dataset name: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No dataset name: "+JSON.toStringFlat(obj));
         String endpoint = obj.getString(fEndpoint);
         String topic  = obj.getString(fTopic);
         if ( topic == null )
-            throw new FusekiKafkaException("No topic name: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No topic name: "+JSON.toStringFlat(obj));
         Number offsetNum = obj.getNumber(fOffset);
         if ( offsetNum == null )
-            throw new FusekiKafkaException("No offset: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No offset: "+JSON.toStringFlat(obj));
         long offset = offsetNum.longValue();
 
         if ( ! this.dispatchPath.equals(datasetName) )
-            throw new FusekiKafkaException("Dataset name does not match: this="+this.dispatchPath+ " / read=" +datasetName);
+            throw new JenaKafkaException("Dataset name does not match: this="+this.dispatchPath+ " / read=" +datasetName);
         if ( ! Objects.equals(this.remoteEndpoint, endpoint) )
-            throw new FusekiKafkaException("Endpoint name does not match: this="+this.remoteEndpoint+ " / read=" +endpoint);
+            throw new JenaKafkaException("Endpoint name does not match: this="+this.remoteEndpoint+ " / read=" +endpoint);
         if ( ! this.topic.equals(topic) )
-            throw new FusekiKafkaException("Topic does not match: this="+this.dispatchPath+ " / read=" +topic);
+            throw new JenaKafkaException("Topic does not match: this="+this.dispatchPath+ " / read=" +topic);
         this.offset = offset;
     }
 
@@ -156,14 +156,14 @@ public class DataState {
 
         String datasetName = obj.getString(fDataset);
         if ( datasetName == null )
-            throw new FusekiKafkaException("No dataset name: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No dataset name: "+JSON.toStringFlat(obj));
         String endpoint = obj.hasKey(fEndpoint) ? obj.getString(fEndpoint) : null;
         String topic  = obj.getString(fTopic);
         if ( topic == null )
-            throw new FusekiKafkaException("No topic name: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No topic name: "+JSON.toStringFlat(obj));
         Number offsetNum = obj.getNumber(fOffset);
         if ( offsetNum == null )
-            throw new FusekiKafkaException("No offset: "+JSON.toStringFlat(obj));
+            throw new JenaKafkaException("No offset: "+JSON.toStringFlat(obj));
         long offset = offsetNum.longValue();
 
         DataState dataState = new DataState(state, datasetName, endpoint, topic);

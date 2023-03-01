@@ -35,12 +35,11 @@ import org.apache.jena.atlas.logging.Log;
  * For Fuseki, the {@link RequestFK} is handled by {@code FKRequestProcessor} which
  * dispatches the request to the main Fuseki execution path (includes Fuseki logging).
  */
-public class ConnectorFK {
-
-    enum State { INIT, RUNNING, SHUTDOWN }
+public class ConnectorDescriptor {
 
     // Source
     private final String topic;
+    private final String bootstrapServers;
 
     // Destination - URI path in this Fuseki server
     private final String fusekiDispatchPath;
@@ -56,22 +55,24 @@ public class ConnectorFK {
     private final String stateFile;
 
     // Kafka consumer setup.
-    private final Properties kafkaProps;
-    private State state = State.INIT;
+    private final Properties kafkaConsumerProps;
+//    private final Properties kafkaProducerProps;
 
-    public ConnectorFK(String topic, String fusekiDispatchName, String remoteEndpoint, String stateFile,
-                       boolean syncTopic, boolean replayTopic, Properties kafkaProps,
-                       boolean verbose, Function<Integer, PrintStream> output) {
+    public ConnectorDescriptor(String topic, String bootstrapServers, String fusekiDispatchName, String remoteEndpoint, String stateFile,
+                               boolean syncTopic, boolean replayTopic,
+                               Properties kafkaConsumerProps,
+                               boolean verbose, Function<Integer, PrintStream> output) {
         this.topic = Objects.requireNonNull(topic, "topic");
+        this.bootstrapServers = bootstrapServers;
         this.fusekiDispatchPath = fusekiDispatchName;
         this.remoteEndpoint = remoteEndpoint;
         this.syncTopic = syncTopic;
         this.replayTopic = replayTopic;
         this.stateFile = stateFile;
-        this.kafkaProps = kafkaProps;
+        this.kafkaConsumerProps = kafkaConsumerProps;
+//        this.kafkaProducerProps = kafkaProducerProps;
         this.verbose = verbose;
         this.output = output;
-        this.state = State.INIT;
 
         boolean hasLocalFusekiService = StringUtils.isEmpty(fusekiDispatchName);
         boolean hasRemoteEndpoint = StringUtils.isEmpty(remoteEndpoint);
@@ -82,12 +83,12 @@ public class ConnectorFK {
             Log.warn(this, "ConnectorFK built with no local dispatch path nor remote endpoint URL");
     }
 
-    public void start() {
-        this.state = State.RUNNING;
-    }
-
     public String getTopic() {
         return topic;
+    }
+
+    public String getBootstrapServers() {
+        return bootstrapServers;
     }
 
     /**
@@ -136,14 +137,18 @@ public class ConnectorFK {
         return stateFile;
     }
 
-    public Properties getKafkaProps() {
-        return kafkaProps;
+    public Properties getKafkaConsumerProps() {
+        return kafkaConsumerProps;
     }
+
+//    public Properties getKafkaProducerProps() {
+//        return kafkaProducerProps;
+//    }
 
     @Override
     public String toString() {
         return "ConnectorFK [topic=" + topic + ", fusekiDispatchName=" + fusekiDispatchPath + ", remoteEndpoint=" + remoteEndpoint + ", syncTopic="
-               + syncTopic + ", replayTopic=" + replayTopic + ", stateFile=" + stateFile + ", kafkaProps=" + kafkaProps + ", state=" + state
+               + syncTopic + ", replayTopic=" + replayTopic + ", stateFile=" + stateFile
                + "]";
     }
 }

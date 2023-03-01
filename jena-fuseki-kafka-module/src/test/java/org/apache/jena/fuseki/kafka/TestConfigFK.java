@@ -92,7 +92,7 @@ public class TestConfigFK {
     }
 
     @AfterAll public static void afterClass2() {
-        FMod_FusekiKafka.resetPollThreads();
+        FKS.resetPollThreads();
     }
 
     Properties consumerProps() {
@@ -109,7 +109,7 @@ public class TestConfigFK {
 
     @AfterAll public static void afterClass() {
         Log.info("TestIntegrationFK","Stopping testcontainer for Kafka");
-        FMod_FusekiKafka.resetPollThreads();
+        FKS.resetPollThreads();
         LogCtl.setLevel(NetworkClient.class, "error");
         mock.stop();
         adjustLogs("info");

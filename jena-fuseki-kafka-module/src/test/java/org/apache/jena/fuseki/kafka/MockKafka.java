@@ -55,6 +55,10 @@ public class MockKafka {
         admin.createTopics(List.of(newTopic));
     }
 
+    public void deleteTopic(String topic) {
+        admin.deleteTopics(List.of(topic));
+    }
+
     public void stop() {
         kafkaContainer.stop();
     }

@@ -45,7 +45,6 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
 
 /**
  * Assembler for a Fuseki-Kafka connector that takes Kafka events and executes them on
@@ -136,7 +135,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return create(root.getModel().getGraph(), root.asNode(), tKafkaConnector.asNode());
     }
 
-    private ConnectorFK create(Graph graph, Node node, Node type) {
+    private ConnectorDescriptor create(Graph graph, Node node, Node type) {
         try {
             return createSub(graph, node, type);
         } catch (RuntimeException ex) {
@@ -154,17 +153,17 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return new RDFDataException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
     }
 
-    private static Assem2.OnError errorException = errorMsg -> new FusekiKafkaException(errorMsg);
+    private static Assem2.OnError errorException = errorMsg -> new JenaKafkaException(errorMsg);
 
-    static FusekiKafkaException error(Node node, String msg) {
-        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
+    static JenaKafkaException error(Node node, String msg) {
+        return new JenaKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
     }
 
-    static FusekiKafkaException error(Node node, Node property, String msg) {
-        return new FusekiKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
+    static JenaKafkaException error(Node node, Node property, String msg) {
+        return new JenaKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
     }
 
-    private ConnectorFK createSub(Graph graph, Node node, Node type) {
+    private ConnectorDescriptor createSub(Graph graph, Node node, Node type) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *
@@ -225,11 +224,22 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String groupId = Assem2.getStringOrDft(graph, node, pKafkaGroupId, dftKafkaGroupId, errorException);
 
         // ----
-        Properties kafkaProps = new Properties();
+        Properties kafkaConsumerProps = kafkaConsumerProps(graph,  node,  topic, bootstrapServers, groupId);
+        return new ConnectorDescriptor(topic, bootstrapServers,
+                                       datasetName, remoteEndpoint, stateFile, syncTopic,
+                                       replayTopic, kafkaConsumerProps,
+                                       verbose, (x)->logOutput);
+    }
+
+    private Properties kafkaConsumerProps(Graph graph, Node node,
+                                          String topic,
+                                          String bootstrapServers, String groupId) {
+        Properties props = new Properties();
         // "bootstrap.servers"
-        kafkaProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         // "group.id"
-        kafkaProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        //props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "number");
 
         // Optional Kafka configuration as pairs of (key-value) as RDF lists.
         String queryString = StrUtils.strjoinNL
@@ -247,14 +257,12 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                     String key = nk.getLiteralLexicalForm();
                     Node nv = row.get("v");
                     String value = nv.getLiteralLexicalForm();
-                    kafkaProps.setProperty(key, value);
+                    props.setProperty(key, value);
                 });
-
-        // These are ignored if the deserializers are in the Kafka consumer constructor.
-        kafkaProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        kafkaProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
-
-        return new ConnectorFK(topic, datasetName, remoteEndpoint, stateFile, syncTopic, replayTopic, kafkaProps, verbose, (x)->logOutput);
+//        // These are ignored if the deserializers are in the Kafka consumer constructor.
+//        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+//        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
+        return props;
     }
 
     private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
@@ -279,20 +287,20 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 .select();
 
         if ( !rowSet.hasNext() )
-            throw new FusekiKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
+            throw new JenaKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
         Binding row = rowSet.next();
         if ( rowSet.hasNext() )
-            throw new FusekiKafkaException("Multiple datasetNames: "+NodeFmtLib.displayStr(node));
+            throw new JenaKafkaException("Multiple datasetNames: "+NodeFmtLib.displayStr(node));
 
         Node n = row.get("n");
         if ( n == null )
-            throw new FusekiKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
+            throw new JenaKafkaException("Can't find the datasetName: "+NodeFmtLib.displayStr(node));
 
         if ( ! Util.isSimpleString(n) )
-            throw new FusekiKafkaException("Dataset name is not a string: "+NodeFmtLib.displayStr(node));
+            throw new JenaKafkaException("Dataset name is not a string: "+NodeFmtLib.displayStr(node));
         String name = n.getLiteralLexicalForm();
         if ( StringUtils.isBlank(name) )
-            throw new FusekiKafkaException("Dataset name is blank: "+NodeFmtLib.displayStr(node));
+            throw new JenaKafkaException("Dataset name is blank: "+NodeFmtLib.displayStr(node));
         return name;
     }
 
@@ -305,14 +313,12 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         Node n = x.get(0);
         if ( ! Util.isSimpleString(n) )
             throw onError(node, "Service name is not a string", errorException);
-        String epName = n.getLiteralLexicalForm();
-        if ( StringUtils.isBlank(epName) )
+        String remoteEndpoint = n.getLiteralLexicalForm();
+        if ( StringUtils.isBlank(remoteEndpoint) )
             return FusekiKafka.noRemoteEndpointName;
-        if ( epName.contains("/") )
-            throw onError(node, "Service name can not contain \"/\"", errorException);
-        if ( epName.contains(" ") )
+        if ( remoteEndpoint.contains(" ") )
             throw onError(node, "Service name can not contain spaces", errorException);
-        return epName;
+        return remoteEndpoint;
     }
 
     // Copy of DataAccessPoint.canonical.

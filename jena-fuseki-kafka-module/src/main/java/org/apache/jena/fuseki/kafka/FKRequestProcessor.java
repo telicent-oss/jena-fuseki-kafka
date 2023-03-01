@@ -68,6 +68,7 @@ public class FKRequestProcessor {
     public boolean receiver(Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
         Objects.requireNonNull(consumer);
         Objects.requireNonNull(dataState);
+
         if ( pollingDuration == null )
             pollingDuration = Duration.ofSeconds(5000);
         final long lastOffsetState = dataState.getOffset();
@@ -78,7 +79,8 @@ public class FKRequestProcessor {
             dataState.setOffset(newOffset);
             return true;
         } catch (RuntimeException ex) {
-            Log.error(FusekiKafka.LOG, ex.getMessage(), ex);
+            String x = String.format("[%s] %s", dataState.getTopic(), ex.getMessage());
+            Log.error(FusekiKafka.LOG, x, ex);
             skippingPolling = true;
             return false;
         }
@@ -93,7 +95,7 @@ public class FKRequestProcessor {
         int count = cRec.count();
 
         if ( count != 0 )
-            FmtLog.info(FusekiKafka.LOG, "receiver: from %d , count = %d", lastOffset, count);
+            FmtLog.info(FusekiKafka.LOG, "Receiver: from %d , count = %d", lastOffset, count);
 
         for ( ConsumerRecord<String, RequestFK> rec : cRec ) {
             try {
@@ -114,20 +116,21 @@ public class FKRequestProcessor {
         String key = rec.key();
         RequestFK action = rec.value();
         long offset = rec.offset();
-        FmtLog.info(FusekiKafka.LOG, "Record Offset %s", offset);
+        String topic = rec.topic();
+        FmtLog.info(FusekiKafka.LOG, "[%s] Record Offset %s", topic, offset);
 
         dispatch(dispatcher, rec.topic(), requestURI, action, servletContext);
 
         // This happens in replay or catch up. Not a warning.
 //        if ( offset != lastOffset+1)
-//            FmtLog.warn(FusekiKafka.LOG, "WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", offset, lastOffset);
+//            FmtLog.warn(FusekiKafka.LOG, "[%s] WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", topic, offset, lastOffset);
         return offset;
     }
 
     /**
      * The logic to send an {@link RequestFK} to a {@link RequestDispatcher} which handled {@code HttpServlet} style operations.
      */
-    public static ResponseFK dispatch(RequestDispatcher dispatcher, String topic, String requestURI, RequestFK request, ServletContext servletContext) {
+    private static ResponseFK dispatch(RequestDispatcher dispatcher, String topic, String requestURI, RequestFK request, ServletContext servletContext) {
         Map<String, String> requestParameters = Map.of();
 
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();

@@ -16,19 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka;
+package org.apache.jena.kafka;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.apache.jena.atlas.lib.Bytes;
+import org.apache.kafka.common.header.Headers;
 
-@Suite
-@SelectClasses({
-//@RunWith(Suite.class)
-//@Suite.SuiteClasses( {
-    TestConnectorDescriptor.class
-    , TestFK.class
-    , TestConfigFK.class
-})
+public class JK {
 
-public class TS_JenaFusekiKafka {}
+    /**
+     * Kafka headers to a Map. If there are multiple headers with the same key name,
+     * only the last header value goes in the map.
+     */
+    public static Map<String, String> headerToMap(Headers headers) {
+        Map<String, String> map = new HashMap<>();
+        headers.forEach(header->{
+            String hName = header.key();
+            String hValue = Bytes.bytes2string(header.value());
+            map.put(hName,  hValue);
+        });
+        return map;
+    }
+}

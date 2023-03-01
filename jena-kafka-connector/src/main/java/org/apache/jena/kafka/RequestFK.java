@@ -22,32 +22,12 @@ import java.io.InputStream;
 import java.util.Map;
 
 /**
- * Action record.
+ * Request coming in from Kafka.
  */
-public class RequestFK {
-    private final Map<String, String> headers;
-    private final InputStream bytes;
-    private final String topic;
+public class RequestFK extends ActionKafka {
 
     public RequestFK(String topic, Map<String, String> headers, InputStream bytes) {
-        this.topic = topic;
-        this.headers = headers;
-        this.bytes = bytes;
+        super(topic, headers, bytes);
     }
 
-    public String getTopic() {
-        return topic;
-    }
-
-    public Map<String, String> getHeaders() {
-        return headers;
-    }
-
-    public String getContentType() {
-        return headers.get(FusekiKafka.hContentType);
-    }
-
-    public InputStream getBytes() {
-        return bytes;
-    }
 }

@@ -16,19 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka;
+package org.apache.jena.kafka;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import org.apache.jena.shared.JenaException;
 
+public class JenaKafkaException extends JenaException {
+    public JenaKafkaException(String message)                    { super(message); }
+    public JenaKafkaException(String message, Throwable cause)   { super(message, cause) ; }
+}
 
-@Suite
-@SelectClasses({
-//@RunWith(Suite.class)
-//@Suite.SuiteClasses( {
-    TestConnectorDescriptor.class
-    , TestFK.class
-    , TestConfigFK.class
-})
-
-public class TS_JenaFusekiKafka {}

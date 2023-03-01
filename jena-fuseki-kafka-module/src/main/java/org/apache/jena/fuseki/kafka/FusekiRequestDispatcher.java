@@ -18,17 +18,18 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import org.apache.jena.fuseki.server.Dispatcher;
 
-@Suite
-@SelectClasses({
-//@RunWith(Suite.class)
-//@Suite.SuiteClasses( {
-    TestConnectorDescriptor.class
-    , TestFK.class
-    , TestConfigFK.class
-})
+/**
+ * Named class for the Kafka->Fuseki dispatcher function.
+ */
+public class FusekiRequestDispatcher implements RequestDispatcher {
 
-public class TS_JenaFusekiKafka {}
+    @Override
+    public void dispatch(HttpServletRequest req, HttpServletResponse resp) {
+        Dispatcher.dispatch(req, resp);
+    }
+}

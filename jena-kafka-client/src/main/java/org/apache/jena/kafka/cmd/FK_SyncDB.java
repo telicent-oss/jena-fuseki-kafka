@@ -22,10 +22,10 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.kafka.RequestFK;
-import org.apache.jena.kafka.ConnectorFK;
+import org.apache.jena.kafka.ConnectorDescriptor;
 import org.apache.jena.kafka.DeserializerActionFK;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.PersistentState;
 import org.apache.jena.riot.RIOT;
@@ -53,7 +53,7 @@ public class FK_SyncDB {
         // No args - assumes FK_Defaults.connectorFile
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
-        ConnectorFK conn = (ConnectorFK)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
+        ConnectorDescriptor conn = (ConnectorDescriptor)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
 
         if ( conn == null ) {
             System.err.flush();
@@ -80,7 +80,7 @@ public class FK_SyncDB {
 
         // LIBRARY
         // -- Kafka Props
-        Properties cProps = conn.getKafkaProps();
+        Properties cProps = conn.getKafkaConsumerProps();
         StringDeserializer strDeser = new StringDeserializer();
 
         Deserializer<RequestFK> reqDer = new DeserializerActionFK(false, null);

@@ -32,7 +32,7 @@ import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
-import org.apache.jena.kafka.ConnectorFK;
+import org.apache.jena.kafka.ConnectorDescriptor;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
@@ -87,7 +87,7 @@ public class TestFK {
     }
 
     @After public void after() {
-        FMod_FusekiKafka.resetPollThreads();
+        FKS.resetPollThreads();
     }
 
     Properties consumerProps() {
@@ -147,11 +147,12 @@ public class TestFK {
                 //.verbose(true)
                 .add(DSG,  dsg)
                 .build();
-        ConnectorFK conn = new ConnectorFK(TOPIC, DSG, null/*remoteEndpoint*/, null/*stateFile*/,
-                                           false/*syncTopic*/, true/*replayTopic*/,
-                                           consumerProps, false, (x)->System.out);
+        ConnectorDescriptor conn = new ConnectorDescriptor(TOPIC, null/*bootStrapservers*/, DSG, null/*remoteEndpoint*/, null/*stateFile*/,
+                                                           false/*syncTopic*/, true/*replayTopic*/,
+                                                           consumerProps,
+                                                           false, (x)->System.out);
         // Manual call to setup the server.
-        FMod_FusekiKafka.addConnectorToServer(conn, server, dataState);
+        FKS.addConnectorToServer(conn, server, dataState);
         server.start();
         return server;
     }

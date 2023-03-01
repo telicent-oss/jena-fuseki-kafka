@@ -66,7 +66,7 @@ public class DeserializerActionFK implements Deserializer<RequestFK> {
 
     @Override
     public RequestFK deserialize(String topic, Headers headers, byte[] data) {
-        Map<String, String> requestHeaders = FK.headerToMap(headers);
+        Map<String, String> requestHeaders = JK.headerToMap(headers);
 
         if ( verbose && output != null ) {
             synchronized(this) {

@@ -18,9 +18,9 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import org.apache.jena.shared.JenaException;
+import org.apache.jena.kafka.JenaKafkaException;
 
-public class FusekiKafkaException extends JenaException {
+public class FusekiKafkaException extends JenaKafkaException {
     public FusekiKafkaException(String msg) { super(msg); }
     public FusekiKafkaException(String msg, Throwable cause) { super(msg, cause); }
 }

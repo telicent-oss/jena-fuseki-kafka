@@ -18,12 +18,10 @@
 
 package org.apache.jena.kafka;
 
-import org.apache.jena.shared.JenaException;
-
-public class FusekiKafkaException extends JenaException {
-    //public FusekiKafkaException()                                  { super(); }
-    public FusekiKafkaException(String message)                    { super(message); }
-    //public FusekiKafkaException(Throwable cause)                   { super(cause) ; }
-    public FusekiKafkaException(String message, Throwable cause)   { super(message, cause) ; }
+/** @deprecated Use {@linkplain JenaKafkaException} or {@code org.apache.jena.fuseki.kafka.FusekiJenaKafkaException} */
+@Deprecated
+public class FusekiJenaKafkaException extends JenaKafkaException {
+    public FusekiJenaKafkaException(String message)                    { super(message); }
+    public FusekiJenaKafkaException(String message, Throwable cause)   { super(message, cause) ; }
 }
 
