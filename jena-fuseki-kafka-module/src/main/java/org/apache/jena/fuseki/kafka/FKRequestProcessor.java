@@ -43,10 +43,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 /**
  * The engine for the Kafka-Fuseki connector.
  * <p>
- * See {@link FKProcessor} for plain dispatch.
+ * This creates a minimal HTTP request-response pair and sends the message to a
+ * {@link RequestDispatcher}, an interface for servlet-like operation.
+ * <p>
+ * See {@link FKProcessor} for code-level dispatch.
  */
 public class FKRequestProcessor {
-    // --> rename!
 
     private final RequestDispatcher dispatcher;
     private final ServletContext servletContext;
@@ -128,7 +130,7 @@ public class FKRequestProcessor {
     }
 
     /**
-     * The logic to send an {@link RequestFK} to a {@link RequestDispatcher} which handled {@code HttpServlet} style operations.
+     * The logic to send an {@link RequestFK} to a {@link RequestDispatcher} which handles {@code HttpServlet} style operations.
      */
     private static ResponseFK dispatch(RequestDispatcher dispatcher, String topic, String requestURI, RequestFK request, ServletContext servletContext) {
         Map<String, String> requestParameters = Map.of();

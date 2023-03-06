@@ -34,7 +34,13 @@ import org.apache.kafka.common.header.Headers;
  * Process incoming to SPARQL Update or RDF data.
  * <p>
  * This is the simplified version of what Fuseki would do for an operation sent to
- * the dataset URL. It splits RDF data from SPARQL Updates based on Content-Type.
+ * the dataset URL. By looking at the {@code Content-Type}, it splits incoming Kafka messages into:
+ * <ul>
+ * <li>SPARQL Updates</li>
+ * <li>RDF Patch</li>
+ * <li>RDF Data</li>
+ * <ul>
+ *
  * <p>
  * The Fuseki dispatch is {@link FKRequestProcessor} which uses Fuseki dispatch on operation type.
  */
