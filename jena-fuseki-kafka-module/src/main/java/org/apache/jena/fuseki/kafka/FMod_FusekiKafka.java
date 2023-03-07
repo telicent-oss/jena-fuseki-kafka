@@ -46,7 +46,7 @@ public class FMod_FusekiKafka implements FusekiModule {
 
     @Override
     public void start() {
-        Fuseki.configLog.info("Fuseki-Kafka connector module");
+        Fuseki.configLog.info("Fuseki-Kafka Connector Module");
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
     }
 
