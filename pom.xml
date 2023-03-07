@@ -59,7 +59,7 @@
     <ver.junit4>4.13.2</ver.junit4>
     <ver.junit5>5.8.2</ver.junit5>
     <ver.junit5-platform>1.8.2</ver.junit5-platform>
-    <ver.testcontainers>1.17.3</ver.testcontainers>
+    <ver.testcontainers>1.17.6</ver.testcontainers>
   </properties>
 
   <modules>
