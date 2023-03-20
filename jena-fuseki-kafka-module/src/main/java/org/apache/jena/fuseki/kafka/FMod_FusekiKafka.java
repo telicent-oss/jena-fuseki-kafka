@@ -32,6 +32,7 @@ import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
 import org.apache.jena.kafka.ConnectorDescriptor;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
+import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.PersistentState;
 import org.apache.jena.rdf.model.Model;
@@ -46,7 +47,7 @@ public class FMod_FusekiKafka implements FusekiModule {
 
     @Override
     public void start() {
-        Fuseki.configLog.info("Fuseki-Kafka Connector Module");
+        FmtLog.info(Fuseki.configLog, "Fuseki-Kafka Connector Module (%s)", SysJenaKafka.VERSION);
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
     }
 

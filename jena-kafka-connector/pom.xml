@@ -39,7 +39,6 @@
   -->
 
   <dependencies>
-
     <!--
     <dependency>
       <groupId>org.apache.kafka</groupId>
@@ -60,9 +59,24 @@
 
   </dependencies>
 
-  <!--
-      See above about Automatic-Module-Name
   <build>
+    
+   <resources>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <includes>
+          <include>org/apache/jena/kafka/jena-kafka.xml</include>
+        </includes>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+
+    <!--
+      See above about Automatic-Module-Name
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -83,7 +97,7 @@
         </executions>
       </plugin>
     </plugins>
+    -->
   </build>
-  -->
 
 </project>

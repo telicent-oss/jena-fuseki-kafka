@@ -24,7 +24,7 @@ public class FusekiKafka {
     public static final String hContentType = HttpNames.hContentType;
     public static final String hRequestType = "RT";
 
-    public static String noRemoteEndpointName       = "";
+    public static String noRemoteEndpointName = "";
     public static String noFusekiServiceName  = "";
 
     public static Logger LOG = LoggerFactory.getLogger("FusekiKafka");
