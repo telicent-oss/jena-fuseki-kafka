@@ -14,16 +14,17 @@ The Kafka event must have a Kafka message header "Content-Type" set to the MIME
 type of the content. No other headers are required.
 
 Supported MIME types:
-* An RDF triples or quads format - any synatx supported by 
+* An RDF triples or quads format - any syntax supported by 
   Apache Jena - `application/n-triples`, `text/turtle`, ...
 * SPARQL Update
-
+* [RDF Patch](https://jena.apache.org/documentation/rdf-patch/)
 
 The Fuseki service must be configured with the appropriate operations.
 `fuseki:gsp-rw` or `fuseki:upload` for pushing RDF into a dataset; 
-`fuseki:update` for SPARQL Update.
-The Fuseki implementation of th SPARQL Graph Store Protocol is extended to
-support data set to the dataset without graph name.
+`fuseki:update` for SPARQL Update,
+`fuseki:patch` for RDF Patch.
+The Fuseki implementation of the SPARQL Graph Store Protocol is extended to
+support data sent to the dataset without graph name (i.e. quads).
 
 ```
 :service rdf:type fuseki:Service ;
@@ -34,7 +35,7 @@ support data set to the dataset without graph name.
     # Fuseki-Kafka
     fuseki:endpoint [ fuseki:operation fuseki:update ] ;
     fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
-
+    fuseki:endpoint [ fuseki:operation fuseki:patch ] ;
     ...
     fuseki:dataset ... ;
     .
@@ -156,15 +157,21 @@ In the directory where you wish to run Fuseki:
 Get a copy of Fuseki Main:
 
 ```
-wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.6.1/jena-fuseki-server-4.6.1.jar
+wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.7.0/jena-fuseki-server-4.7.0.jar
 ```
+and place in the curret directory.
 
-then run `fuseki-main --conf config.ttl`
+Get a copy of the script [fuseki-main](https://github.com/Telicent-io/jena-fuseki-kafka/blob/main/fuseki-main)
+then run 
+
+```
+fuseki-main jena-fuseki-server-4.7.0.jar --conf config.ttl`
+```
 
 where `config.ttl is the configuration file for the server including the
 connector setup.
 
-Windows uses can run `fuseki-main.bat` which may need adjusting for the coirrect
+Windows uses can run `fuseki-main.bat` which may need adjusting for the correct
 version number of Fuseki.
 
 ## Client

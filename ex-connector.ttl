@@ -7,7 +7,6 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 ## Connect Kafka topic "RDF" to /ds
 
-
 <#connector> rdf:type fk:Connector ;
     fk:bootstrapServers   "localhost:9092";
     fk:topic              "RDF";
