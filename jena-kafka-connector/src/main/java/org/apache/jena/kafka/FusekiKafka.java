@@ -21,12 +21,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FusekiKafka {
+    /** Log used for runtime general information */
+    public static Logger LOG = LoggerFactory.getLogger(FusekiKafka.class);
+
     public static final String hContentType = HttpNames.hContentType;
     public static final String hRequestType = "RT";
 
     public static String noRemoteEndpointName = "";
     public static String noFusekiServiceName  = "";
-
-    public static Logger LOG = LoggerFactory.getLogger("FusekiKafka");
 }
 

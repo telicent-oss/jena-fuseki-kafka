@@ -48,8 +48,6 @@ import org.apache.kafka.common.serialization.StringSerializer;
 /** Send one file. */
 public class FK_Send extends CmdGeneral {
 
-    //private static Logger LOG = LoggerFactory.getLogger("Fuka");
-
     static final ArgDecl argServer      = new ArgDecl(ArgDecl.HasValue, "server", "s") ;
     static final ArgDecl argTopic       = new ArgDecl(ArgDecl.HasValue, "topic", "t") ;
     static final ArgDecl argContentType = new ArgDecl(ArgDecl.HasValue, "content-type", "ct") ;

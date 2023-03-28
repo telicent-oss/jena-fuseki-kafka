@@ -23,7 +23,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.DeserializerDump;
@@ -52,7 +52,7 @@ public class FK_DumpTopic {
         RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
-        ConnectorDescriptor conn = (ConnectorDescriptor)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
+        KConnectorDesc conn = (KConnectorDesc)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
 
         if ( conn == null ) {
             System.err.flush();

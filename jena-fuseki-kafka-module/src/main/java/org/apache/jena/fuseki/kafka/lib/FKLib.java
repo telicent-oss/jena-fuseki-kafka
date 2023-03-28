@@ -105,11 +105,11 @@ public class FKLib {
         for ( String fn : files ) {
             RecordMetadata res = sendFile(producer, partition, topic, fn);
             if ( res == null )
-                LOG.error("Error: sendFile");
+                FmtLog.error(LOG, "[%s] Error: sendFile %s", topic, fn);
             else if ( ! res.hasOffset() )
-                LOG.error("No offset");
+                FmtLog.info(LOG, "[%s] No offset", topic);
             else
-                LOG.info("Send: Offset = "+res.offset());
+                FmtLog.info(LOG, "[%s] Send: %s: Offset = %s", topic, fn, res.offset());
         }
     }
 
@@ -117,11 +117,11 @@ public class FKLib {
         List<Header> headers = ( contentType != null ) ? List.of(header(HttpNames.hContentType, contentType)) : List.of();
         RecordMetadata res = sendBody(producer, partition, topic, headers, content);
         if ( res == null )
-            LOG.error("Error: sendFile");
+            FmtLog.error(LOG, "[%s] Error: sendString", topic);
         else if ( ! res.hasOffset() )
-            LOG.error("No offset");
+            FmtLog.info(LOG, "[%s] sendString: No offset", topic);
         else
-            LOG.info("Send: Offset = "+res.offset());
+            FmtLog.info(LOG, "[%s] sendString: Offset = %s", topic, res.offset());
     }
 
     private static RecordMetadata sendFile(Producer<String, String> producer, Integer partition, String topic, String fn) {

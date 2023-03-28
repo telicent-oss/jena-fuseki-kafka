@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Properties;
 
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sys.JenaSystem;
@@ -35,14 +35,14 @@ public class TestConnectorDescriptor {
     static { JenaSystem.init(); }
 
     @Test public void descriptor_1() {
-        ConnectorDescriptor conn = connectorByType("assem-connector-1.ttl");
+        KConnectorDesc conn = connectorByType("assem-connector-1.ttl");
         assertNotNull(conn);
         assertNotNull(conn.getBootstrapServers());
         assertNotNull(conn.getKafkaConsumerProps());
     }
 
     @Test public void descriptor_2() {
-        ConnectorDescriptor conn = connectorByType("assem-connector-2.ttl");
+        KConnectorDesc conn = connectorByType("assem-connector-2.ttl");
         assertNotNull(conn);
         assertNotNull(conn.getBootstrapServers());
         Properties properties = conn.getKafkaConsumerProps();
@@ -55,9 +55,9 @@ public class TestConnectorDescriptor {
         assertEquals("State.state", conn.getStateFile());
     }
 
-    private ConnectorDescriptor connectorByType(String filename) {
-        ConnectorDescriptor conn =
-                (ConnectorDescriptor)AssemblerUtils.build(DIR+"/"+filename, KafkaConnectorAssembler.getType());
+    private KConnectorDesc connectorByType(String filename) {
+        KConnectorDesc conn =
+                (KConnectorDesc)AssemblerUtils.build(DIR+"/"+filename, KafkaConnectorAssembler.getType());
         return conn;
     }
 

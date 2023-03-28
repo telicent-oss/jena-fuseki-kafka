@@ -33,7 +33,7 @@ import org.apache.jena.atlas.logging.Log;
  * For Fuseki, the {@link RequestFK} is handled by {@code FKRequestProcessor} which
  * dispatches the request to the main Fuseki execution path (includes Fuseki logging).
  */
-public class ConnectorDescriptor {
+public class KConnectorDesc {
 
     // Source
     private final String topic;
@@ -56,10 +56,10 @@ public class ConnectorDescriptor {
     private final Properties kafkaConsumerProps;
 //    private final Properties kafkaProducerProps;
 
-    public ConnectorDescriptor(String topic, String bootstrapServers, String fusekiDispatchName, String remoteEndpoint, String stateFile,
-                               boolean syncTopic, boolean replayTopic,
-                               Properties kafkaConsumerProps,
-                               boolean verbose, Function<Integer, PrintStream> output) {
+    public KConnectorDesc(String topic, String bootstrapServers, String fusekiDispatchName, String remoteEndpoint, String stateFile,
+                          boolean syncTopic, boolean replayTopic,
+                          Properties kafkaConsumerProps,
+                          boolean verbose, Function<Integer, PrintStream> output) {
         this.topic = Objects.requireNonNull(topic, "topic");
         this.bootstrapServers = bootstrapServers;
         this.fusekiDispatchPath = fusekiDispatchName;

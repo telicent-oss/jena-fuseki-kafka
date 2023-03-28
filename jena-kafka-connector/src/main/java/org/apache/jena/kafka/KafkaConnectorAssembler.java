@@ -133,7 +133,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return create(root.getModel().getGraph(), root.asNode(), tKafkaConnector.asNode());
     }
 
-    private ConnectorDescriptor create(Graph graph, Node node, Node type) {
+    private KConnectorDesc create(Graph graph, Node node, Node type) {
         try {
             return createSub(graph, node, type);
         } catch (RuntimeException ex) {
@@ -161,7 +161,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return new JenaKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
     }
 
-    private ConnectorDescriptor createSub(Graph graph, Node node, Node type) {
+    private KConnectorDesc createSub(Graph graph, Node node, Node type) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *
@@ -223,7 +223,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
         // ----
         Properties kafkaConsumerProps = kafkaConsumerProps(graph,  node,  topic, bootstrapServers, groupId);
-        return new ConnectorDescriptor(topic, bootstrapServers,
+        return new KConnectorDesc(topic, bootstrapServers,
                                        datasetName, remoteEndpoint, stateFile, syncTopic,
                                        replayTopic, kafkaConsumerProps,
                                        verbose, (x)->logOutput);

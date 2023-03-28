@@ -73,7 +73,7 @@ public class FKRequestProcessor {
             pollingDuration = Duration.ofSeconds(5000);
         final long lastOffsetState = dataState.getOffset();
         try {
-            long newOffset = receiverStep(dataState.getOffset(), consumer, pollingDuration);
+            long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
             if ( newOffset == lastOffsetState )
                 return false;
             dataState.setOffset(newOffset);
@@ -87,7 +87,7 @@ public class FKRequestProcessor {
     }
 
     /** Do one Kafka consumer poll step. */
-    private long receiverStep(long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
+    private long receiverStep(String topic, long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
 
         ConsumerRecords<String, RequestFK> cRec = consumer.poll(pollingDuration);
@@ -95,7 +95,7 @@ public class FKRequestProcessor {
         int count = cRec.count();
 
         if ( count != 0 )
-            FmtLog.info(FusekiKafka.LOG, "Receiver: from %d , count = %d", lastOffset, count);
+            FmtLog.info(FusekiKafka.LOG, "[%s] Receiver: from %d , count = %d", topic, lastOffset, count);
 
         for ( ConsumerRecord<String, RequestFK> rec : cRec ) {
             try {

@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.DeserializerActionFK;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.RequestFK;
@@ -51,7 +51,7 @@ public class FK_SyncDB {
         // No args - assumes FK_Defaults.connectorFile
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
-        ConnectorDescriptor conn = (ConnectorDescriptor)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
+        KConnectorDesc conn = (KConnectorDesc)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());
 
         if ( conn == null ) {
             System.err.flush();

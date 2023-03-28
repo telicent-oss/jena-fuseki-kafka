@@ -30,7 +30,7 @@ import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiModule;
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.kafka.common.DataState;
@@ -54,7 +54,7 @@ public class FMod_FusekiKafka implements FusekiModule {
     // The Fuseki modules build lifecycle is same-thread.
     // This passes information from 'prepare' to 'serverBeforeStarting'
 
-    private ThreadLocal<List<Pair<ConnectorDescriptor, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
+    private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
     //private Map<>
 
     private String modName = UUID.randomUUID().toString();
@@ -79,9 +79,9 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     /*package*/ void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
-        ConnectorDescriptor conn;
+        KConnectorDesc conn;
         try {
-            conn = (ConnectorDescriptor)Assembler.general.open(connector);
+            conn = (KConnectorDesc)Assembler.general.open(connector);
         } catch (JenaException ex) {
             FmtLog.error(LOG, "Failed to build a connector", ex);
             return;
@@ -104,25 +104,27 @@ public class FMod_FusekiKafka implements FusekiModule {
     }
 
     // Passing connector across stages by using a ThreadLocal.
-    private void recordConnector(Builder builder, ConnectorDescriptor conn, DataState dataState) {
-        Pair<ConnectorDescriptor, DataState> pair = Pair.create(conn, dataState);
+    private void recordConnector(Builder builder, KConnectorDesc conn, DataState dataState) {
+        Pair<KConnectorDesc, DataState> pair = Pair.create(conn, dataState);
         buildState.get().add(pair);
         FKRegistry.get().register(conn.getTopic(), conn);
     }
 
-    private List<Pair<ConnectorDescriptor, DataState>> connectors(FusekiServer server) {
+    private List<Pair<KConnectorDesc, DataState>> connectors(FusekiServer server) {
         return buildState.get();
     }
 
     @Override
     public void serverBeforeStarting(FusekiServer server) {
-        List<Pair<ConnectorDescriptor, DataState>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, DataState>> connectors = connectors(server);
         if ( connectors == null )
             return;
         connectors.forEach(pair->{
-            ConnectorDescriptor conn = pair.getLeft();
+            KConnectorDesc conn = pair.getLeft();
             DataState dataState = pair.getRight();
-            FmtLog.info(LOG, "Starting connector between %s topic %s and %s", conn.getBootstrapServers(), conn.getTopic(),
+            FmtLog.info(LOG, "[%s] Starting connector between %s topic %s and endpoint %s",
+                        conn.getTopic(),
+                        conn.getBootstrapServers(), conn.getTopic(),
                         conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint());
             FKS.addConnectorToServer(conn, server, dataState);
         });
@@ -136,11 +138,11 @@ public class FMod_FusekiKafka implements FusekiModule {
 
     @Override
     public void serverStopped(FusekiServer server) {
-        List<Pair<ConnectorDescriptor, DataState>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, DataState>> connectors = connectors(server);
         if ( connectors == null )
             return;
         connectors.forEach(pair->{
-            ConnectorDescriptor conn = pair.getLeft();
+            KConnectorDesc conn = pair.getLeft();
             DataState dataState = pair.getRight();
             FKRegistry.get().unregister(conn.getTopic());
         });

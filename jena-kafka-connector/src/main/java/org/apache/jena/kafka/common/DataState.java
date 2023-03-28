@@ -106,7 +106,7 @@ public class DataState {
             b.println();
         }
 
-        FmtLog.info(LOG, "Offset = %d", offset);
+        FmtLog.info(LOG, "[%s] Offset = %d", getTopic(), offset);
         state.setBytes(output.toByteArray());
     }
 
@@ -117,12 +117,14 @@ public class DataState {
     }
 
     private JsonObject asJson() {
-        return JSON.buildObject(builder->builder
-                                            .pair(fDataset, dispatchPath)
-                                            .pair(fEndpoint, remoteEndpoint)
-                                            .pair(fTopic,   topic)
-                                            .pair(fOffset,  offset)
-        );
+        return JSON.buildObject(builder-> {
+            if ( dispatchPath != null )
+                builder.pair(fDataset, dispatchPath);
+            if ( remoteEndpoint != null )
+                builder.pair(fEndpoint, remoteEndpoint);
+            builder.pair(fTopic,   topic);
+            builder.pair(fOffset,  offset);
+            });
     }
 
     private void setFromJson(JsonObject obj) {

@@ -19,14 +19,17 @@ package org.apache.jena.fuseki.kafka;
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.DeserializerActionFK;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
@@ -50,7 +53,7 @@ public class FKS {
      * This setups on the polling.
      * This configures update.
      */
-    public static void addConnectorToServer(ConnectorDescriptor conn, FusekiServer server, DataState dataState) {
+    public static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, DataState dataState) {
         String topicName = conn.getTopic();
         String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
@@ -81,7 +84,7 @@ public class FKS {
         // Last offset processed
         long stateOffset = dataState.getOffset();
         if ( stateOffset < 0 ) {
-            FmtLog.info(LOG, "Initialize from topic %s", conn.getTopic());
+            FmtLog.info(LOG, "[%s] Initialize from topic", conn.getTopic());
             // consumer.seekToBeginning(Arrays.asList(topicPartition)); BUG
             replayTopic = true;
         }
@@ -98,15 +101,15 @@ public class FKS {
 
         String versionString = Meta.VERSION;
         if ( conn.getLocalDispatchPath() != null )
-            FmtLog.info(LOG, "Start FusekiKafka (%s) : Topic = %s : Dataset = %s", versionString,  conn.getTopic(), conn.getLocalDispatchPath());
+            FmtLog.info(LOG, "[%s] Start FusekiKafka (%s) : Topic = %s : Dataset = %s", topicName, versionString, topicName, conn.getLocalDispatchPath());
         else
-            FmtLog.info(LOG, "Start FusekiKafka (%s) : Topic = %s : Relay = %s", versionString,  conn.getTopic(), conn.getRemoteEndpoint());
+            FmtLog.info(LOG, "[%s] Start FusekiKafka (%s) : Topic = %s : Relay = %s", topicName, versionString,  topicName, conn.getRemoteEndpoint());
 
         // Do now for some catchup.
         oneTopicPoll(requestProcessor, consumer, dataState, Duration.ofMillis(500));
 
         // ASYNC
-        startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + conn.getTopic());
+        startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + topicName);
     }
 
     /** Check connectivity so we can give specific messages */
@@ -119,16 +122,22 @@ public class FKS {
             // Short timeout - this is a check, processing tries to continue.
             List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, Duration.ofMillis(5000));
             if ( partitionInfo == null ) {
-                FmtLog.error(LOG, "Unexpected - PartitionInfo list is null");
+                FmtLog.error(LOG, "[%s] Unexpected - PartitionInfo list is null", topicName);
                 return;
             }
-            if ( partitionInfo .isEmpty() )
-                FmtLog.warn(LOG, "Successfully contacted Kafka but no partitions for topic %s", topicName);
-            else
-                FmtLog.info(LOG, "Successfully contacted Kafka topic partition %s", partitionInfo);
+            if ( partitionInfo.isEmpty() )
+                FmtLog.warn(LOG, "[%s] Successfully contacted Kafka but no partitions for topic %s", topicName, topicName);
+            else {
+                if ( partitionInfo.size() != 1 )
+                    FmtLog.info(LOG, "[%s] Successfully contacted Kafka topic partitions %s", topicName, partitionInfo);
+                else {
+                    PartitionInfo info = partitionInfo.get(0);
+                    FmtLog.info(LOG, "[%s] Successfully contacted Kafka topic %s", topicName, info.topic());
+                }
+            }
         } catch (TimeoutException ex) {
             ex.printStackTrace(System.err);
-            FmtLog.info(LOG, "Failed to contact Kafka broker for topic partition %s", topicName);
+            FmtLog.info(LOG, "[%s] Failed to contact Kafka broker for topic partition %s", topicName, topicName);
             // No server => no topic.
         } finally {
             LogCtl.setLevel(cls, logLevel);
@@ -137,19 +146,20 @@ public class FKS {
 
     /** Set to catch up on the topic at the next (first) call. */
     private static void setupSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
+        String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
 
-        FmtLog.info(LOG, "State=%d  Topic next offset=%d", stateOffset, topicPosition);
+        FmtLog.info(LOG, "[%s] State=%d  Topic next offset=%d", topic, stateOffset, topicPosition);
         if ( (stateOffset >= 0) && (stateOffset >= topicPosition) ) {
-            FmtLog.info(LOG, "Adjust state record %d -> %d", stateOffset, topicPosition - 1);
+            FmtLog.info(LOG, "[%s] Adjust state record %d -> %d", topic, stateOffset, topicPosition - 1);
             stateOffset = topicPosition - 1;
             dataState.setOffset(stateOffset);
         } else if ( topicPosition != stateOffset + 1 ) {
-            FmtLog.info(LOG, "Set sync %d -> %d", stateOffset, topicPosition - 1);
+            FmtLog.info(LOG, "[%s] Set sync %d -> %d", topic, stateOffset, topicPosition - 1);
             consumer.seek(topicPartition, stateOffset + 1);
         } else {
-            FmtLog.info(LOG, "Up to date: %d -> %d", stateOffset, topicPosition - 1);
+            FmtLog.info(LOG, "[%s] Up to date: %d -> %d", topic, stateOffset, topicPosition - 1);
         }
     }
 
@@ -158,9 +168,10 @@ public class FKS {
      * (first) call.
      */
     private static void setupNoSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
+        String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
-        FmtLog.info(LOG, "No sync: State=%d  Topic offset=%d", stateOffset, topicPosition);
+        FmtLog.info(LOG, "[%s] No sync: State=%d  Topic offset=%d", topic, stateOffset, topicPosition);
         dataState.setOffset(topicPosition);
     }
 
@@ -169,7 +180,7 @@ public class FKS {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
-        FmtLog.info(LOG, "Replay: Old state=%d  Topic offset=%d", stateOffset, topicPosition);
+        FmtLog.info(LOG, "[%s] Replay: Old state=%d  Topic offset=%d", topic, stateOffset, topicPosition);
         // Assumes offsets from 0 (no expiry)
 
         // Here or in FK.receiverStep
@@ -207,24 +218,25 @@ public class FKS {
             try {
                 boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
             } catch (Throwable th) {
+                FmtLog.debug(LOG, th, "[%s] Unexpected Exception %s", dataState.getTopic(), dataState);
             }
         }
     }
 
     /** A polling attempt either returns some records or waits the polling duration. */
     private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
+        String topic = dataState.getTopic();
         long lastOffsetState = dataState.getOffset();
         boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
         if ( somethingReceived ) {
             long newOffset = dataState.getOffset();
-            FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
+            FmtLog.debug(LOG, "[%s] Offset: %d -> %d", topic, lastOffsetState, newOffset);
         } else
-            FmtLog.debug(LOG, "Nothing received: Offset: %d", lastOffsetState);
+            FmtLog.debug(LOG, "[%s] Nothing received: Offset: %d", topic, lastOffsetState);
         return somethingReceived;
     }
 
-    // Better? One scheduled executor.
-    // Completes with Kakfa and polling duration.
+    // Better? A single scheduled executor.
 //  private static List<Runnable> tasks = new CopyOnWriteArrayList<Runnable>();
 //
 //  private static ScheduledExecutorService threads = threadExecutor();
@@ -255,11 +267,12 @@ public class FKS {
 //
 //  /** A polling attempt either returns some records or waits the polling duration. */
 //  private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
+//      String topic = dataState.getTopic();
 //      long lastOffsetState = dataState.getOffset();
 //      boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
 //      if ( somethingReceived ) {
 //          long newOffset = dataState.getOffset();
-//          FmtLog.debug(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
+//          FmtLog.debug(LOG, "[%s] Offset: %d -> %d", topic, lastOffsetState, newOffset);
 //      }
 //      return somethingReceived;
 //  }

@@ -19,7 +19,7 @@ package org.apache.jena.fuseki.kafka;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.jena.kafka.ConnectorDescriptor;
+import org.apache.jena.kafka.KConnectorDesc;
 
 /**
  * Registry of active connectors.
@@ -34,7 +34,7 @@ public class FKRegistry {
     public static FKRegistry get() { return singleton; }
 
     // Topic to connector record.
-    private Map<String, ConnectorDescriptor> topicToConnector = new ConcurrentHashMap<>();
+    private Map<String, KConnectorDesc> topicToConnector = new ConcurrentHashMap<>();
 
     // Dispatch to topic.
     private Map<String, String> pathToTopic = new ConcurrentHashMap<>();
@@ -45,21 +45,21 @@ public class FKRegistry {
      * Return the Fuseki dispatch (request URI) for a topic.
      */
     public String getDispatchURI(String topicName) {
-        ConnectorDescriptor conn = getConnectorDescriptor(topicName);
+        KConnectorDesc conn = getConnectorDescriptor(topicName);
         return conn.getLocalDispatchPath();
     }
 
     /**
-     * Return the {@link ConnectorDescriptor} for a topic.
+     * Return the {@link KConnectorDesc} for a topic.
      */
-    public ConnectorDescriptor getConnectorDescriptor(String topicName) {
+    public KConnectorDesc getConnectorDescriptor(String topicName) {
         return topicToConnector.get(topicName);
     }
 
     /**
-     * Register a topic-service binding, with it {@link FKRequestProcessor} (may be null) and {@link ConnectorDescriptor}.
+     * Register a topic-service binding, with it {@link FKRequestProcessor} (may be null) and {@link KConnectorDesc}.
      */
-    public void register(String topicName, ConnectorDescriptor connectorDescriptor) {
+    public void register(String topicName, KConnectorDesc connectorDescriptor) {
         topicToConnector.put(topicName, connectorDescriptor);
         if ( connectorDescriptor.getLocalDispatchPath() != null )
             pathToTopic.put(connectorDescriptor.getLocalDispatchPath(), topicName);
