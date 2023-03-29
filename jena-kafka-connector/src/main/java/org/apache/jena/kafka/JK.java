@@ -16,11 +16,14 @@
 
 package org.apache.jena.kafka;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.jena.atlas.lib.Bytes;
-import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.Header;
 
 public class JK {
 
@@ -28,7 +31,7 @@ public class JK {
      * Kafka headers to a Map. If there are multiple headers with the same key name,
      * only the last header value goes in the map.
      */
-    public static Map<String, String> headerToMap(Headers headers) {
+    public static Map<String, String> headerToMap(Iterable<Header> headers) {
         Map<String, String> map = new HashMap<>();
         headers.forEach(header->{
             String hName = header.key();
@@ -36,5 +39,17 @@ public class JK {
             map.put(hName,  hValue);
         });
         return map;
+    }
+
+    /**
+     * Map to Kafka headers. No support for multiple headers with the same key name.
+     */
+    public static Iterable<Header> mapToHeaders(Map<String, String> headerMap) {
+        List<Header> headers = new ArrayList<>();
+        headerMap.forEach((name, value)->{
+            byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+            headers.add(new RecordHeader(name, bytes));
+        });
+        return headers;
     }
 }

@@ -105,7 +105,7 @@ public class FKRequestProcessor {
                 // Polling is asynchronous to the server.
                 // When shutting down, various things can go wrong.
                 // Log and ignore!
-                FusekiKafka.LOG.warn("Exception in dispatch: %s", ex.getMessage(), ex);
+                FmtLog.warn(FusekiKafka.LOG, ex, "Exception in dispatch: %s", ex.getMessage());
                 return lastOffset;
             }
         }
@@ -138,12 +138,7 @@ public class FKRequestProcessor {
                                                                request.getBytes(), servletContext);
         HttpServletResponseMinimal resp = new HttpServletResponseMinimal(bytesOut);
 
-        try {
-            dispatcher.dispatch(req, resp);
-        } catch (RuntimeException ex) {
-            FmtLog.info(FusekiKafka.LOG, "Exception in dispatch", ex);
-            throw ex;
-        }
+        dispatcher.dispatch(req, resp);
 
         InputStream respBytes;
         if ( bytesOut.size() != 0 )
