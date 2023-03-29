@@ -108,6 +108,8 @@ public class FKS {
         // Do now for some catchup.
         oneTopicPoll(requestProcessor, consumer, dataState, Duration.ofMillis(500));
 
+        FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getOffset());
+
         // ASYNC
         startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + topicName);
     }
@@ -193,11 +195,7 @@ public class FKS {
     private static ExecutorService threads = threadExecutor();
 
     private static ExecutorService threadExecutor() {
-        return Executors.newFixedThreadPool(1, runnable -> {
-            Thread th = new Thread(runnable);
-            th.setDaemon(true);
-            return th;
-        });
+        return Executors.newCachedThreadPool();
     }
 
     /** The background threads */
