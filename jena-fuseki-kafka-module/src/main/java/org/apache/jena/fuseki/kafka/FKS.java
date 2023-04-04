@@ -47,6 +47,17 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  */
 public class FKS {
 
+    // Length for the ping of Kafka
+    private static final Duration checkKafkaDuration = Duration.ofMillis(500);
+    // Length of the first sync on a topic to get it to catch up.
+    private static final Duration initPollDuration = Duration.ofMillis(500);
+    // Length of the wait when polling kafka regularly.
+    private static final Duration pollingDuration = Duration.ofMillis(1000);
+
+    public static void setBatchingFromEnvironment() {
+        FKRequestBatcher.setFromEnvironment();
+    }
+
     /**
      * Add a connector to a server.
      * Called from FusekiModule.serverBeforeStarting.
@@ -99,14 +110,13 @@ public class FKS {
             setupNoSyncTopic(consumer, topicPartition, dataState);
         }
 
-        String versionString = Meta.VERSION;
         if ( conn.getLocalDispatchPath() != null )
-            FmtLog.info(LOG, "[%s] Start FusekiKafka (%s) : Topic = %s : Dataset = %s", topicName, versionString, topicName, conn.getLocalDispatchPath());
+            FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic = %s : Dataset = %s", topicName, topicName, conn.getLocalDispatchPath());
         else
-            FmtLog.info(LOG, "[%s] Start FusekiKafka (%s) : Topic = %s : Relay = %s", topicName, versionString,  topicName, conn.getRemoteEndpoint());
+            FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic = %s : Relay = %s", topicName, topicName, conn.getRemoteEndpoint());
 
         // Do now for some catchup.
-        oneTopicPoll(requestProcessor, consumer, dataState, Duration.ofMillis(500));
+        oneTopicPoll(requestProcessor, consumer, dataState, initPollDuration);
 
         FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getOffset());
 
@@ -122,7 +132,7 @@ public class FKS {
         LogCtl.setLevel(cls, "Error");
         try {
             // Short timeout - this is a check, processing tries to continue.
-            List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, Duration.ofMillis(5000));
+            List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, checkKafkaDuration);
             if ( partitionInfo == null ) {
                 FmtLog.error(LOG, "[%s] Unexpected - PartitionInfo list is null", topicName);
                 return;
@@ -211,7 +221,6 @@ public class FKS {
 
     /** Polling task loop.*/
     private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState) {
-        Duration pollingDuration = Duration.ofMillis(5000);
         for ( ;; ) {
             try {
                 boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);

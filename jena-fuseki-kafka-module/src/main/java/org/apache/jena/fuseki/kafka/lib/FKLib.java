@@ -186,7 +186,7 @@ public class FKLib {
     // Do the Kafka-poll/wait.
     private static long receiverStep(final long lastOffsetState, Consumer<String, String> consumer,
                                      BiConsumer<ConsumerRecord<String, String>, Long> handler) {
-        ConsumerRecords<String, String> cRec = consumer.poll(Duration.ofMillis(5000));
+        ConsumerRecords<String, String> cRec = consumer.poll(Duration.ofMillis(1000));
         long lastOffset = lastOffsetState;
         int count = cRec.count();
         for ( ConsumerRecord<String, String> rec : cRec ) {

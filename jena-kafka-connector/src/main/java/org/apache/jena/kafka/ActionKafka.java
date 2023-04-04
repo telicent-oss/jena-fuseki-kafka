@@ -16,21 +16,34 @@
 
 package org.apache.jena.kafka;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Record of a message with it's topic.
  */
 public class ActionKafka {
     private final Map<String, String> headers;
-    private final InputStream bytes;
     private final String topic;
+    // Either-or
+    private final byte[] bytes;
+    private final InputStream bytesInput;
 
-    protected ActionKafka(String topic, Map<String, String> headers, InputStream bytes) {
+    protected ActionKafka(String topic, Map<String, String> headers, InputStream bytesInput) {
         this.topic = topic;
         this.headers = headers;
-        this.bytes = bytes;
+        this.bytes = null;
+        this.bytesInput = Objects.requireNonNull(bytesInput);
+
+    }
+
+    protected ActionKafka(String topic, Map<String, String> headers, byte[] bytes) {
+        this.topic = topic;
+        this.headers = headers;
+        this.bytes = Objects.requireNonNull(bytes);
+        this.bytesInput = null;
     }
 
     public String getTopic() {
@@ -45,8 +58,26 @@ public class ActionKafka {
         return headers.get(FusekiKafka.hContentType);
     }
 
-    public InputStream getBytes() {
+    public long getByteCount() {
+        return bytes == null ? -1 : bytes.length;
+    }
+
+    /* Get bytes - this may be null, meaning there is an input stream instead */
+    public byte[] getBytes() {
         return bytes;
     }
 
+    public InputStream getInputStream() {
+        if ( hasInputStream() )
+            return bytesInput;
+        return new ByteArrayInputStream(bytes);
+    }
+
+    public boolean hasInputStream() {
+        return bytesInput != null;
+    }
+
+    public boolean hasBytes() {
+        return bytes != null;
+    }
 }

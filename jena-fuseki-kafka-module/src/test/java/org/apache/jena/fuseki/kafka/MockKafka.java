@@ -34,7 +34,7 @@ public class MockKafka {
     private final AdminClient admin;
 
     public MockKafka() {
-        kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.1.1"));
+        kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.3.3"));
         kafkaContainer.start();
         bootstrap = kafkaContainer.getBootstrapServers();
         admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getKafkaBrokers()));

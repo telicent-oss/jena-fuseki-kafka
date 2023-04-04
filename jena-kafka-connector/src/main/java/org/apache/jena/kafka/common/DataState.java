@@ -24,7 +24,6 @@ import java.util.Objects;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.atlas.json.JSON;
 import org.apache.jena.atlas.json.JsonObject;
-import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.refs.RefBytes;
 import org.slf4j.Logger;
@@ -44,6 +43,10 @@ public class DataState {
     private final String remoteEndpoint;
     private final String topic;
     private final RefBytes state;
+    // This is the offset of the next state to write.
+    // -1 : for uninitialized.
+    //  0 : first to be written
+    //  X : Last Kafka offset read is X-1.
     private long offset;
 
     /** Minimal dummy DataState */
@@ -106,7 +109,7 @@ public class DataState {
             b.println();
         }
 
-        FmtLog.info(LOG, "[%s] Offset = %d", getTopic(), offset);
+        //FmtLog.info(LOG, "[%s] DataState new offset = %d", getTopic(), offset);
         state.setBytes(output.toByteArray());
     }
 

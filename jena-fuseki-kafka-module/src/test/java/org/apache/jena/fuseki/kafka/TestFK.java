@@ -128,6 +128,7 @@ public class TestFK {
     }
 
     @Test public void fk04_fuseki() {
+        // Assumes the topic exists and has data.
         DataState dataState = DataState.createEphemeral(TOPIC);
         FusekiServer server = startFuseki(dataState, consumerProps());
         String URL = "http://localhost:"+server.getHttpPort()+DSG;
