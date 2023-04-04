@@ -16,7 +16,6 @@
 
 package org.apache.jena.kafka;
 
-import java.io.ByteArrayInputStream;
 import java.io.PrintStream;
 import java.util.Map;
 import java.util.function.Function;
@@ -32,28 +31,24 @@ import org.apache.kafka.common.serialization.Deserializer;
  */
 public class DeserializerActionFK implements Deserializer<RequestFK> {
 
-    /*
-     * Verbose mode - dumps incoming Kafka event to an output stream.
-     * The purpose is to be able to capture events
-     *
-     */
-
     private final static String defaultContentType = WebContent.contentTypeNQuads;
-    private final Function<Integer, PrintStream> output;
+    // Verbose mode - dumps incoming Kafka event to an output stream.
+    // The purpose is to be able to capture events
+    private final Function<Integer, PrintStream> dumpOutput;
     private boolean verbose = false;
 
     /**
      * New DeserializerActionFK
      * @param verbose
      *      Dump events.
-     * @param output
+     * @param dumpOutput
      *      Supply a {@code PrintStream} for dump output.
      *      The output is thread-safe.
      *      The output is flushed after each event.
      */
-    public DeserializerActionFK(boolean verbose, Function<Integer, PrintStream> output) {
+    public DeserializerActionFK(boolean verbose, Function<Integer, PrintStream> dumpOutput) {
         this.verbose = verbose;
-        this.output = output;
+        this.dumpOutput = dumpOutput;
     }
 
     public DeserializerActionFK() {
@@ -66,10 +61,10 @@ public class DeserializerActionFK implements Deserializer<RequestFK> {
     public RequestFK deserialize(String topic, Headers headers, byte[] data) {
         Map<String, String> requestHeaders = JK.headerToMap(headers);
 
-        if ( verbose && output != null ) {
+        if ( verbose && dumpOutput != null ) {
             synchronized(this) {
                 counter++;
-                PrintStream out = output.apply(counter);
+                PrintStream out = dumpOutput.apply(counter);
                 out.printf("## %d ##\n", counter);
                 headers.forEach(h->out.println(h.key()+": "+StrUtils.fromUTF8bytes(h.value())));
                 out.println();
@@ -93,8 +88,7 @@ public class DeserializerActionFK implements Deserializer<RequestFK> {
             requestHeaders.put(HttpNames.hContentLength, contentLengthStr);
         }
 
-        ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
-        return new RequestFK(topic, requestHeaders, bytesIn);
+        return new RequestFK(topic, requestHeaders, data);
     }
 
     @Override

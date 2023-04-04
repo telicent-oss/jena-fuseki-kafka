@@ -16,10 +16,9 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -30,12 +29,11 @@ import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.kafka.lib.HttpServletRequestMinimal;
 import org.apache.jena.fuseki.kafka.lib.HttpServletResponseMinimal;
-import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.FusekiKafka;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ResponseFK;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 /**
@@ -47,6 +45,16 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
  * See {@link FKProcessor} for code-level dispatch.
  */
 public class FKRequestProcessor {
+
+    /**
+     * Kafka has a default message of 500 for consumer.poll
+     * <p>
+     * This setting is in addition to this, and is the number of times to loop
+     * per receiver cycle calling {@link #receiverStep}.
+     * <p>
+     * Fuseki request do not span the {@link #receiverStep}.
+     */
+    private final int MAX_MESSGES_PER_CYCLE = 1;
 
     private final RequestDispatcher dispatcher;
     private final ServletContext servletContext;
@@ -62,7 +70,7 @@ public class FKRequestProcessor {
     }
 
     /**
-     * Once round the polling loop, updating the record.
+     * Round the polling loop, updating the record.
      * Return true if some processing happened.
      */
     public boolean receiver(Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
@@ -70,14 +78,26 @@ public class FKRequestProcessor {
         Objects.requireNonNull(dataState);
 
         if ( pollingDuration == null )
-            pollingDuration = Duration.ofSeconds(5000);
+            pollingDuration = Duration.ofSeconds(1000);
         final long lastOffsetState = dataState.getOffset();
         try {
-            long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
-            if ( newOffset == lastOffsetState )
-                return false;
-            dataState.setOffset(newOffset);
-            return true;
+//          long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
+//          if ( newOffset == lastOffsetState )
+//              return false;
+//          dataState.setOffset(newOffset);
+//          return true;
+            // Loop until no more
+            boolean rtn = false;
+            long commitedState = lastOffsetState;
+            for ( int i = 0 ; i < MAX_MESSGES_PER_CYCLE ; i++ ) {
+                long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
+                if ( newOffset == commitedState )
+                    break;
+                dataState.setOffset(newOffset);
+                commitedState = newOffset;
+                rtn = true;
+            }
+            return rtn;
         } catch (RuntimeException ex) {
             String x = String.format("[%s] %s", dataState.getTopic(), ex.getMessage());
             Log.error(FusekiKafka.LOG, x, ex);
@@ -90,42 +110,66 @@ public class FKRequestProcessor {
     private long receiverStep(String topic, long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
 
-        ConsumerRecords<String, RequestFK> cRec = consumer.poll(pollingDuration);
-        long lastOffset = lastOffsetState;
-        int count = cRec.count();
+        ConsumerRecords<String, RequestFK> cRecords = consumer.poll(pollingDuration);
 
-        if ( count != 0 )
-            FmtLog.info(FusekiKafka.LOG, "[%s] Receiver: from %d , count = %d", topic, lastOffset, count);
+        if ( cRecords.isEmpty() )
+            return lastOffsetState ;
 
-        for ( ConsumerRecord<String, RequestFK> rec : cRec ) {
+        int count = cRecords.count();
+
+        // -- Batch start
+        batchStart(topic, lastOffsetState, count);
+
+        List<RequestFK> batch = FKRequestBatcher.batcher(cRecords);
+        batchProcess(batch);
+
+        // Check expectation.
+        long newOffsetState = lastOffsetState + count;
+        batchFinish(topic, lastOffsetState, newOffsetState);
+        // -- Batch finish
+
+        return newOffsetState;
+    }
+
+    private void batchStart(String topic, long lastOffsetState, long count) {
+        FmtLog.info(FusekiKafka.LOG, "[%s] Receiver: from %d, count=%d", topic, lastOffsetState, count);
+    }
+
+    private void batchFinish(String topic, long lastOffsetState, long newOffsetState) {
+        FmtLog.info(FusekiKafka.LOG, "[%s] Processed [%d, %d)", topic, lastOffsetState, newOffsetState);
+    }
+
+    private void batchProcess(List<RequestFK> requests) {
+        for ( RequestFK action : requests ) {
             try {
-                lastOffset = processRequest(rec);
+                //FmtLog.info(FusekiKafka.LOG, "[%s] Record Offset %s", action.getTopic(), offset);
+                dispatch(dispatcher, action.getTopic(), requestURI, action, servletContext);
             } catch(Throwable ex) {
                 // Something unexpected went wrong.
                 // Polling is asynchronous to the server.
                 // When shutting down, various things can go wrong.
                 // Log and ignore!
                 FmtLog.warn(FusekiKafka.LOG, ex, "Exception in dispatch: %s", ex.getMessage());
-                return lastOffset;
             }
         }
-        return lastOffset;
     }
 
-    private long processRequest(ConsumerRecord<String, RequestFK> rec) {
-        String key = rec.key();
-        RequestFK action = rec.value();
-        long offset = rec.offset();
-        String topic = rec.topic();
-        FmtLog.info(FusekiKafka.LOG, "[%s] Record Offset %s", topic, offset);
-
-        dispatch(dispatcher, rec.topic(), requestURI, action, servletContext);
-
-        // This happens in replay or catch up. Not a warning.
-//        if ( offset != lastOffset+1)
-//            FmtLog.warn(FusekiKafka.LOG, "[%s] WARNING: Inconsistent offsets: offset=%d, lastOffset = %d\n", topic, offset, lastOffset);
-        return offset;
+    // Alternative - send the batched request to a FKProcessor.
+    private void batchProcess(List<RequestFK> requests, FKProcessor proc) {
+        for ( RequestFK action : requests ) {
+            try {
+                proc.action(action.getTopic(), action.getContentType(), action.getInputStream());
+            } catch(Throwable ex) {
+                // Something unexpected went wrong.
+                // Polling is asynchronous to the server.
+                // When shutting down, various things can go wrong.
+                // Log and ignore!
+                FmtLog.warn(FusekiKafka.LOG, ex, "Exception in processing: %s", ex.getMessage());
+            }
+        }
     }
+
+    private static byte[] emptyBytes = new byte[0];
 
     /**
      * The logic to send an {@link RequestFK} to a {@link RequestDispatcher} which handles {@code HttpServlet} style operations.
@@ -135,17 +179,13 @@ public class FKRequestProcessor {
 
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         HttpServletRequest req = new HttpServletRequestMinimal(requestURI, request.getHeaders(), requestParameters,
-                                                               request.getBytes(), servletContext);
+                                                               request.getInputStream(), servletContext);
         HttpServletResponseMinimal resp = new HttpServletResponseMinimal(bytesOut);
 
         dispatcher.dispatch(req, resp);
 
-        InputStream respBytes;
-        if ( bytesOut.size() != 0 )
-            respBytes = new ByteArrayInputStream(bytesOut.toByteArray());
-        else
-            respBytes = InputStream.nullInputStream();
-        ResponseFK result = new ResponseFK(topic, resp.headers(), respBytes);
+        byte[] responseBytes = ( bytesOut.size() != 0 ) ? bytesOut.toByteArray() : emptyBytes;
+        ResponseFK result = new ResponseFK(topic, resp.headers(), responseBytes);
         return result;
     }
 }

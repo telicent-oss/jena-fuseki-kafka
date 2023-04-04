@@ -16,7 +16,6 @@
 
 package org.apache.jena.kafka;
 
-import java.io.InputStream;
 import java.util.Map;
 
 /**
@@ -24,7 +23,7 @@ import java.util.Map;
  */
 public class ResponseFK extends ActionKafka {
 
-    public ResponseFK(String topic, Map<String, String> headers, InputStream bytes) {
+    public ResponseFK(String topic, Map<String, String> headers, byte[] bytes) {
         super(topic, headers, bytes);
     }
 

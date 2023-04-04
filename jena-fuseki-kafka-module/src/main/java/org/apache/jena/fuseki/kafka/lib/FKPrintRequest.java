@@ -83,7 +83,7 @@ public class FKPrintRequest {
             }
 
         };
-        proc.action(action.getContentType(), action.getTopic(), action.getBytes());
+        proc.action(action.getContentType(), action.getTopic(), action.getInputStream());
     }
 
 }
