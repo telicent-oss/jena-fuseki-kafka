@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import org.apache.jena.atlas.io.IOX;
+import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.kafka.ActionKafka;
 import org.apache.jena.kafka.RequestFK;
@@ -43,10 +44,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
  * Currently, N-Triples, N-Quads, Turtle, Trig are each combineable.
  * Other consolidation may be added.
  */
-class FKRequestBatcher {
+public class FKRequestBatcher {
     final static private boolean DEBUG = false;
     private static boolean BATCHING_ACTIVE = true;
-    private static String ENV_BATCHING = "FK_BATCHING";
+    public static final String ENV_BATCHING = "FK_BATCHING";
 
     /**
      * Maximum items to consolidate into a batch.
@@ -55,7 +56,7 @@ class FKRequestBatcher {
      * Set to -1 to turn off batching within {@code ConsumerRecords}
      */
     private static int MAX_BATCH_SIZE = -1;
-    private static String ENV_MAX_BATCH_SIZE = "FK_MAX_BATCH_SIZE";
+    public static final String ENV_MAX_BATCH_SIZE = "FK_MAX_BATCH_SIZE";
 
     /**
      * Limit the size in bytes of message accumulation
@@ -64,7 +65,7 @@ class FKRequestBatcher {
      * Set to -1 to turn off.
      */
     private static int MAX_BATCH_BYTES = 500_000;
-    private static String ENV_MAX_BATCH_BYTES = "MAX_BATCH_BYTES";
+    public static final String ENV_MAX_BATCH_BYTES = "FK_MAX_BATCH_BYTES";
 
     /**
      * Limit on the size of items to merge.
@@ -72,44 +73,35 @@ class FKRequestBatcher {
      * Set to -1 to turn off.
      */
     private static int LARGE_ITEM_BYTES = 100_000;
-    private static String ENV_LARGE_ITEM_BYTES = "FK_LARGE_ITEM_BYTES";
-
-    // -- Copied from jena 4.8.0
-    /** Get an environment variable value; if not found try in the system properties. */
-    public static String getenv(String name) {
-        String x = System.getenv(name);
-        if ( x == null )
-            x = System.getProperty(name);
-        return x;
-    }
-    // -- Copied
+    public static final String ENV_LARGE_ITEM_BYTES = "FK_LARGE_ITEM_BYTES";
 
     /*package*/ static void setFromEnvironment() {
+        boolean hasBeenSet = false;
+        hasBeenSet |= safeSet(ENV_BATCHING,         (x)->BATCHING_ACTIVE = Boolean.parseBoolean(x));
+        hasBeenSet |= safeSet(ENV_MAX_BATCH_SIZE,   (x)->MAX_BATCH_SIZE = Integer.parseInt(x));
+        hasBeenSet |= safeSet(ENV_MAX_BATCH_BYTES,  (x)->MAX_BATCH_BYTES = Integer.parseInt(x));
+        hasBeenSet |= safeSet(ENV_LARGE_ITEM_BYTES, (x)->LARGE_ITEM_BYTES = Integer.parseInt(x));
 
-        String x0 = getenv(ENV_BATCHING);
-        if ( x0 != null )
-            safeSet(ENV_BATCHING, ()->BATCHING_ACTIVE = Boolean.parseBoolean(x0));
-
-
-        String x1 = getenv(ENV_MAX_BATCH_SIZE);
-        if ( x1 != null )
-            safeSet(ENV_MAX_BATCH_SIZE,()->MAX_BATCH_SIZE = Integer.parseInt(x1));
-
-        String x2 = getenv(ENV_MAX_BATCH_BYTES);
-        if ( x2 != null )
-            safeSet(ENV_MAX_BATCH_BYTES, ()->MAX_BATCH_BYTES = Integer.parseInt(x2));
-
-        String x3 = getenv(ENV_LARGE_ITEM_BYTES);
-        if ( x3 != null )
-            safeSet(ENV_LARGE_ITEM_BYTES, ()->LARGE_ITEM_BYTES = Integer.parseInt(x3));
+        if ( hasBeenSet ) {
+            FmtLog.info(FKRequestBatcher.class, "Env:%s, var:BATCHING_ACTIVE = %s",  ENV_BATCHING, BATCHING_ACTIVE);
+            FmtLog.info(FKRequestBatcher.class, "Env:%s, var:MAX_BATCH_SIZE = %s",   ENV_MAX_BATCH_SIZE, MAX_BATCH_SIZE);
+            FmtLog.info(FKRequestBatcher.class, "Env:%s, var:MAX_BATCH_BYTES = %s",  ENV_MAX_BATCH_BYTES, MAX_BATCH_BYTES);
+            FmtLog.info(FKRequestBatcher.class, "Env:%s, var:LARGE_ITEM_BYTES = %s", ENV_LARGE_ITEM_BYTES, LARGE_ITEM_BYTES);
+        }
     }
 
-    private static void safeSet(String name, Runnable action) {
+    private static boolean safeSet(String envVar, java.util.function.Consumer<String> action) {
+        // Get from system property or environment variable (in that order).
+        String x = Lib.getenv(envVar);
+        if ( x == null )
+            return false;
         try {
-            action.run();
+            FmtLog.info(FKRequestBatcher.class, "Env:%s = %s", envVar, x);
+            action.accept(x);
         } catch (Throwable th) {
-            FmtLog.warn(FKRequestBatcher.class, "Failed to set "+name+": "+th.getMessage());
+            FmtLog.warn(FKRequestBatcher.class, "Failed to set "+envVar+": "+th.getMessage());
         }
+        return true;
     }
 
     /**
@@ -160,11 +152,14 @@ class FKRequestBatcher {
 
             if ( LARGE_ITEM_BYTES > 0 && action.getByteCount() > LARGE_ITEM_BYTES ) {
                 if ( DEBUG ) System.out.printf("Large item: %d\n", rec.offset());
+                // Flush sink.
                 if ( acc != null ) {
                     if ( DEBUG ) System.out.printf("Finish acc: %d\n", rec.offset());
                     acc.complete(sink);
+                    acc = null;
                 }
-                if ( DEBUG ) System.out.printf("Add singleton");
+                if ( DEBUG ) System.out.printf("Add singleton\n");
+                // Single large item.
                 sink.accept(action);
                 continue;
             }
@@ -178,19 +173,20 @@ class FKRequestBatcher {
             }
 
             if ( acc != null ) {
-                // Accumulating. Is this message compatible with the last?
+                // Already accumulating. Is this message compatible with the last?
                 if ( mergeable(acc, action) ) {
                     if ( DEBUG ) System.out.printf("Accumulate: %d\n", rec.offset());
                     acc.merge(action);
                     continue;
                 }
             }
-            // Didn't merge, and not a large item.
+            // Didn't merge, and not a large item, incompatible in some way (e.g.
             if ( acc != null ) {
-                // Finish outstanding batch.
                 if ( DEBUG ) System.out.printf("Finish acc: %d\n", rec.offset());
+                // Finish outstanding batch.
                 acc.complete(sink);
                 acc = null;
+                // Drop to reset the accumulator
             }
 
             if ( DEBUG ) System.out.printf("Start acc: %d\n", rec.offset());
@@ -198,7 +194,7 @@ class FKRequestBatcher {
             var accHeaders = new HashMap<>(action.getHeaders());
             // Drop the length.
             accHeaders.remove(HttpNames.hContentLength);
-            // Start accumulator.
+            // Start new accumulator.
             acc = new Accumulator(accHeaders, action.getContentType(), action.getTopic());
             // First item.
             acc.merge(action);
@@ -211,14 +207,7 @@ class FKRequestBatcher {
         }
     }
 
-//    private boolean accHasSpace(Accumulator acc, RequestFK action) {
-//        long x = action.getByteCount();
-//        if ( MAX_BATCH_BYTES > 0 && acc.accumulatedSize + x > MAX_BATCH_BYTES )
-//            return false;
-//        return true;
-//    }
-
-    /** Whether mergable */
+    /** Test whether mergeable */
     private static boolean mergeable(Accumulator acc, RequestFK action) {
         if ( acc == null )
             return false;
@@ -226,20 +215,32 @@ class FKRequestBatcher {
         String contentType = action.getContentType();
         String topic = action.getTopic();
 
-        if ( ! Objects.equals(acc.topic, topic) )
+        if ( ! Objects.equals(acc.topic, topic) ) {
+            if ( DEBUG ) System.out.printf("Not mergable: different topic (%s,%s)\n", acc.topic, topic);
             return false;
-        if ( ! Objects.equals(acc.contentType, contentType) )
+        }
+        if ( ! Objects.equals(acc.contentType, contentType) ) {
+            if ( DEBUG ) System.out.printf("Not mergable: different content type (%s,%s)\n", acc.contentType, contentType);
             return false;
-        if ( ! headerCompatible(acc.headers, headers) )
+        }
+        if ( ! headerCompatible(acc.headers, headers) ) {
+            if ( DEBUG ) System.out.printf("Not mergable: headers no compatible (%s,%s)\n", acc.headers, headers);
             return false;
-        if ( ! canConcatenate(contentType) )
+        }
+        if ( ! canConcatenate(contentType) ) {
+            if ( DEBUG ) System.out.printf("Not mergable: not a suitable content type %s\n", contentType);
             return false;
+        }
         // Maximum batch size.
-        if ( MAX_BATCH_SIZE > 0 && acc.numBatch >= MAX_BATCH_SIZE )
+        if ( MAX_BATCH_SIZE > 0 && acc.numBatch >= MAX_BATCH_SIZE ) {
+            if ( DEBUG ) System.out.printf("Not mergable: exceeds MAX_BATCH_SIZE (Limit=%,d, actual=%d)\n", MAX_BATCH_SIZE, acc.numBatch);
             return false;
+        }
         long x = action.getByteCount();
-        if ( x >= 0  && acc.accumulatedSize + x >= MAX_BATCH_BYTES )
+        if ( x >= 0  && MAX_BATCH_BYTES > 0 && acc.accumulatedSize + x >= MAX_BATCH_BYTES ) {
+            if ( DEBUG ) System.out.printf("Not mergable: exceeds MAX_BATCH_BYTES (Limit=%,d, actual=%,d)\n", MAX_BATCH_BYTES, acc.accumulatedSize + x);
             return false;
+        }
         return true;
     }
 
@@ -273,19 +274,19 @@ class FKRequestBatcher {
         }
     }
 
+    private static RequestFK newRequestFK(String topic, Map<String, String> headers, byte[] byteArray) {
+        int length = byteArray.length;
+        headers.put(HttpNames.hContentLength, Integer.toString(length));
+        RequestFK request = new RequestFK(topic, headers, byteArray);
+        return request;
+    }
+
     private static void print(List<RequestFK> batch) {
         System.out.printf("Batch: %d\n", batch.size());
         batch.forEach(req ->{
             System.out.printf("    [%s] Content-type=%s Headers=%s\n", req.getTopic(), req.getContentType(), req.getHeaders());
         });
 
-    }
-
-    private static RequestFK newRequestFK(String topic, Map<String, String> headers, byte[] byteArray) {
-        int length = byteArray.length;
-        headers.put(HttpNames.hContentLength, Integer.toString(length));
-        RequestFK request = new RequestFK(topic, headers, byteArray);
-        return request;
     }
 
     /** Language that can be accumulated (their syntax allows concatenation */
@@ -343,6 +344,4 @@ class FKRequestBatcher {
             return request;
         }
     }
-
-
 }

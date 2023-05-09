@@ -54,7 +54,7 @@ public class FKRequestProcessor {
      * <p>
      * Fuseki request do not span the {@link #receiverStep}.
      */
-    private final int MAX_MESSGES_PER_CYCLE = 1;
+    private final int MAX_LOOPS_PER_CYCLE = 1;
 
     private final RequestDispatcher dispatcher;
     private final ServletContext servletContext;
@@ -81,15 +81,9 @@ public class FKRequestProcessor {
             pollingDuration = Duration.ofSeconds(1000);
         final long lastOffsetState = dataState.getOffset();
         try {
-//          long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
-//          if ( newOffset == lastOffsetState )
-//              return false;
-//          dataState.setOffset(newOffset);
-//          return true;
-            // Loop until no more
             boolean rtn = false;
             long commitedState = lastOffsetState;
-            for ( int i = 0 ; i < MAX_MESSGES_PER_CYCLE ; i++ ) {
+            for ( int i = 0 ; i < MAX_LOOPS_PER_CYCLE ; i++ ) {
                 long newOffset = receiverStep(dataState.getTopic(), dataState.getOffset(), consumer, pollingDuration);
                 if ( newOffset == commitedState )
                     break;
