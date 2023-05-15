@@ -19,12 +19,24 @@ package org.apache.jena.kafka;
 import java.util.Map;
 
 /**
- * Response going out to Kafka
+ * Response from handling a {@link RequestFK}.
  */
 public class ResponseFK extends ActionKafka {
 
-    public ResponseFK(String topic, Map<String, String> headers, byte[] bytes) {
-        super(topic, headers, bytes);
+    private static byte[] noBytes = new byte[0];
+
+    /** A simple {@link ResponseFK} for "success no body" */
+    public static ResponseFK success(String topic) {
+        return create(topic, Map.of(), noBytes);
     }
 
+    /** A general {@link ResponseFK} */
+    public static ResponseFK create(String topic, Map<String, String> headers, byte[] bytes) {
+        ResponseFK response = new ResponseFK(topic, headers, bytes);
+        return response;
+    }
+
+    private ResponseFK(String topic, Map<String, String> headers, byte[] bytes) {
+        super(topic, headers, bytes);
+    }
 }

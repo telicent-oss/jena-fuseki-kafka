@@ -51,11 +51,11 @@ public class FMod_FusekiKafka implements FusekiModule {
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
     }
 
-    // The Fuseki modules build lifecycle is same-thread.
-    // This passes information from 'prepare' to 'serverBeforeStarting'
 
+    // The Fuseki modules build lifecycle is same-thread.
+    // This passes information from 'prepare' to 'server'
+    // [BATCHER] Change in concurrent hash map (topic -> Pair<KConnectorDesc, DataState>>)
     private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
-    //private Map<>
 
     private String modName = UUID.randomUUID().toString();
 
@@ -75,7 +75,7 @@ public class FMod_FusekiKafka implements FusekiModule {
             // FmtLog.error(LOG, "No connector in server configuration");
             return;
         }
-        connectors.forEach(c -> oneConnector(builder, c, configModel));
+        connectors.forEach(connector -> oneConnector(builder, connector, configModel));
     }
 
     /*package*/ void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
@@ -114,8 +114,13 @@ public class FMod_FusekiKafka implements FusekiModule {
         return buildState.get();
     }
 
+    /**
+     * Add each connector, with the state tracker, to the server configured server.
+     */
     @Override
     public void serverBeforeStarting(FusekiServer server) {
+        // server(FusekiServer server) -- after build, before returning to builder caller
+        // See also serverBeforeStarting which is an even later delayed setup point.
         List<Pair<KConnectorDesc, DataState>> connectors = connectors(server);
         if ( connectors == null )
             return;
@@ -126,14 +131,26 @@ public class FMod_FusekiKafka implements FusekiModule {
                         conn.getTopic(),
                         conn.getBootstrapServers(), conn.getTopic(),
                         conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint());
-            FKS.addConnectorToServer(conn, server, dataState);
+            FKBatchProcessor batchProcessor = makeFKBatchProcessor(conn, server);
+            FKS.addConnectorToServer(conn, server, dataState, batchProcessor);
         });
     }
 
+    /** Clearup additional build state. */
     @Override
     public void serverAfterStarting(FusekiServer server) {
         // Clear up thread local.
         buildState.remove();
+    }
+
+    /**
+     * Make a {@link FKBatchProcessor} for the Fuseki Server being built. The default
+     * is one that loops on the ConsumerRecords ({@link requestFK}) sending each to
+     * the Fuseki server for dispatch. Other policies are possible such as
+     * aggregating batches or directly applying to a dataset.
+     */
+    protected FKBatchProcessor makeFKBatchProcessor(KConnectorDesc conn, FusekiServer server) {
+        return FKS.plainFKBatchProcessor(conn, server.getServletContext());
     }
 
     @Override

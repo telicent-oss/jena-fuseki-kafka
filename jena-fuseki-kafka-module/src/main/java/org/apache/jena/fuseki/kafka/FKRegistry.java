@@ -57,7 +57,7 @@ public class FKRegistry {
     }
 
     /**
-     * Register a topic-service binding, with it {@link FKRequestProcessor} (may be null) and {@link KConnectorDesc}.
+     * Register a topic-service binding, with it {@link FKBatchProcessor} (may be null) and {@link KConnectorDesc}.
      */
     public void register(String topicName, KConnectorDesc connectorDescriptor) {
         topicToConnector.put(topicName, connectorDescriptor);
