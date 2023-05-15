@@ -54,7 +54,6 @@ public class KConnectorDesc {
 
     // Kafka consumer setup.
     private final Properties kafkaConsumerProps;
-//    private final Properties kafkaProducerProps;
 
     public KConnectorDesc(String topic, String bootstrapServers, String fusekiDispatchName, String remoteEndpoint, String stateFile,
                           boolean syncTopic, boolean replayTopic,

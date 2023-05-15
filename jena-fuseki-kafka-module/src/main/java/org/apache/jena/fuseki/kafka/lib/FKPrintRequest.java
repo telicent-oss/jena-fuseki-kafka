@@ -20,8 +20,9 @@ import java.io.InputStream;
 import java.io.StringWriter;
 
 import org.apache.jena.atlas.io.IO;
-import org.apache.jena.fuseki.kafka.FKProcessor;
+import org.apache.jena.fuseki.kafka.FKProcessorBase;
 import org.apache.jena.kafka.RequestFK;
+import org.apache.jena.kafka.ResponseFK;
 import org.apache.jena.rdfpatch.RDFPatch;
 import org.apache.jena.rdfpatch.RDFPatchOps;
 import org.apache.jena.riot.Lang;
@@ -31,59 +32,50 @@ import org.apache.jena.riot.system.StreamRDFLib;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
 
-public class FKPrintRequest {
-    /**
-     * Parse the action according to Content-Type and print the outcome parsing.
-     */
+public class FKPrintRequest extends FKProcessorBase {
+    /** Print details of the request on stdout. */
     public static void parsePrint(RequestFK action) {
-        // If this is removed, change FKProcessor.action to protected
-
-        FKProcessor proc = new FKProcessor() {
-            @Override
-            protected void actionSparqlUpdate(String topic, InputStream data) {
-                //printRaw(topic, data);
-                UpdateRequest up = UpdateFactory.read(data);
-                String dataStr = up.toString();
-                print(topic, dataStr);
-            }
-
-            @Override
-            protected void actionRDFPatch(String topic, InputStream data) {
-                //printRaw(topic, data);
-                RDFPatch patch = RDFPatchOps.read(data);
-                String dataStr = patch.toString();
-                print(topic, dataStr);
-            }
-
-            @Override
-            protected void actionData(String topic, Lang lang, InputStream data) {
-                //printRaw(topic, data);
-                StringWriter sw = new StringWriter();
-                StreamRDF stream = StreamRDFLib.writer(sw);
-                RDFParser.source(data).lang(lang).parse(stream);
-                String dataStr = sw.toString();
-                print(topic, dataStr);
-            }
-
-            private void printRaw(String topic, InputStream data) {
-                System.out.println("== Topic: "+topic);
-                String dataStr = IO.readWholeFileAsUTF8(data);
-                System.out.print(dataStr);
-                if ( ! dataStr.endsWith("\n") )
-                    System.out.println();
-                System.out.println();
-            }
-
-            private void print(String topic, String dataStr) {
-                System.out.println("== Topic: "+topic);
-                System.out.print(dataStr);
-                if ( ! dataStr.endsWith("\n") )
-                    System.out.println();
-                System.out.println("--");
-            }
-
-        };
-        proc.action(action.getContentType(), action.getTopic(), action.getInputStream());
+        ResponseFK response = new FKPrintRequest().process(action);
     }
 
+    @Override
+    protected void actionSparqlUpdate(String id, RequestFK request, InputStream data) {
+        UpdateRequest up = UpdateFactory.read(data);
+        String dataStr = up.toString();
+        print(id, request, dataStr);
+    }
+
+    @Override
+    protected void actionRDFPatch(String id, RequestFK request, InputStream data) {
+        //printRaw(topic, data);
+        RDFPatch patch = RDFPatchOps.read(data);
+        String dataStr = patch.toString();
+        print(id, request, dataStr);
+    }
+
+    @Override
+    protected void actionData(String id, RequestFK request, Lang lang, InputStream data) {
+        StringWriter sw = new StringWriter();
+        StreamRDF stream = StreamRDFLib.writer(sw);
+        RDFParser.source(data).lang(lang).parse(stream);
+        String dataStr = sw.toString();
+        print(id, request, dataStr);
+    }
+
+    private void printRaw(String id, RequestFK request, InputStream data) {
+        System.out.println("== Request: "+id);
+        String dataStr = IO.readWholeFileAsUTF8(data);
+        System.out.print(dataStr);
+        if ( ! dataStr.endsWith("\n") )
+            System.out.println();
+        System.out.println();
+    }
+
+    private void print(String id, RequestFK request, String dataStr) {
+        System.out.println("== Request: "+id);
+        System.out.print(dataStr);
+        if ( ! dataStr.endsWith("\n") )
+            System.out.println();
+        System.out.println("--");
+    }
 }

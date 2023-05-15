@@ -26,5 +26,4 @@ public class RequestFK extends ActionKafka {
     public RequestFK(String topic, Map<String, String> headers, byte[] bytes) {
         super(topic, headers, bytes);
     }
-
 }

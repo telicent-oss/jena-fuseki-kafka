@@ -16,6 +16,7 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.time.Duration;
@@ -26,13 +27,19 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.servlet.ServletContext;
+
+import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.apache.jena.kafka.KConnectorDesc;
+import org.apache.jena.fuseki.server.*;
+import org.apache.jena.fuseki.servlets.ActionProcessor;
 import org.apache.jena.kafka.DeserializerActionFK;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -43,20 +50,9 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 /**
- * Functions for Fuseki-Kafka.
+ * Functions for Fuseki-Kafka server setup.
  */
 public class FKS {
-
-    // Length for the ping of Kafka
-    private static final Duration checkKafkaDuration = Duration.ofMillis(500);
-    // Length of the first sync on a topic to get it to catch up.
-    private static final Duration initPollDuration = Duration.ofMillis(500);
-    // Length of the wait when polling kafka regularly.
-    private static final Duration pollingDuration = Duration.ofMillis(1000);
-
-    public static void setBatchingFromEnvironment() {
-        FKRequestBatcher.setFromEnvironment();
-    }
 
     /**
      * Add a connector to a server.
@@ -64,17 +60,11 @@ public class FKS {
      * This setups on the polling.
      * This configures update.
      */
-    public static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, DataState dataState) {
+    static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, DataState dataState, FKBatchProcessor batchProcessor) {
         String topicName = conn.getTopic();
         String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
         //String remoteEndpoint = conn.getRemoteEndpoint();
-
-        String requestURI = localDispatchPath;
-
-        // The HttpServletRequest is created by FusekiRequestDispatcher.dispatch.
-        RequestDispatcher dispatcher = new FusekiRequestDispatcher();
-        FKRequestProcessor requestProcessor = new FKRequestProcessor(dispatcher, requestURI, server.getServletContext());
 
         // -- Kafka Consumer
         Properties cProps = conn.getKafkaConsumerProps();
@@ -82,7 +72,8 @@ public class FKS {
         Deserializer<RequestFK> reqDer = new DeserializerActionFK();
         Consumer<String, RequestFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer);
 
-        // ??
+        // To replicate a dtabase, we need to see all the Kafka messages in-order,
+        // which forces us to have only one partition. We need a partition to be able to seek.
         TopicPartition topicPartition = new TopicPartition(topicName, 0);
         Collection<TopicPartition> partitions = List.of(topicPartition);
         consumer.assign(partitions);
@@ -116,12 +107,80 @@ public class FKS {
             FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic = %s : Relay = %s", topicName, topicName, conn.getRemoteEndpoint());
 
         // Do now for some catchup.
-        oneTopicPoll(requestProcessor, consumer, dataState, initPollDuration);
+        oneTopicPoll(batchProcessor, consumer, dataState, FKConst.initialWaitDuration);
 
         FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getOffset());
 
         // ASYNC
-        startTopicPoll(requestProcessor, consumer, dataState, "Kafka:" + topicName);
+        startTopicPoll(batchProcessor, consumer, dataState, "Kafka:" + topicName);
+    }
+
+    /** Helper to find the dispatch of a URI to single Endpoint,
+     *  no endpoint overloading by request (query string, content-type).
+     *  This function throws an exception if nothing is found.
+     */
+    public static Pair<ActionProcessor, DatasetGraph> findActionProcessorDataset(FusekiServer server, String uri) {
+        // Dispatcher.locateDataAccessPoint -- simplified
+        // URI to dataset and endpointName
+        String datasetName = null;
+        String endpointName = null;
+        int idx = uri.lastIndexOf('/');
+        if ( idx == -1 ) {
+            // Bad.
+            datasetName = uri;
+            endpointName = null;
+        } else if ( idx == 0 ) {
+            datasetName = uri;
+            endpointName = null;
+        } else {
+            datasetName = uri.substring(0, idx);
+            // Check
+            endpointName = uri.substring(idx+1);
+        }
+        datasetName = DataAccessPoint.canonical(datasetName);
+        // Find DataService
+        DataService dataService = findDataService(server, datasetName);
+        if ( dataService == null ) {
+            String msg = String.format("Can't find a dataset service for '%s' (%s)", datasetName, uri);
+            throw new FusekiKafkaException(msg);
+        }
+
+        EndpointSet epSet = findEndpointSet(dataService, endpointName);
+        if ( epSet == null ) {
+            String msg = String.format("Can't find an endpoint for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            throw new FusekiKafkaException(msg);
+        }
+
+        if (epSet.isEmpty() ) {
+            String msg = String.format("Empty endpoint set for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            throw new FusekiKafkaException(msg);
+        }
+
+        Endpoint ep = epSet.getExactlyOne();
+        if ( ep == null ) {
+            String msg = String.format("Multiple endpoints set for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            throw new FusekiKafkaException(msg);
+        }
+        ActionProcessor actionProcessor = ep.getProcessor();
+        return Pair.create(actionProcessor, dataService.getDataset());
+    }
+
+    private static EndpointSet findEndpointSet(DataService dataService, String endpointName) {
+        EndpointSet epSet = isEmpty(endpointName)
+            ? dataService.getEndpointSet()
+            : dataService.getEndpointSet(endpointName);
+        return epSet;
+    }
+
+    private static DataService findDataService(FusekiServer server, String datasetName) {
+        DataAccessPointRegistry dapRegistry = server.getDataAccessPointRegistry();
+        datasetName = DataAccessPoint.canonical(datasetName);
+        DataAccessPoint dap = dapRegistry.get(datasetName);
+        if ( dap == null )
+            return null;
+        // Dispatcher.chooseEndpoint -- simplified, no overloading by content type.
+        DataService dataService = dap.getDataService();
+        return dataService;
     }
 
     /** Check connectivity so we can give specific messages */
@@ -132,7 +191,7 @@ public class FKS {
         LogCtl.setLevel(cls, "Error");
         try {
             // Short timeout - this is a check, processing tries to continue.
-            List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, checkKafkaDuration);
+            List<PartitionInfo> partitionInfo = consumer.partitionsFor(topicName, FKConst.checkKafkaDuration);
             if ( partitionInfo == null ) {
                 FmtLog.error(LOG, "[%s] Unexpected - PartitionInfo list is null", topicName);
                 return;
@@ -193,13 +252,11 @@ public class FKS {
         long topicPosition = consumer.position(topicPartition);
         long stateOffset = dataState.getOffset();
         FmtLog.info(LOG, "[%s] Replay: Old state=%d  Topic offset=%d", topic, stateOffset, topicPosition);
-        // Assumes offsets from 0 (no expiry)
-
-        // Here or in FK.receiverStep
         Map<TopicPartition, Long> m = consumer.beginningOffsets(List.of(topicPartition));
+        // offset of next-to-read.
         long beginning = m.get(topicPartition);
         consumer.seek(topicPartition, beginning);
-        dataState.setOffset(beginning);
+        dataState.setOffset(beginning-1);
     }
 
     private static ExecutorService threads = threadExecutor();
@@ -214,16 +271,16 @@ public class FKS {
         threads = threadExecutor();
     }
 
-    private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, String label) {
+    private static void startTopicPoll(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, String label) {
         Runnable task = () -> topicPoll(requestProcessor, consumer, dataState);
         threads.submit(task);
     }
 
     /** Polling task loop.*/
-    private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState) {
+    private static void topicPoll(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState) {
         for ( ;; ) {
             try {
-                boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
+                boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, FKConst.pollingWaitDuration);
             } catch (Throwable th) {
                 FmtLog.debug(LOG, th, "[%s] Unexpected Exception %s", dataState.getTopic(), dataState);
             }
@@ -231,7 +288,7 @@ public class FKS {
     }
 
     /** A polling attempt either returns some records or waits the polling duration. */
-    private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
+    private static boolean oneTopicPoll(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
         String topic = dataState.getTopic();
         long lastOffsetState = dataState.getOffset();
         boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
@@ -241,6 +298,19 @@ public class FKS {
         } else
             FmtLog.debug(LOG, "[%s] Nothing received: Offset: %d", topic, lastOffsetState);
         return somethingReceived;
+    }
+
+    /**
+     * Make a {@link FKBatchProcessor} for the Fuseki Server being built. This plain
+     * batch processor is one that loops on the ConsumerRecords ({@link RequestFK})
+     * sending each to the Fuseki server for dispatch. Other policies are possible
+     * such as aggregating batches or directly applying to a dataset.
+     */
+    public static FKBatchProcessor plainFKBatchProcessor(KConnectorDesc conn, ServletContext servletContext) {
+        String requestURI = conn.getLocalDispatchPath();
+        FKProcessor requestProcessor = new FKProcessorFusekiDispatch(requestURI, servletContext);
+        FKBatchProcessor batchProcessor = FKBatchProcessor.plain(requestProcessor);
+        return batchProcessor;
     }
 
     // Better? A single scheduled executor.

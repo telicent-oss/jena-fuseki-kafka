@@ -61,11 +61,8 @@ public class DataState {
 
     private DataState(RefBytes state, String localDispatchPath, String remoteEndpoint, String topic) {
         this.state = state;
-        this.offset = 0;
         this.dispatchPath = localDispatchPath;
-        if ( remoteEndpoint == null )
-            remoteEndpoint = "";
-        this.remoteEndpoint = remoteEndpoint;
+        this.remoteEndpoint = (remoteEndpoint != null) ? remoteEndpoint : "" ;
         this.topic = topic;
         this.offset = -1;
     }

@@ -151,7 +151,8 @@ public class TestFK {
                                                            consumerProps,
                                                            false, (x)->System.out);
         // Manual call to setup the server.
-        FKS.addConnectorToServer(conn, server, dataState);
+        FKBatchProcessor batchProcessor = FKS.plainFKBatchProcessor(conn, server.getServletContext());
+        FKS.addConnectorToServer(conn, server, dataState, batchProcessor);
         server.start();
         return server;
     }
