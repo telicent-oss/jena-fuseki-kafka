@@ -72,27 +72,34 @@ public class FKBatchProcessor {
      * Round the polling loop, updating the record.
      * Return true if some processing happened.
      */
-    public boolean receiver(Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
+    public boolean receiver(Consumer<String, RequestFK> consumer, DataState dataState, Duration initialPollingDuration) {
         Objects.requireNonNull(consumer);
         Objects.requireNonNull(dataState);
 
+        Duration  pollingDuration = initialPollingDuration;
+
         if ( pollingDuration == null )
-            pollingDuration = Duration.ofSeconds(1000);
+            pollingDuration = FKConst.pollingWaitDuration;
         final long lastOffsetState = dataState.getOffset();
         final String topic = dataState.getTopic();
         try {
             boolean rtn = false;
             long commitedState = lastOffsetState;
-            for ( int i = 0 ; i < FKConst.MAX_LOOPS_PER_CYCLE ; i++ ) {
+            int i;
+            for ( i = 0 ; i < FKConst.MAX_LOOPS_PER_CYCLE ; i++ ) {
                 long newOffset = receiverStep(topic, dataState.getOffset(), consumer, pollingDuration);
                 if ( newOffset == commitedState ) {
-                    FmtLog.info(LOG, "[%s] Exit receiver loop at i=%d", topic, i);
+                    // Nothing received.
                     break;
                 }
                 dataState.setOffset(newOffset);
                 commitedState = newOffset;
                 rtn = true;
+                // Switch to shorter polling wait
+                pollingDuration = FKConst.pollingWaitDurationMore;
             }
+            if ( LOG.isDebugEnabled() )
+                FmtLog.debug(LOG, "[%s] Exit receiver loop at i=%d", topic, i);
             return rtn;
         } catch (RuntimeException ex) {
             String x = String.format("[%s] %s", dataState.getTopic(), ex.getMessage());
@@ -101,49 +108,66 @@ public class FKBatchProcessor {
         }
     }
 
+    private static final boolean VERBOSE = true;
+
     /** Do one Kafka consumer poll step. */
     private long receiverStep(String topic, long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
 
+        //FmtLog.debug(LOG, "[%s] consumer.poll(%s ms)", topic, pollingDuration.toMillis());
         ConsumerRecords<String, RequestFK> cRecords = consumer.poll(pollingDuration);
 
         if ( cRecords.isEmpty() )
-            return lastOffsetState ;
+            // Nothing received - no change.
+            return lastOffsetState;
 
         int count = cRecords.count();
+        int payloadSize = payloadSize(cRecords);
+        Timer timer = batchStart(topic, lastOffsetState, count, payloadSize);
 
-        Timer timer = new Timer();
-        timer.startTimer();
-
-        batchStart(topic, lastOffsetState, count);
-
-        long newOffsetState = batchProcess(cRecords);
+        long newOffset = batchProcess(topic, cRecords);
 
         // Check expectation.
-        long newOffsetState2 = lastOffsetState + count;
-        if ( newOffsetState != newOffsetState2 )
-            FmtLog.info(LOG, "[%s] Misaligned offsets: [actual=%d, predicated=%d]", topic, newOffsetState, newOffsetState2);
+        long newOffset2 = lastOffsetState + count;
+        if ( newOffset != newOffset2 )
+            FmtLog.info(LOG, "[%s] Misaligned offsets: [actual=%d, predicated=%d]", topic, newOffset, newOffset2);
 
-        batchFinish(topic, lastOffsetState, newOffsetState);
-        long z = timer.endTimer();
-        FmtLog.info(LOG, "[%s] Processed %d in time: %s seconds", topic, (newOffsetState-lastOffsetState), Timer.timeStr(z));
+        batchFinish(topic, lastOffsetState, newOffset, timer);
 
-        return newOffsetState;
+        return newOffset;
     }
 
-    private void batchStart(String topic, long lastOffsetState, long count) {
-        FmtLog.info(LOG, "[%s] Receiver: from %d, count=%d", topic, lastOffsetState, count);
+    private int payloadSize(ConsumerRecords<String, RequestFK> cRecords) {
+        int sizeBytes = 0;
+        for ( ConsumerRecord<String, RequestFK> cRec : cRecords ) {
+            sizeBytes += cRec.value().getByteCount();
+        }
+        return sizeBytes;
     }
 
-    private long batchProcess(ConsumerRecords<String, RequestFK> cRecords) {
+    private Timer batchStart(String topic, long lastOffsetState, long count, long numBytes) {
+        FmtLog.info(LOG, "[%s] Batch: Start offset = %d ; Count = %d : Payload = %,d bytes", topic, lastOffsetState, count, numBytes);
+        if ( ! VERBOSE )
+            return null;
+        Timer timer = new Timer();
+        timer.startTimer();
+        return timer;
+    }
+
+    private long batchProcess(String topic, ConsumerRecords<String, RequestFK> cRecords) {
         return transactional.calculate(()->execBatch(cRecords));
     }
 
-    private void batchFinish(String topic, long lastOffsetState, long newOffsetState) {
-        FmtLog.info(LOG, "[%s] Processed [%d, %d]", topic, lastOffsetState, newOffsetState);
+    private void batchFinish(String topic, long lastOffsetState, long newOffsetState, Timer timer) {
+        if ( timer == null )
+            FmtLog.info(LOG, "[%s] Batch: Finished [%d, %d]", topic, lastOffsetState, newOffsetState);
+        else {
+            long z = timer.endTimer();
+            FmtLog.info(LOG, "[%s] Batch: Finished [%d, %d] in %s seconds", topic, lastOffsetState, newOffsetState, Timer.timeStr(z));
+        }
     }
 
-
+    /** Execute a batch - return the new last seen offset. */
     private long execBatch(ConsumerRecords<String, RequestFK> cRecords) {
         long lastOffset = -1;
         for ( ConsumerRecord<String, RequestFK> cRec : cRecords ) {

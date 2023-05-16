@@ -34,13 +34,20 @@ public class FKConst {
      * round the polling loop.
      * See {@link FKS#addConnectorToServer} and {@link FKS#oneTopicPoll}.
      */
-    public static final Duration initialWaitDuration = Duration.ofMillis(5000);
+    public static final Duration initialWaitDuration = Duration.ofMillis(500);
 
     /**
-     * Length of the wait when polling kafka regularly.
+     * Length of the wait when polling Kafka regularly.
      * See {@link FKS#topicPoll}.
      */
-    public static final Duration pollingWaitDuration = Duration.ofMillis(10000);
+    public static final Duration pollingWaitDuration = Duration.ofMillis(10_000);
+
+    /**
+     * Length of the wait when polling Kafka after having received some data.
+     * This is the loop in {@link FKBatchProcessor#receiverStep}.
+     * See {@link FKS#topicPoll}.
+     */
+    public static final Duration pollingWaitDurationMore = Duration.ofMillis(10);
 
     /**
      * Kafka has a default message of 500 for consumer.poll
@@ -50,5 +57,4 @@ public class FKConst {
      * That is, the number of 500 message units to process in one polling loop.
      */
     public static final int MAX_LOOPS_PER_CYCLE = 10;
-
 }

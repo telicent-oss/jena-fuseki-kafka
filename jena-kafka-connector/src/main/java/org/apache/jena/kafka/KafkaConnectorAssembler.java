@@ -232,12 +232,9 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private Properties kafkaConsumerProps(Graph graph, Node node,
                                           String topic,
                                           String bootstrapServers, String groupId) {
-        Properties props = new Properties();
-        // "bootstrap.servers"
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        Properties props = SysJenaKafka.consumerProperties(bootstrapServers);
         // "group.id"
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        //props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "number");
 
         // Optional Kafka configuration as pairs of (key-value) as RDF lists.
         String queryString = StrUtils.strjoinNL

@@ -31,7 +31,8 @@ public class ActionKafka {
     private final byte[] bytes;
     private final InputStream bytesInput;
 
-    protected ActionKafka(String topic, Map<String, String> headers, InputStream bytesInput) {
+    /** Not currently used */
+    private ActionKafka(String topic, Map<String, String> headers, InputStream bytesInput) {
         this.topic = topic;
         this.headers = headers;
         this.bytes = null;
