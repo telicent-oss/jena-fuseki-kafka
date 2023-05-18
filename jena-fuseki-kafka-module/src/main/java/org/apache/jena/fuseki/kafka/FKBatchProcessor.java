@@ -130,7 +130,9 @@ public class FKBatchProcessor {
         // Check expectation.
         long newOffset2 = lastOffsetState + count;
         if ( newOffset != newOffset2 )
-            FmtLog.info(LOG, "[%s] Misaligned offsets: [actual=%d, predicated=%d]", topic, newOffset, newOffset2);
+            // Transaction control messages and topic key-based compaction mean this test isn't strictly true.
+            // This log message is just an indication of this.
+            FmtLog.info(LOG, "[%s] Batch offsets not as predicated: [actual=%d, predicated=%d]", topic, newOffset, newOffset2);
 
         batchFinish(topic, lastOffsetState, newOffset, timer);
 
