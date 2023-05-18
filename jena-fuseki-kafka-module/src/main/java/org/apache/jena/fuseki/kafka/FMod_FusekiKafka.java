@@ -98,7 +98,7 @@ public class FMod_FusekiKafka implements FusekiModule {
         PersistentState state = new PersistentState(conn.getStateFile());
 
         DataState dataState = DataState.restoreOrCreate(state, dispatchURI, remoteEndpoint, conn.getTopic());
-        long lastOffset = dataState.getOffset();
+        long lastOffset = dataState.getLastOffset();
         FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
         recordConnector(builder, conn, dataState);
     }

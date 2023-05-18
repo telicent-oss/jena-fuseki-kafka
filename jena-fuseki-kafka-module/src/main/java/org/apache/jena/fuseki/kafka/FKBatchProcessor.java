@@ -80,19 +80,19 @@ public class FKBatchProcessor {
 
         if ( pollingDuration == null )
             pollingDuration = FKConst.pollingWaitDuration;
-        final long lastOffsetState = dataState.getOffset();
+        final long lastOffsetState = dataState.getLastOffset();
         final String topic = dataState.getTopic();
         try {
             boolean rtn = false;
             long commitedState = lastOffsetState;
             int i;
             for ( i = 0 ; i < FKConst.MAX_LOOPS_PER_CYCLE ; i++ ) {
-                long newOffset = receiverStep(topic, dataState.getOffset(), consumer, pollingDuration);
+                long newOffset = receiverStep(topic, dataState.getLastOffset(), consumer, pollingDuration);
                 if ( newOffset == commitedState ) {
                     // Nothing received.
                     break;
                 }
-                dataState.setOffset(newOffset);
+                dataState.setLastOffset(newOffset);
                 commitedState = newOffset;
                 rtn = true;
                 // Switch to shorter polling wait

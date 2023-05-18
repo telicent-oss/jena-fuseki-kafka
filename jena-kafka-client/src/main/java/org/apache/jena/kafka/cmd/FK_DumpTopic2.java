@@ -66,7 +66,7 @@ public class FK_DumpTopic2 {
 
         // Client-side state management.
         DataState dState = DataState.createEphemeral(conn.getTopic());
-        long lastOffset = dState.getOffset();
+        long lastOffset = dState.getLastOffset();
 
         // -- Props
         Properties cProps = conn.getKafkaConsumerProps();
@@ -77,7 +77,7 @@ public class FK_DumpTopic2 {
         consumer.assign(Arrays.asList(topicPartition));
 
         // Resume.
-        long initialOffset = dState.getOffset();
+        long initialOffset = dState.getLastOffset();
         if ( initialOffset < 0 )
             consumer.seekToBeginning(Arrays.asList(topicPartition));
         else {
@@ -95,13 +95,13 @@ public class FK_DumpTopic2 {
 
     // Once round the polling loop.
     private static boolean receiver(Consumer<String, String> consumer, DataState dState) {
-        final long lastOffsetState = dState.getOffset();
-        long newOffset = receiverStep(dState.getOffset(), consumer);
+        final long lastOffsetState = dState.getLastOffset();
+        long newOffset = receiverStep(dState.getLastOffset(), consumer);
         //System.out.println("Batch end");
         if ( newOffset == lastOffsetState )
             return false;
         //FmtLog.info(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
-        dState.setOffset(newOffset);
+        dState.setLastOffset(newOffset);
         return true;
     }
 

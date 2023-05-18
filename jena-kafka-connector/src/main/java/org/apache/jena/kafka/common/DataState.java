@@ -149,8 +149,6 @@ public class DataState {
         this.offset = offset;
     }
 
-
-
     private static DataState fromJson(RefBytes state) {
         InputStream bout = new ByteArrayInputStream(state.getBytes());
         JsonObject obj = JSON.parse(bout);
@@ -172,11 +170,27 @@ public class DataState {
         return dataState;
     }
 
-    public long getOffset() {
+    /**
+     * Last offset seen.
+     * <p>
+     * Kafka works in terms of "next offset" - strictly, the next possible offset.
+     * It usually starts at zero for the first in a topic.
+     * <p>
+     * {@code DataState} records last offset seen.
+     */
+    public long getLastOffset() {
         return offset;
     }
 
-    public void setOffset(long offset) {
+    /**
+     * Last offset seen.
+     * <p>
+     * Kafka works in terms of "next offset" - strictly, the next possible offset.
+     * It usually starts at zero for the first in a topic.
+     * <p>
+     * {@code DataState} records last offset seen.
+     */
+    public void setLastOffset(long offset) {
         this.offset = offset;
         writeState();
     }

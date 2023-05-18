@@ -143,12 +143,12 @@ public class FK_DumpTopic extends CmdGeneral {
     }
 
     private boolean receiver(Consumer<String, String> consumer, DataState dState) {
-        final long lastOffsetState = dState.getOffset();
-        long newOffset = receiverStep(dState.getOffset(), consumer);
+        final long lastOffsetState = dState.getLastOffset();
+        long newOffset = receiverStep(dState.getLastOffset(), consumer);
         if ( newOffset == lastOffsetState )
             return false;
         // FmtLog.info(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
-        dState.setOffset(newOffset);
+        dState.setLastOffset(newOffset);
         return true;
     }
 
