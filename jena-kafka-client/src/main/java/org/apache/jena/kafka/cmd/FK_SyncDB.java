@@ -71,7 +71,7 @@ public class FK_SyncDB {
         PersistentState state = new PersistentState(stateFile);
         DataState dState = DataState.create(state);
         {
-            long offset = dState.getOffset();
+            long offset = dState.getLastOffset();
             String x = (offset<0) ? "<empty>" : "Offset: "+Long.toString(offset);
             System.out.println(x);
         }
@@ -88,7 +88,7 @@ public class FK_SyncDB {
             consumer.assign(Arrays.asList(topicPartition));
 
             // Resume or start from the beginning.
-            long initialOffset = dState.getOffset();
+            long initialOffset = dState.getLastOffset();
             if ( initialOffset < 0 )
                 consumer.seekToBeginning(Arrays.asList(topicPartition));
             else

@@ -84,7 +84,7 @@ public class FKS {
         boolean replayTopic = conn.getReplayTopic();
 
         // Last offset processed
-        long stateOffset = dataState.getOffset();
+        long stateOffset = dataState.getLastOffset();
         if ( stateOffset < 0 ) {
             FmtLog.info(LOG, "[%s] Initialize from topic", conn.getTopic());
             // consumer.seekToBeginning(Arrays.asList(topicPartition)); BUG
@@ -109,7 +109,7 @@ public class FKS {
         // Do now for some catchup.
         oneTopicPoll(batchProcessor, consumer, dataState, FKConst.initialWaitDuration);
 
-        FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getOffset());
+        FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getLastOffset());
 
         // ASYNC
         startTopicPoll(batchProcessor, consumer, dataState, "Kafka:" + topicName);
@@ -219,13 +219,13 @@ public class FKS {
     private static void setupSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
-        long stateOffset = dataState.getOffset();
+        long stateOffset = dataState.getLastOffset();
 
         FmtLog.info(LOG, "[%s] State=%d  Topic next offset=%d", topic, stateOffset, topicPosition);
         if ( (stateOffset >= 0) && (stateOffset >= topicPosition) ) {
             FmtLog.info(LOG, "[%s] Adjust state record %d -> %d", topic, stateOffset, topicPosition - 1);
             stateOffset = topicPosition - 1;
-            dataState.setOffset(stateOffset);
+            dataState.setLastOffset(stateOffset);
         } else if ( topicPosition != stateOffset + 1 ) {
             FmtLog.info(LOG, "[%s] Set sync %d -> %d", topic, stateOffset, topicPosition - 1);
             consumer.seek(topicPartition, stateOffset + 1);
@@ -241,22 +241,22 @@ public class FKS {
     private static void setupNoSyncTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
-        long stateOffset = dataState.getOffset();
+        long stateOffset = dataState.getLastOffset();
         FmtLog.info(LOG, "[%s] No sync: State=%d  Topic offset=%d", topic, stateOffset, topicPosition);
-        dataState.setOffset(topicPosition);
+        dataState.setLastOffset(topicPosition);
     }
 
     /** Set to jump to the start of the topic. */
     private static void setupReplayTopic(Consumer<String, RequestFK> consumer, TopicPartition topicPartition, DataState dataState) {
         String topic = dataState.getTopic();
         long topicPosition = consumer.position(topicPartition);
-        long stateOffset = dataState.getOffset();
+        long stateOffset = dataState.getLastOffset();
         FmtLog.info(LOG, "[%s] Replay: Old state=%d  Topic offset=%d", topic, stateOffset, topicPosition);
         Map<TopicPartition, Long> m = consumer.beginningOffsets(List.of(topicPartition));
         // offset of next-to-read.
         long beginning = m.get(topicPartition);
         consumer.seek(topicPartition, beginning);
-        dataState.setOffset(beginning-1);
+        dataState.setLastOffset(beginning-1);
     }
 
     private static ExecutorService threads = threadExecutor();
@@ -290,10 +290,10 @@ public class FKS {
     /** A polling attempt either returns some records or waits the polling duration. */
     private static boolean oneTopicPoll(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, Duration pollingDuration) {
         String topic = dataState.getTopic();
-        long lastOffsetState = dataState.getOffset();
+        long lastOffsetState = dataState.getLastOffset();
         boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
         if ( somethingReceived ) {
-            long newOffset = dataState.getOffset();
+            long newOffset = dataState.getLastOffset();
             FmtLog.debug(LOG, "[%s] Offset: %d -> %d", topic, lastOffsetState, newOffset);
         } else
             FmtLog.debug(LOG, "[%s] Nothing received: Offset: %d", topic, lastOffsetState);

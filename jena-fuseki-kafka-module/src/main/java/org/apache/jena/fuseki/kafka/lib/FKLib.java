@@ -152,7 +152,7 @@ public class FKLib {
               Consumer<String, String> consumer = new KafkaConsumer<String, String>(cProps, strDeser, deSer)){
             TopicPartition topicPartition = new TopicPartition(topic, 0);
             consumer.assign(Arrays.asList(topicPartition));
-            long initialOffset = dataState.getOffset();
+            long initialOffset = dataState.getLastOffset();
             if ( initialOffset < 0 )
                 consumer.seekToBeginning(Arrays.asList(topicPartition));
             receiverLoop(consumer, dataState, handler);
@@ -173,13 +173,13 @@ public class FKLib {
 
     private static boolean receiver(Consumer<String, String> consumer, DataState dataState,
                                     BiConsumer<ConsumerRecord<String, String>, Long> handler) {
-        final long lastOffsetState = dataState.getOffset();
-        long newOffset = receiverStep(dataState.getOffset(), consumer, handler);
+        final long lastOffsetState = dataState.getLastOffset();
+        long newOffset = receiverStep(dataState.getLastOffset(), consumer, handler);
         //System.out.println("Batch end");
         if ( newOffset == lastOffsetState )
             return false;
         //FmtLog.info(LOG, "Offset: %d -> %d", lastOffsetState, newOffset);
-        dataState.setOffset(newOffset);
+        dataState.setLastOffset(newOffset);
         return true;
     }
 
