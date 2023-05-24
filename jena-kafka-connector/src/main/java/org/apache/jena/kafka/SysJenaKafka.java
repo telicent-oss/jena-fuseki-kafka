@@ -39,15 +39,23 @@ public class SysJenaKafka {
     /**
      * Size in bytes per consumer.poll in a system.
      * <p>
-     * This sets {@link ConsumerConfig#MAX_PARTITION_FETCH_BYTES_CONFIG} which has a
-     * Kafka default of 1Mb.
+     * This sets {@link ConsumerConfig#MAX_PARTITION_FETCH_BYTES_CONFIG}
+     * ({@code max.partition.fetch.bytes}) which has a Kafka default of 1Mb.
      * <p>
      * To replicate data, we need Fuseki or user application to see all the data
      * in-order which forces the choice of one partition. See also
      * {@link ConsumerConfig#FETCH_MAX_BYTES_CONFIG} which has a Kafka default of
      * 50Mb.
      */
-    private static int KafkaFetchSize = 20 * 1024 * 1024;
+    private static int KafkaFetchBytesSize = 20 * 1024* 1024;
+
+    /**
+     * Size in messages per consumer.poll in a system.
+     * <p>
+     * This sets {@link ConsumerConfig#MAX_POLL_RECORDS_CONFIG} ({@code max.poll.records})
+     * which has a Kafka default of 500.
+     */
+    private static int KafkaFetchPollSize = 1000;
 
     /**
      * Kafka consumer properties.
@@ -55,8 +63,9 @@ public class SysJenaKafka {
     public static Properties consumerProperties(String server) {
         Properties props = new Properties();
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        // Default is 1M
-        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, KafkaFetchSize);
+        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, KafkaFetchBytesSize);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, KafkaFetchPollSize);
+
         // Default is 50M
         //props.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 50*1024*1024);
         props.put("bootstrap.servers", server);

@@ -60,7 +60,8 @@ public class FKS {
      * This setups on the polling.
      * This configures update.
      */
-    static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, DataState dataState, FKBatchProcessor batchProcessor) {
+    static void addConnectorToServer(KConnectorDesc conn, FusekiServer server,
+                                     DataState dataState, FKBatchProcessor batchProcessor) {
         String topicName = conn.getTopic();
         String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
@@ -72,7 +73,7 @@ public class FKS {
         Deserializer<RequestFK> reqDer = new DeserializerActionFK();
         Consumer<String, RequestFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer);
 
-        // To replicate a dtabase, we need to see all the Kafka messages in-order,
+        // To replicate a database, we need to see all the Kafka messages in-order,
         // which forces us to have only one partition. We need a partition to be able to seek.
         TopicPartition topicPartition = new TopicPartition(topicName, 0);
         Collection<TopicPartition> partitions = List.of(topicPartition);
@@ -181,6 +182,14 @@ public class FKS {
         // Dispatcher.chooseEndpoint -- simplified, no overloading by content type.
         DataService dataService = dap.getDataService();
         return dataService;
+    }
+
+    /** Get the database * out of a Fuseki server. */
+    public static DatasetGraph findDataset(FusekiServer server, String datasetName) {
+        DataService dSrv = findDataService(server, datasetName);
+        if ( dSrv == null )
+            return null;
+        return dSrv.getDataset();
     }
 
     /** Check connectivity so we can give specific messages */
