@@ -55,7 +55,7 @@ public class SysJenaKafka {
      * {@link ConsumerConfig#FETCH_MAX_BYTES_CONFIG} which has a Kafka default of
      * 50Mb.
      */
-    private static int KafkaFetchBytesSize = 20 * 1024* 1024;
+    private static int KafkaFetchBytesSize = 50 * 1024 * 1024;
 
     /**
      * Size in messages per consumer.poll in a system.
@@ -63,7 +63,7 @@ public class SysJenaKafka {
      * This sets {@link ConsumerConfig#MAX_POLL_RECORDS_CONFIG} ({@code max.poll.records})
      * which has a Kafka default of 500.
      */
-    private static int KafkaFetchPollSize = 1000;
+    private static int KafkaFetchPollSize = 5000;
 
     /**
      * Kafka consumer properties.
