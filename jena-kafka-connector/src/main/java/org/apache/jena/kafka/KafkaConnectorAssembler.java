@@ -21,6 +21,7 @@ import static org.apache.jena.kafka.Assem2.onError;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
@@ -223,7 +224,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         if ( stateFile.startsWith("file:") )
             stateFile = IRILib.IRIToFilename(stateFile);
 
-        String groupId = Assem2.getStringOrDft(graph, node, pKafkaGroupId, dftKafkaGroupId, errorException);
+        String groupIdAssembler = Assem2.getStringOrDft(graph, node, pKafkaGroupId, dftKafkaGroupId, errorException);
+        // We need the group id to be unique so multiple servers will
+        // see all the messages topic partition.
+        String groupId = groupIdAssembler+"-"+UUID.randomUUID().toString();
 
         // ----
         Properties kafkaConsumerProps = kafkaConsumerProps(graph,  node,  topic, bootstrapServers, groupId);
