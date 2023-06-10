@@ -53,7 +53,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * Functions for Fuseki-Kafka server setup.
  */
 public class FKS {
-
     /**
      * Add a connector to a server.
      * Called from FusekiModule.serverBeforeStarting.

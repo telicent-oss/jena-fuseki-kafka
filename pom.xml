@@ -53,7 +53,7 @@
 
     <java.version>17</java.version>
 
-    <ver.jena>4.8.0</ver.jena>
+    <ver.jena>4.9.0-SNAPSHOT</ver.jena>
     <ver.kafka>3.4.0</ver.kafka> 
 
     <ver.slf4j>1.7.36</ver.slf4j>

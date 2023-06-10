@@ -19,14 +19,11 @@ package org.apache.jena.kafka;
 import java.util.Optional;
 import java.util.Properties;
 
-import org.apache.jena.util.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 public class SysJenaKafka {
 
     public static final String PATH         = "org.apache.jena.kafka";
-    private static String metadataLocation  = "org/apache/jena/kafka/jena-kafka.xml";
-    private static Metadata metadata        = new Metadata(metadataLocation);
 
     /** The product name */
     public static final String NAME         = "Apache Jena Kafka Connector";

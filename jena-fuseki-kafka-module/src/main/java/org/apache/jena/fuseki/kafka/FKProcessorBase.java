@@ -28,7 +28,7 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.WebContent;
 
 /**
- * Process incoming to SPARQL Update or RDF data.
+ * Process incoming to SPARQL Update, RDF Patch or RDF data.
  * <p>
  * This is the simplified version of what Fuseki would do for an operation sent to
  * the dataset URL. By looking at the {@code Content-Type}, it splits incoming Kafka messages into:

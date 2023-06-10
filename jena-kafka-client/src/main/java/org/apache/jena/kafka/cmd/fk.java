@@ -18,9 +18,8 @@ package org.apache.jena.kafka.cmd;
 
 import java.util.Arrays;
 
-import org.apache.jena.Jena;
-import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.atlas.lib.Version;
+import org.apache.jena.kafka.SysJenaKafka;
 
 public class fk {
 
@@ -72,9 +71,7 @@ public class fk {
 
 
     private static void version() {
-        Version version = new Version();
-        version.addClass(Jena.class) ;
-        version.print(IndentedWriter.stdout);
+        Version.printVersion(System.out, "FusekiKafka", Version.versionForClass(SysJenaKafka.class));
         System.exit(0) ;
     }
 }

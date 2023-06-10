@@ -21,11 +21,12 @@ import static org.apache.jena.kafka.FusekiKafka.LOG;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
+import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.FusekiServer.Builder;
@@ -43,29 +44,37 @@ import org.apache.jena.sparql.util.graph.GraphUtils;
 
 public class FMod_FusekiKafka implements FusekiModule {
 
-    public FMod_FusekiKafka() {}
+    private static AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
-    @Override
-    public void start() {
-        FmtLog.info(Fuseki.configLog, "Fuseki-Kafka Connector Module (%s)", SysJenaKafka.VERSION);
+    private static void init() {
+        boolean b = INITIALIZED.getAndSet(true);
+        if ( b )
+            // Already done.
+            return;
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
     }
 
+    public FMod_FusekiKafka() {}
 
     // The Fuseki modules build lifecycle is same-thread.
     // This passes information from 'prepare' to 'server'
     // [BATCHER] Change in concurrent hash map (topic -> Pair<KConnectorDesc, DataState>>)
     private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
 
-    private String modName = UUID.randomUUID().toString();
-
     @Override
     public String name() {
-        return modName;
+        return "FMod FusekiKafka";
+    }
+
+    protected String logMessage() {
+        return String.format("Fuseki-Kafka Connector Module (%s)", SysJenaKafka.VERSION);
     }
 
     @Override
     public void prepare(FusekiServer.Builder builder, Set<String> names, Model configModel) {
+        init();
+        Log.info(Fuseki.configLog, logMessage());
+
         if ( configModel == null ) {
             // FmtLog.error(LOG, "No server configuration. Can't build connector");
             return ;
@@ -136,10 +145,11 @@ public class FMod_FusekiKafka implements FusekiModule {
         });
     }
 
-    /** Clearup additional build state. */
+    /** Clearup build state. */
     @Override
     public void serverAfterStarting(FusekiServer server) {
         // Clear up thread local.
+        buildState.get().clear();
         buildState.remove();
     }
 

@@ -166,12 +166,15 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *
          * [] rdf:type fk:Connector ;
+         *     ## Required
          *     fk:topic             "TOPIC";
          *     fk:bootstrapServers  "localhost:9092";
          *     fk:stateFile         "dir/filename.state" ;
-         *     fk:fusekiServiceName "/ds";
+         *     fk:fusekiServiceName "/ds"; ## Or a "/ds/service"
          *
-         * ## Optional - with defaults
+         *     ## Optional - with defaults
+         *     ## Root of group name - this is made globally unique
+         *     ## so every message is seen by every connector.
          *     fk:groupId           "JenaFusekiKafka";
          *
          *     ## false means don't sync on startup.
@@ -182,6 +185,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *
          *     ## Relay to a remote triplestore.
          *     fk:remoteEndpoint    "http://host/triplestore";
+         *     .
          */
 
         // Required!
