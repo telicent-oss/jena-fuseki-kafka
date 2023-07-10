@@ -30,7 +30,7 @@ import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.FusekiServer.Builder;
-import org.apache.jena.fuseki.main.sys.FusekiModule;
+import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.SysJenaKafka;
@@ -42,7 +42,11 @@ import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
 
-public class FMod_FusekiKafka implements FusekiModule {
+/**
+ * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add
+ * data), SPARQL Update or RDF patch.
+ */
+public class FMod_FusekiKafka implements FusekiAutoModule {
 
     private static AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
