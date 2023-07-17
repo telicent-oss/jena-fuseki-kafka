@@ -159,7 +159,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
 
     /**
      * Make a {@link FKBatchProcessor} for the Fuseki Server being built. The default
-     * is one that loops on the ConsumerRecords ({@link requestFK}) sending each to
+     * is one that loops on the ConsumerRecords ({@link RequestFK}) sending each to
      * the Fuseki server for dispatch. Other policies are possible such as
      * aggregating batches or directly applying to a dataset.
      */

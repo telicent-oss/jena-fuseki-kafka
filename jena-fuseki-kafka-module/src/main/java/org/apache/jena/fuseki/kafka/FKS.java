@@ -115,50 +115,69 @@ public class FKS {
         startTopicPoll(batchProcessor, consumer, dataState, "Kafka:" + topicName);
     }
 
-    /** Helper to find the dispatch of a URI to single Endpoint,
-     *  no endpoint overloading by request (query string, content-type).
-     *  This function throws an exception if nothing is found.
+    /**
+     * Helper to find the dispatch of a URI to single endpoint
+     * ({@link ActionProcessor}) or to a dataset direct. It depends whether the
+     * uriPath is "{@code /database}" or "{@code /database/serviceEndpoint}".
+     * <p>
+     * If there is an endpoint, it must not be overloaded by request (query string,
+     * content-type). If there is no endpoint, only a dataset, how requests are
+     * processed is an extension requiring a subclass implementing
+     * {@link FMod_FusekiKafka#makeFKBatchProcessor}).
+     * <p>
+     * This function throws an exception if the dataset does not exist or the endpoint does not exist.
      */
-    public static Pair<ActionProcessor, DatasetGraph> findActionProcessorDataset(FusekiServer server, String uri) {
+    public static Pair<ActionProcessor, DatasetGraph> findActionProcessorDataset(FusekiServer server, String uriPath) {
         // Dispatcher.locateDataAccessPoint -- simplified
         // URI to dataset and endpointName
         String datasetName = null;
         String endpointName = null;
-        int idx = uri.lastIndexOf('/');
+        int idx = uriPath.lastIndexOf('/');
         if ( idx == -1 ) {
-            // Bad.
-            datasetName = uri;
+            // No "/"
+            datasetName = uriPath;
             endpointName = null;
         } else if ( idx == 0 ) {
-            datasetName = uri;
+            // Starts with "/"
+            datasetName = uriPath;
+            endpointName = null;
+        } else if (idx == uriPath.length()-1 ) {
+            // Last character
+            datasetName = uriPath;
             endpointName = null;
         } else {
-            datasetName = uri.substring(0, idx);
-            // Check
-            endpointName = uri.substring(idx+1);
+            // A "/" mid path.
+            datasetName = uriPath.substring(0, idx);
+            endpointName = uriPath.substring(idx+1);
         }
         datasetName = DataAccessPoint.canonical(datasetName);
         // Find DataService
         DataService dataService = findDataService(server, datasetName);
         if ( dataService == null ) {
-            String msg = String.format("Can't find a dataset service for '%s' (%s)", datasetName, uri);
+            String msg = String.format("Can't find a dataset service for '%s' (%s)", datasetName, uriPath);
             throw new FusekiKafkaException(msg);
+        }
+
+        // If dataset direct supported.
+        if ( endpointName == null ) {
+            // Dataset direct - no specific processor.
+            return Pair.create(null, dataService.getDataset());
         }
 
         EndpointSet epSet = findEndpointSet(dataService, endpointName);
         if ( epSet == null ) {
-            String msg = String.format("Can't find an endpoint for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            String msg = String.format("Can't find an endpoint for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
 
         if (epSet.isEmpty() ) {
-            String msg = String.format("Empty endpoint set for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            String msg = String.format("Empty endpoint set for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
 
         Endpoint ep = epSet.getExactlyOne();
         if ( ep == null ) {
-            String msg = String.format("Multiple endpoints set for  dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uri);
+            String msg = String.format("Multiple endpoints set for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
         ActionProcessor actionProcessor = ep.getProcessor();
@@ -320,45 +339,4 @@ public class FKS {
         FKBatchProcessor batchProcessor = FKBatchProcessor.plain(requestProcessor);
         return batchProcessor;
     }
-
-    // Better? A single scheduled executor.
-//  private static List<Runnable> tasks = new CopyOnWriteArrayList<Runnable>();
-//
-//  private static ScheduledExecutorService threads = threadExecutor();
-//
-//  private static ScheduledExecutorService threadExecutor() {
-//      return Executors.newScheduledThreadPool(1);
-//  }
-//
-//  /** The background threads */
-//  static void resetPollThreads() {
-//      threads.shutdown();
-//      threads = threadExecutor();
-//  }
-//
-//  private static void startTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, String label) {
-//      Duration pollingDuration = Duration.ofMillis(5000);
-//      Runnable task = () -> oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
-//      threads.scheduleAtFixedRate(task, 500, 10000, TimeUnit.MILLISECONDS);
-//  }
-//
-////  /** Polling task loop.*/
-////  private static void topicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState) {
-////      Duration pollingDuration = Duration.ofMillis(5000);
-////      for ( ;; ) {
-////          boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, pollingDuration);
-////      }
-////  }
-//
-//  /** A polling attempt either returns some records or waits the polling duration. */
-//  private static boolean oneTopicPoll(FKRequestProcessor requestProcessor, Consumer<String, ActionFK> consumer, DataState dataState, Duration pollingDuration) {
-//      String topic = dataState.getTopic();
-//      long lastOffsetState = dataState.getOffset();
-//      boolean somethingReceived = requestProcessor.receiver(consumer, dataState, pollingDuration);
-//      if ( somethingReceived ) {
-//          long newOffset = dataState.getOffset();
-//          FmtLog.debug(LOG, "[%s] Offset: %d -> %d", topic, lastOffsetState, newOffset);
-//      }
-//      return somethingReceived;
-//  }
 }

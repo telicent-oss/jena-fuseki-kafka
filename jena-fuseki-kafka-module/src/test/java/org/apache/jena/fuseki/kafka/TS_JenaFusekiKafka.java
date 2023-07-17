@@ -22,8 +22,6 @@ import org.junit.platform.suite.api.Suite;
 
 @Suite
 @SelectClasses({
-//@RunWith(Suite.class)
-//@Suite.SuiteClasses( {
     TestConnectorDescriptor.class
     , TestFK.class
     , TestConfigFK.class
