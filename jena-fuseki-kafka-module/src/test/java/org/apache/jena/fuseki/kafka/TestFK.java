@@ -148,8 +148,7 @@ public class TestFK {
                 .build();
         KConnectorDesc conn = new KConnectorDesc(TOPIC, null/*bootStrapservers*/, DSG, null/*remoteEndpoint*/, null/*stateFile*/,
                                                            false/*syncTopic*/, true/*replayTopic*/,
-                                                           consumerProps,
-                                                           false, (x)->System.out);
+                                                           consumerProps);
         // Manual call to setup the server.
         FKBatchProcessor batchProcessor = FKS.plainFKBatchProcessor(conn, server.getServletContext());
         FKS.addConnectorToServer(conn, server, dataState, batchProcessor);

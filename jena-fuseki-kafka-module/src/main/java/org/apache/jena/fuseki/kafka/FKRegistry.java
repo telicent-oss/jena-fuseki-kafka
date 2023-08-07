@@ -16,6 +16,7 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,6 +55,10 @@ public class FKRegistry {
      */
     public KConnectorDesc getConnectorDescriptor(String topicName) {
         return topicToConnector.get(topicName);
+    }
+
+    public Collection<KConnectorDesc> getConnectors() {
+        return topicToConnector.values();
     }
 
     /**

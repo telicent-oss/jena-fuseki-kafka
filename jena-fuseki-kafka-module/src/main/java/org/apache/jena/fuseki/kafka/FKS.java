@@ -20,10 +20,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -59,10 +56,9 @@ public class FKS {
      * This setups on the polling.
      * This configures update.
      */
-    static void addConnectorToServer(KConnectorDesc conn, FusekiServer server,
-                                     DataState dataState, FKBatchProcessor batchProcessor) {
+    public static void addConnectorToServer(KConnectorDesc conn, FusekiServer server,
+                                            DataState dataState, FKBatchProcessor batchProcessor) {
         String topicName = conn.getTopic();
-        String localDispatchPath = conn.getLocalDispatchPath();
         // Remote not (yet) supported.
         //String remoteEndpoint = conn.getRemoteEndpoint();
 
@@ -116,12 +112,42 @@ public class FKS {
     }
 
     /**
-     * Helper to find the dispatch of a URI to single endpoint
-     * ({@link ActionProcessor}) or to a dataset direct. It depends whether the
+     * Helper to find the database ({@link DatasetGraph}) associated with a URL
+     * path. Returns an {@code Optional} for the {@link DatasetGraph} to
+     * indicate if it was found or not.
+     */
+    public static Optional<DatasetGraph> findDataset(FusekiServer server, String uriPath) {
+        DataService dataService = findDataService(server, uriPath);
+        if ( dataService == null )
+            return Optional.empty();
+        return Optional.ofNullable(dataService.getDataset());
+    }
+
+    /**
+     * Find the connectors referring to the dataset and return
+     * the list of topics feeding into this dataset.
+     * This can be the empty list.
+     */
+    public static List<String> findTopics(String uriPath) {
+        uriPath = DataAccessPoint.canonical(uriPath);
+        List<String> topics = new ArrayList<>();
+        for ( KConnectorDesc fkConn : FKRegistry.get().getConnectors() ) {
+            String dispatchURI = fkConn.getLocalDispatchPath();
+            if ( dispatchURI.startsWith(uriPath) ) {
+                topics.add(fkConn.getTopic());
+            }
+        }
+        return Collections.unmodifiableList(topics);
+    }
+
+    /**
+     * Helper to find the endpoint dispatch of a URI to single endpoint
+     * ({@link ActionProcessor}). It depends whether the
      * uriPath is "{@code /database}" or "{@code /database/serviceEndpoint}".
      * <p>
-     * If there is an endpoint, it must not be overloaded by request (query string,
-     * content-type). If there is no endpoint, only a dataset, how requests are
+     * If there is an endpoint, it must not be overloaded by request signature
+     * (that is, overloaded by query string or content-type).
+     * If there is no endpoint, only a dataset, how requests are
      * processed is an extension requiring a subclass implementing
      * {@link FMod_FusekiKafka#makeFKBatchProcessor}).
      * <p>
@@ -129,59 +155,71 @@ public class FKS {
      */
     public static Pair<ActionProcessor, DatasetGraph> findActionProcessorDataset(FusekiServer server, String uriPath) {
         // Dispatcher.locateDataAccessPoint -- simplified
-        // URI to dataset and endpointName
-        String datasetName = null;
-        String endpointName = null;
-        int idx = uriPath.lastIndexOf('/');
-        if ( idx == -1 ) {
-            // No "/"
-            datasetName = uriPath;
-            endpointName = null;
-        } else if ( idx == 0 ) {
-            // Starts with "/"
-            datasetName = uriPath;
-            endpointName = null;
-        } else if (idx == uriPath.length()-1 ) {
-            // Last character
-            datasetName = uriPath;
-            endpointName = null;
-        } else {
-            // A "/" mid path.
-            datasetName = uriPath.substring(0, idx);
-            endpointName = uriPath.substring(idx+1);
-        }
-        datasetName = DataAccessPoint.canonical(datasetName);
-        // Find DataService
-        DataService dataService = findDataService(server, datasetName);
-        if ( dataService == null ) {
-            String msg = String.format("Can't find a dataset service for '%s' (%s)", datasetName, uriPath);
-            throw new FusekiKafkaException(msg);
-        }
 
-        // If dataset direct supported.
-        if ( endpointName == null ) {
-            // Dataset direct - no specific processor.
-            return Pair.create(null, dataService.getDataset());
+        // 1: test whether the uriPath is a database
+        DataService dataService = findDataService(server, uriPath);
+        String datasetName;
+        String endpointName = null;
+        if ( dataService != null ) {
+            datasetName = uriPath;
+            endpointName = "";
+        } else {
+            // 2: treat the URI as "/database/service"
+            SplitPath path = splitPath(uriPath);
+            datasetName = path.datasetName;
+            endpointName = path.endpointName;
+            dataService = findDataService(server, datasetName);
+            if ( dataService == null  ) {
+                String msg = String.format("Can't find a dataset for '%s' (%s)", datasetName, uriPath);
+                throw new FusekiKafkaException(msg);
+            }
         }
 
         EndpointSet epSet = findEndpointSet(dataService, endpointName);
         if ( epSet == null ) {
-            String msg = String.format("Can't find an endpoint for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
+            String msg = String.format("Can't find an endpoint for dataset service for '%s', endpoint '%s' (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
 
         if (epSet.isEmpty() ) {
-            String msg = String.format("Empty endpoint set for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
+            String msg = String.format("Empty endpoint set for dataset service for '%s', endpoint '%s' (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
 
         Endpoint ep = epSet.getExactlyOne();
         if ( ep == null ) {
-            String msg = String.format("Multiple endpoints set for dataset service for '%s', endpoint '%s'  (%s)", datasetName, endpointName, uriPath);
+            String msg = String.format("Multiple endpoints set for dataset service for '%s', endpoint '%s' (%s)", datasetName, endpointName, uriPath);
             throw new FusekiKafkaException(msg);
         }
         ActionProcessor actionProcessor = ep.getProcessor();
         return Pair.create(actionProcessor, dataService.getDataset());
+    }
+
+    // Internal.
+    record SplitPath(String datasetName, String endpointName) {}
+
+    /**
+     * Return (dataset name, endpointName) -- no guarantee either exists.
+     * endpoint is null if the urIPath does not contain "/",
+     * starts with "/" and thete is no other "/,
+     * or ends in "/"
+     */
+    private static SplitPath splitPath(String uriPath) {
+        int idx = uriPath.lastIndexOf('/');
+        if ( idx == -1 )
+            return new SplitPath(uriPath, null);
+        if ( idx == 0 )
+            // Starts with "/", no other "/"
+            return new SplitPath(uriPath, null);
+
+        if (idx == uriPath.length()-1 )
+            // Last character is /
+            return new SplitPath(uriPath, null);
+
+        // A "/" mid path.
+        String datasetName = uriPath.substring(0, idx);
+        String endpointName = uriPath.substring(idx+1);
+        return new SplitPath(datasetName, endpointName);
     }
 
     private static EndpointSet findEndpointSet(DataService dataService, String endpointName) {
@@ -197,17 +235,8 @@ public class FKS {
         DataAccessPoint dap = dapRegistry.get(datasetName);
         if ( dap == null )
             return null;
-        // Dispatcher.chooseEndpoint -- simplified, no overloading by content type.
         DataService dataService = dap.getDataService();
         return dataService;
-    }
-
-    /** Get the database * out of a Fuseki server. */
-    public static DatasetGraph findDataset(FusekiServer server, String datasetName) {
-        DataService dSrv = findDataService(server, datasetName);
-        if ( dSrv == null )
-            return null;
-        return dSrv.getDataset();
     }
 
     /** Check connectivity so we can give specific messages */
@@ -336,7 +365,7 @@ public class FKS {
     public static FKBatchProcessor plainFKBatchProcessor(KConnectorDesc conn, ServletContext servletContext) {
         String requestURI = conn.getLocalDispatchPath();
         FKProcessor requestProcessor = new FKProcessorFusekiDispatch(requestURI, servletContext);
-        FKBatchProcessor batchProcessor = FKBatchProcessor.plain(requestProcessor);
+        FKBatchProcessor batchProcessor = FKBatchProcessor.createBatchProcessor(requestProcessor);
         return batchProcessor;
     }
 }

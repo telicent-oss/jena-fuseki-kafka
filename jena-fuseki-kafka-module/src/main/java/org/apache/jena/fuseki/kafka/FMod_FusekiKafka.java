@@ -43,8 +43,8 @@ import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
 
 /**
- * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add
- * data), SPARQL Update or RDF patch.
+ * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like:
+ * updates (add data), SPARQL Update or RDF patch.
  */
 public class FMod_FusekiKafka implements FusekiAutoModule {
 
@@ -103,7 +103,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         String dispatchURI = conn.getLocalDispatchPath();
         String remoteEndpoint = conn.getRemoteEndpoint();
 
-//        // Endpoint to dataset.
+//        // Endpoint to dataset. Abbreviate a endpoint-based dispatch name to a dataset.
 //        String datasetName = datasetName(dispatchURI);
 //        DatasetGraph dsg = builder.getDataset(datasetName);
 //        if ( dsg == null )

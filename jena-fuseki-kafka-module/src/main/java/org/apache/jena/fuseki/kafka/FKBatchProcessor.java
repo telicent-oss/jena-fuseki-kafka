@@ -42,7 +42,7 @@ public class FKBatchProcessor {
     private static Logger LOG = FusekiKafka.LOG;
 
     /** A batch process that applies a FKProcessor fkProcessor */
-    public static FKBatchProcessor plain(FKProcessor fkProcessor) {
+    public static FKBatchProcessor createBatchProcessor(FKProcessor fkProcessor) {
         return new FKBatchProcessor(fkProcessor);
     }
 
@@ -52,7 +52,7 @@ public class FKBatchProcessor {
     /**
      * Batch processor that applies a {@link FKProcessor} to each item in the batch.
      */
-    public FKBatchProcessor(FKProcessor fkProcessor) {
+    private FKBatchProcessor(FKProcessor fkProcessor) {
         this(null, fkProcessor);
     }
 
