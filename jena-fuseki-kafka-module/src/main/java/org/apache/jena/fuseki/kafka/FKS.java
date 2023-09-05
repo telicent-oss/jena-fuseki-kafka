@@ -147,6 +147,7 @@ public class FKS {
      * <p>
      * If there is an endpoint, it must not be overloaded by request signature
      * (that is, overloaded by query string or content-type).
+     * <p>
      * If there is no endpoint, only a dataset, how requests are
      * processed is an extension requiring a subclass implementing
      * {@link FMod_FusekiKafka#makeFKBatchProcessor}).
@@ -156,23 +157,26 @@ public class FKS {
     public static Pair<ActionProcessor, DatasetGraph> findActionProcessorDataset(FusekiServer server, String uriPath) {
         // Dispatcher.locateDataAccessPoint -- simplified
 
-        // 1: test whether the uriPath is a database
+        // 1: test whether the uriPath that Kafka delivers to is a database
+        // If so, return the dataset, and expect the caller to provide the
+        // action processor FMod_FusekiKafka#makeFKBatchProcessor
         DataService dataService = findDataService(server, uriPath);
         String datasetName;
         String endpointName = null;
         if ( dataService != null ) {
             datasetName = uriPath;
             endpointName = "";
-        } else {
-            // 2: treat the URI as "/database/service"
-            SplitPath path = splitPath(uriPath);
-            datasetName = path.datasetName;
-            endpointName = path.endpointName;
-            dataService = findDataService(server, datasetName);
-            if ( dataService == null  ) {
-                String msg = String.format("Can't find a dataset for '%s' (%s)", datasetName, uriPath);
-                throw new FusekiKafkaException(msg);
-            }
+            return Pair.create(null, dataService.getDataset());
+        }
+
+        // 2: treat the URI as "/database/service"
+        SplitPath path = splitPath(uriPath);
+        datasetName = path.datasetName;
+        endpointName = path.endpointName;
+        dataService = findDataService(server, datasetName);
+        if ( dataService == null  ) {
+            String msg = String.format("Can't find a dataset for '%s' (%s)", datasetName, uriPath);
+            throw new FusekiKafkaException(msg);
         }
 
         EndpointSet epSet = findEndpointSet(dataService, endpointName);
