@@ -18,18 +18,20 @@ package org.apache.jena.fuseki.kafka;
 
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ResponseFK;
-import org.apache.jena.sparql.core.Transactional;
 
 /**
- * Process incoming {@link RequestFK} and return a {@link ResponseFK}.
+ * A base {@link FKProcessor} that passes on one {@link RequestFK at a time}.
  * <p>
- * This is the interface called from {@link FKBatchProcessor} with one Kafka message
- * per call.
- * <p>
- * It is called within a {@link Transactional} given to {@link FKBatchProcessor} if
- * is given a {@link Transactional} otherwise the implement of this interface is
- * responsible for transactions.
+ * The subclass is responsible for handling transactions per {@link RequestFK}.
  */
-public interface FKProcessor {
-    public ResponseFK process(RequestFK request);
+public abstract class FKProcessorBase1 implements FKProcessor {
+
+    protected abstract ResponseFK process1(RequestFK request);
+
+    protected FKProcessorBase1() {}
+
+    @Override
+    public final ResponseFK process(RequestFK request) {
+        return process1(request);
+    }
 }

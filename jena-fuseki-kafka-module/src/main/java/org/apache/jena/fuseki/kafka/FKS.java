@@ -363,8 +363,7 @@ public class FKS {
     /**
      * Make a {@link FKBatchProcessor} for the Fuseki Server being built. This plain
      * batch processor is one that loops on the ConsumerRecords ({@link RequestFK})
-     * sending each to the Fuseki server for dispatch. Other policies are possible
-     * such as aggregating batches or directly applying to a dataset.
+     * sending each to the Fuseki server for dispatch.
      */
     public static FKBatchProcessor plainFKBatchProcessor(KConnectorDesc conn, ServletContext servletContext) {
         String requestURI = conn.getLocalDispatchPath();

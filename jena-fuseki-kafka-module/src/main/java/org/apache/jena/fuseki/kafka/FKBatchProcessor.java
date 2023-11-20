@@ -41,7 +41,10 @@ public class FKBatchProcessor {
 
     private static Logger LOG = FusekiKafka.LOG;
 
-    /** A batch process that applies a FKProcessor fkProcessor */
+    /**
+     * A batch processor that applies a FKProcessor fkProcessor.
+     * The {@link FKProcessor} is responsible for transactions.
+     */
     public static FKBatchProcessor createBatchProcessor(FKProcessor fkProcessor) {
         return new FKBatchProcessor(fkProcessor);
     }

@@ -20,7 +20,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 
 import org.apache.jena.atlas.io.IO;
-import org.apache.jena.fuseki.kafka.FKProcessorBase;
+import org.apache.jena.fuseki.kafka.FKProcessorBaseAction;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ResponseFK;
 import org.apache.jena.rdfpatch.RDFPatch;
@@ -32,7 +32,7 @@ import org.apache.jena.riot.system.StreamRDFLib;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
 
-public class FKPrintRequest extends FKProcessorBase {
+public class FKPrintRequest extends FKProcessorBaseAction {
     /** Print details of the request on stdout. */
     public static void parsePrint(RequestFK action) {
         ResponseFK response = new FKPrintRequest().process(action);

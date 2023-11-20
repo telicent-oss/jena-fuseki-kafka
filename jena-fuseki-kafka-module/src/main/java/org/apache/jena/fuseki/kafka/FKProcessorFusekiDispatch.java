@@ -28,8 +28,14 @@ import org.apache.jena.fuseki.server.Dispatcher;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.ResponseFK;
 
-/** A {@link FKProcessor} that sends {@link RequestFK} to Fuseki via the usual Fuseki dispatch process. */
-public class FKProcessorFusekiDispatch implements FKProcessor {
+/**
+ * A {@link FKProcessor} that sends {@link RequestFK} to Fuseki via the usual Fuseki
+ * dispatch process.
+ * <p>
+ * This implementation of {@link FKProcessor} puts one transaction around each Kafka
+ * message processing because it is done by the Fuseki dispatch and action.
+ */
+public class FKProcessorFusekiDispatch extends FKProcessorBase1 {
     private static byte[] emptyBytes = new byte[0];
     private String requestURI;
     private ServletContext servletContext;
@@ -40,7 +46,7 @@ public class FKProcessorFusekiDispatch implements FKProcessor {
     }
 
     @Override
-    public ResponseFK process(RequestFK requestFK) {
+    protected ResponseFK process1(RequestFK requestFK) {
         Map<String, String> requestParameters = Map.of();
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         HttpServletRequest request = new HttpServletRequestMinimal(requestURI, requestFK.getHeaders(), requestParameters,

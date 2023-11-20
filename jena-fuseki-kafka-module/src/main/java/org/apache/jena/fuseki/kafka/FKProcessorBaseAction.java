@@ -28,7 +28,7 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.WebContent;
 
 /**
- * Process incoming to SPARQL Update, RDF Patch or RDF data.
+ * Process incoming request as a SPARQL Update, RDF Patch or RDF data as appropriate.
  * <p>
  * This is the simplified version of what Fuseki would do for an operation sent to
  * the dataset URL. By looking at the {@code Content-Type}, it splits incoming Kafka messages into:
@@ -38,18 +38,18 @@ import org.apache.jena.riot.WebContent;
  * <li>RDF Data</li>
  * <ul>
  */
-public abstract class FKProcessorBase implements FKProcessor {
+public abstract class FKProcessorBaseAction implements FKProcessor {
 
     private static AtomicLong requestId = new AtomicLong(0);
 
-    protected FKProcessorBase() {}
+    protected FKProcessorBaseAction() {}
 
     @Override
     public ResponseFK process(RequestFK request) {
         //String id = String.format("%s:%d", request.getTopic(), requestId.incrementAndGet());
         String id = request.getTopic();
         try {
-            ResponseFK response = action(id, request);
+            ResponseFK response = processAction(id, request);
             if ( response == null )
                 response = ResponseFK.success(request.getTopic());
             return response;
@@ -58,7 +58,7 @@ public abstract class FKProcessorBase implements FKProcessor {
         }
     }
 
-    private ResponseFK action(String id, RequestFK request) {
+    private ResponseFK processAction(String id, RequestFK request) {
         try {
             InputStream data = request.getInputStream();
             String contentType = request.getContentType();
