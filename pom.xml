@@ -63,6 +63,20 @@
     <ver.junit5-platform>1.10.1</ver.junit5-platform>
 
     <ver.testcontainers>1.19.3</ver.testcontainers>
+
+    <ver.plugin.compiler>3.11.0</ver.plugin.compiler>
+    <ver.plugin.jar>3.3.0</ver.plugin.jar>
+    <ver.plugin.source>3.2.1</ver.plugin.source>
+    <ver.plugin.surefire>3.0.0-M7</ver.plugin.surefire>
+    <ver.plugin.javadoc>3.5.0</ver.plugin.javadoc>
+    <ver.plugin.resources>2.5</ver.plugin.resources>
+    <ver.plugin.deploy>3.0.0</ver.plugin.deploy>
+    <ver.plugin.dependency>3.3.0</ver.plugin.dependency>
+    <ver.plugin.enforcer>3.1.0</ver.plugin.enforcer>
+    <ver.plugin.clean>3.2.0</ver.plugin.clean>
+    <ver.plugin.install>3.0.1</ver.plugin.install>
+    <ver.plugin.site>3.9.1</ver.plugin.site>
+
   </properties>
 
   <modules>
@@ -186,7 +200,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
+        <version>${ver.plugin.compiler}</version>
         <configuration>
           <release>${java.version}</release>
         </configuration>
@@ -195,7 +209,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${ver.plugin.jar}</version>
         <configuration>
           <archive>
             <manifest> 
@@ -215,7 +229,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.2.1</version>
+          <version>${ver.plugin.source}</version>
           <executions>
             <execution>
               <id>attach-sources</id>
@@ -235,13 +249,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-	      <version>3.0.0-M7</version>
+	      <version>${ver.plugin.surefire}</version>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>${ver.plugin.javadoc}</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
@@ -285,7 +299,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-	      <version>2.5</version>
+	      <version>${ver.plugin.resources}</version>
         <configuration>
           <encoding>UTF-8</encoding>
         </configuration>
@@ -294,13 +308,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>${ver.plugin.deploy}</version>
       </plugin>
       
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${ver.plugin.dependency}</version>
         <configuration>
           <overWriteReleases>false</overWriteReleases>
           <overWriteIfNewer>true</overWriteIfNewer>
@@ -311,7 +325,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>${ver.plugin.enforcer}</version>
         <executions>
           <execution>
             <id>enforce</id>
@@ -344,19 +358,19 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>${ver.plugin.clean}</version>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-install-plugin</artifactId>
-        <version>3.0.1</version>
+        <version>${ver.plugin.install}</version>
       </plugin>
       
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-site-plugin</artifactId>
-        <version>3.9.1</version>
+        <version>${ver.plugin.site}</version>
       </plugin>
 
     </plugins>
