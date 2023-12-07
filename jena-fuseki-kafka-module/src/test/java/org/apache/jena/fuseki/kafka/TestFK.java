@@ -16,15 +16,6 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
@@ -43,8 +34,16 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
-import org.junit.After;
 import org.junit.jupiter.api.*;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
@@ -84,7 +83,8 @@ public class TestFK {
         producerProps.put("bootstrap.servers", mock.getServer());
     }
 
-    @After public void after() {
+    @AfterEach
+    public void after() {
         FKS.resetPollThreads();
     }
 
