@@ -10,5 +10,5 @@ updates:
     directory: "/"
     schedule: 
       interval: weekly
-      day:tuesday
+      day: tuesday
     open-pull-requests-limit: 5
