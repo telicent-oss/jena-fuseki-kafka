@@ -17,6 +17,7 @@
 package org.apache.jena.kafka.cmd;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.jena.atlas.logging.LogCtl;
@@ -72,7 +73,7 @@ public class FK_SyncDB {
         DataState dState = DataState.create(state);
         {
             long offset = dState.getLastOffset();
-            String x = (offset<0) ? "<empty>" : "Offset: "+Long.toString(offset);
+            String x = (offset<0) ? "<empty>" : "Offset: "+ offset;
             System.out.println(x);
         }
 
@@ -85,12 +86,12 @@ public class FK_SyncDB {
 
         try ( Consumer<String, RequestFK> consumer = new KafkaConsumer<>(cProps, strDeser, reqDer) ) {
             TopicPartition topicPartition = new TopicPartition(topic, 0);
-            consumer.assign(Arrays.asList(topicPartition));
+            consumer.assign(List.of(topicPartition));
 
             // Resume or start from the beginning.
             long initialOffset = dState.getLastOffset();
             if ( initialOffset < 0 )
-                consumer.seekToBeginning(Arrays.asList(topicPartition));
+                consumer.seekToBeginning(List.of(topicPartition));
             else
                 consumer.seek(topicPartition, initialOffset+1);
 

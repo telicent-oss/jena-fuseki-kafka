@@ -152,7 +152,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return new RDFDataException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
     }
 
-    private static Assem2.OnError errorException = errorMsg -> new JenaKafkaException(errorMsg);
+    private static Assem2.OnError errorException = JenaKafkaException::new;
 
     static JenaKafkaException error(Node node, String msg) {
         return new JenaKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
@@ -327,10 +327,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     public static String canonical(String datasetPath) {
         if ( datasetPath == null )
             return datasetPath;
+        if (datasetPath.isEmpty())
+            return "/";
         if ( datasetPath.equals("/") )
             return datasetPath;
-        if ( datasetPath.equals("") )
-            return "/";
         if ( !datasetPath.startsWith("/") )
             datasetPath = "/" + datasetPath;
         if ( datasetPath.endsWith("/") )

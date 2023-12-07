@@ -37,7 +37,7 @@ class Assem2 {
         RuntimeException exception(String errorMsg);
     }
 
-    private static OnError dftErrorException = errorMsg -> new RDFDataException(errorMsg);
+    private static OnError dftErrorException = RDFDataException::new;
 
 //    /**
 //     * Get a required String from a object that is xsd:string.

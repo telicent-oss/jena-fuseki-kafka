@@ -56,7 +56,7 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
     }
 
     @Override
-    public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
+    public void setCharacterEncoding(String env) {
         //throw new UnsupportedOperationException();
     }
 
@@ -86,7 +86,7 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
     }
 
     @Override
-    public ServletInputStream getInputStream() throws IOException {
+    public ServletInputStream getInputStream() {
         return new ServletInputStream() {
             @Override
             public int read() throws IOException { return inputStream.read(); }
@@ -274,7 +274,7 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
      */
 
     @Override
-    public BufferedReader getReader() throws IOException {
+    public BufferedReader getReader() {
         // Discouraged.
         throw new UnsupportedOperationException();
     }
@@ -472,33 +472,33 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
     }
 
     @Override
-    public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
+    public boolean authenticate(HttpServletResponse response) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void login(String username, String password) throws ServletException {
+    public void login(String username, String password) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void logout() throws ServletException {
+    public void logout() {
         throw new UnsupportedOperationException();
     }
 
 
     @Override
-    public Collection<Part> getParts() throws IOException, ServletException {
+    public Collection<Part> getParts() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Part getPart(String name) throws IOException, ServletException {
+    public Part getPart(String name) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
+    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) {
         throw new UnsupportedOperationException();
     }
 

@@ -111,9 +111,7 @@ public class FK_Send extends CmdGeneral {
             Future<RecordMetadata> f = producer.send(pRec);
             RecordMetadata res = f.get();
             return res;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
         return null;
@@ -136,8 +134,7 @@ public class FK_Send extends CmdGeneral {
     }
 
     protected void exec1(Producer<String, String> producer, String fn) {
-        List<Header> sendHeaders = new ArrayList<>();
-        sendHeaders.addAll(kafkaHeaders);
+        List<Header> sendHeaders = new ArrayList<>(kafkaHeaders);
         boolean hasContentType = kafkaHeaders.stream().anyMatch(h->h.key().equalsIgnoreCase(HttpNames.hContentType));
         if ( ! hasContentType ) {
             String ct = chooseContentType(fn);

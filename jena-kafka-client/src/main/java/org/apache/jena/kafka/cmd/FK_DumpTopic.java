@@ -104,9 +104,7 @@ public class FK_DumpTopic extends CmdGeneral {
             Future<RecordMetadata> f = producer.send(pRec);
             RecordMetadata res = f.get();
             return res;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
         return null;
@@ -128,9 +126,9 @@ public class FK_DumpTopic extends CmdGeneral {
 
     private void dumpTopic(KafkaConsumer<String, String> consumer, String topic) {
         TopicPartition topicPartition = new TopicPartition(topic, 0);
-        consumer.assign(Arrays.asList(topicPartition));
+        consumer.assign(List.of(topicPartition));
 
-        consumer.seekToBeginning(Arrays.asList(topicPartition));
+        consumer.seekToBeginning(List.of(topicPartition));
 
         DataState dState = DataState.createEphemeral(topic);
         for ( ;; ) {
