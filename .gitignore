@@ -58,6 +58,3 @@ gradle-app.setting
 
 # virtual machine crash logs
 hs_err_pid*
-
-##
-dependency-reduced-pom.xml
