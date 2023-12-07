@@ -44,10 +44,10 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     }
 
     @Override
-    public ServletOutputStream getOutputStream() throws IOException {
+    public ServletOutputStream getOutputStream() {
         if ( hasCommitted )
             throw new IllegalStateException();
-        return new ServletOutputStreamX(output, ()-> { hasCommitted = true; } );
+        return new ServletOutputStreamX(output, ()-> hasCommitted = true);
     }
 
     static class ServletOutputStreamX extends ServletOutputStream {
@@ -80,7 +80,7 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     }
 
     @Override
-    public PrintWriter getWriter() throws IOException {
+    public PrintWriter getWriter() {
         if ( hasCommitted )
             throw new IllegalStateException();
         hasCommitted = true;
@@ -91,14 +91,14 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     public void sendError(int sc, String msg) throws IOException { sendError(sc); }
 
     @Override
-    public void sendError(int sc) throws IOException {
+    public void sendError(int sc) {
         if ( hasCommitted )
             throw new IllegalStateException();
         hasCommitted = true;
     }
 
     @Override
-    public void sendRedirect(String location) throws IOException {
+    public void sendRedirect(String location) {
         if ( hasCommitted )
             throw new IllegalStateException();
         setStatus(HttpSC.FOUND_302);
@@ -133,7 +133,7 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     }
 
     @Override
-    public void flushBuffer() throws IOException {
+    public void flushBuffer() {
         hasCommitted = true;
     }
 

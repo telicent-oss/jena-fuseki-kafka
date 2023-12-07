@@ -64,15 +64,16 @@ public class DeserializerActionFK implements Deserializer<RequestFK> {
         if ( verbose && dumpOutput != null ) {
             synchronized(this) {
                 counter++;
-                PrintStream out = dumpOutput.apply(counter);
-                out.printf("## %d ##\n", counter);
-                headers.forEach(h->out.println(h.key()+": "+StrUtils.fromUTF8bytes(h.value())));
-                out.println();
-                String x = StrUtils.fromUTF8bytes(data);
-                out.print(x);
-                if ( ! x.endsWith("\n") )
+                try (PrintStream out = dumpOutput.apply(counter)) {
+                    out.printf("## %d ##\n", counter);
+                    headers.forEach(h -> out.println(h.key() + ": " + StrUtils.fromUTF8bytes(h.value())));
                     out.println();
-                out.flush();
+                    String x = StrUtils.fromUTF8bytes(data);
+                    out.print(x);
+                    if (!x.endsWith("\n"))
+                        out.println();
+                    out.flush();
+                }
             }
         }
 

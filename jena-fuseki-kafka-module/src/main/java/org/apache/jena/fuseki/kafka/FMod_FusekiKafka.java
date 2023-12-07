@@ -63,7 +63,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
     // The Fuseki modules build lifecycle is same-thread.
     // This passes information from 'prepare' to 'server'
     // [BATCHER] Change in concurrent hash map (topic -> Pair<KConnectorDesc, DataState>>)
-    private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(()->new ArrayList<>());
+    private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(ArrayList::new);
 
     @Override
     public String name() {

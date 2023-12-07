@@ -138,9 +138,7 @@ public class FKLib {
             Future<RecordMetadata> f = producer.send(pRec);
             RecordMetadata res = f.get();
             return res;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
         return null;
@@ -149,12 +147,12 @@ public class FKLib {
     public static void receive(DataState dataState, Properties cProps, String topic, BiConsumer<ConsumerRecord<String, String>, Long> handler) {
         try ( StringDeserializer strDeser = new StringDeserializer();
               DeserializerDump deSer = new DeserializerDump();
-              Consumer<String, String> consumer = new KafkaConsumer<String, String>(cProps, strDeser, deSer)){
+              Consumer<String, String> consumer = new KafkaConsumer<>(cProps, strDeser, deSer)){
             TopicPartition topicPartition = new TopicPartition(topic, 0);
-            consumer.assign(Arrays.asList(topicPartition));
+            consumer.assign(List.of(topicPartition));
             long initialOffset = dataState.getLastOffset();
             if ( initialOffset < 0 )
-                consumer.seekToBeginning(Arrays.asList(topicPartition));
+                consumer.seekToBeginning(List.of(topicPartition));
             receiverLoop(consumer, dataState, handler);
         }
     }

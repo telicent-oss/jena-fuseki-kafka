@@ -125,7 +125,7 @@ public class FKBatchProcessor {
             return lastOffsetState;
 
         int count = cRecords.count();
-        int payloadSize = payloadSize(cRecords);
+        long payloadSize = payloadSize(cRecords);
         Timer timer = batchStart(topic, lastOffsetState, count, payloadSize);
 
         long newOffset = batchProcess(topic, cRecords);
@@ -142,8 +142,8 @@ public class FKBatchProcessor {
         return newOffset;
     }
 
-    private int payloadSize(ConsumerRecords<String, RequestFK> cRecords) {
-        int sizeBytes = 0;
+    private long payloadSize(ConsumerRecords<String, RequestFK> cRecords) {
+        long sizeBytes = 0;
         for ( ConsumerRecord<String, RequestFK> cRec : cRecords ) {
             sizeBytes += cRec.value().getByteCount();
         }

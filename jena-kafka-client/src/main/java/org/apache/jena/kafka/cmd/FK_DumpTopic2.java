@@ -19,6 +19,7 @@ package org.apache.jena.kafka.cmd;
 import java.io.PrintStream;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -74,12 +75,12 @@ public class FK_DumpTopic2 {
         DeserializerDump deSer = new DeserializerDump();
         Consumer<String, String> consumer = new KafkaConsumer<>(cProps, strDeser, deSer);
         TopicPartition topicPartition = new TopicPartition(topic, 0);
-        consumer.assign(Arrays.asList(topicPartition));
+        consumer.assign(List.of(topicPartition));
 
         // Resume.
         long initialOffset = dState.getLastOffset();
         if ( initialOffset < 0 )
-            consumer.seekToBeginning(Arrays.asList(topicPartition));
+            consumer.seekToBeginning(List.of(topicPartition));
         else {
             System.err.println("Should be replay");
         }

@@ -138,6 +138,6 @@ public class PersistentState implements RefBytes, RefString, RefLong {
         if ( pathname == null )
             return;
         // Does not need synchronizing.
-        IOX.safeWrite(pathname, out-> { out.write(value) ; });
+        IOX.safeWrite(pathname, out-> out.write(value));
     }
 }
