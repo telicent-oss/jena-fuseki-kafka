@@ -10,12 +10,15 @@
 export VER=1.2.0
 VER_NEXT=1.2.1-SNAPSHOT
 TAG="v$VER"
+
 ## Set release and next version.
 ## If not set, mvn release:prepare will ask for them.
 MVN_VER="-DreleaseVersion=$VER -DdevelopmentVersion=$VER_NEXT -Dtag=$TAG"
+
 ## Code artifact 429s
-MVN_VER="-Daether.connector.basic.parallelPut=false $MVN_ARGS"
-export MVN_ARGS="$MVN_VER"
+MVN_EXTRA="-Daether.connector.basic.parallelPut=false"
+
+export MVN_ARGS="$MVN_VER $MVN_EXTRA"
 
 ## Extras:
 ## Different local repo for release build:
