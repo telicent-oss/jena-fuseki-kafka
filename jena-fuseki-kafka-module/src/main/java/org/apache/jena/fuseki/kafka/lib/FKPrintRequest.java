@@ -38,6 +38,14 @@ public class FKPrintRequest extends FKProcessorBaseAction {
         ResponseFK response = new FKPrintRequest().process(action);
     }
 
+    public FKPrintRequest() {}
+
+    @Override
+    public void startBatch(int batchSize, long startOffset) {}
+
+    @Override
+    public void finishBatch(int processedCount, long finishOffset, long startOffset) {}
+
     @Override
     protected void actionSparqlUpdate(String id, RequestFK request, InputStream data) {
         UpdateRequest up = UpdateFactory.read(data);
