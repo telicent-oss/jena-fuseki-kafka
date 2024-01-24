@@ -45,6 +45,12 @@ public abstract class FKProcessorBaseAction implements FKProcessor {
     protected FKProcessorBaseAction() {}
 
     @Override
+    public abstract void startBatch(int batchSize, long offsetStart);
+
+    @Override
+    public abstract void finishBatch(int processedCount, long finishOffset, long startOffset);
+
+    @Override
     public ResponseFK process(RequestFK request) {
         //String id = String.format("%s:%d", request.getTopic(), requestId.incrementAndGet());
         String id = request.getTopic();
@@ -62,6 +68,10 @@ public abstract class FKProcessorBaseAction implements FKProcessor {
         try {
             InputStream data = request.getInputStream();
             String contentType = request.getContentType();
+            if ( contentType == null ) {
+                actionFailed(id, request, "No content type. Message rejected.");
+                return null;
+            }
 
             if ( WebContent.contentTypeSPARQLUpdate.equals(contentType) ) {
                 actionSparqlUpdate(id, request, data);

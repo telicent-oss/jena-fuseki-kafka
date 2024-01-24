@@ -26,7 +26,6 @@ import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.sparql.core.Transactional;
-import org.apache.jena.sparql.core.TransactionalNull;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -60,13 +59,13 @@ public class FKBatchProcessor {
     }
 
     /**
-     * Batch processor that puts a transaction around the loop that applies a
+     * Batch processor.
+     * If the {@link Transactional} is provided,
+     * it puts a transaction around the loop that applies a
      * {@link FKProcessor} to each item in the batch.
+     * If the transactional is null, no transaction is added and the processor is in control.
      */
     public FKBatchProcessor(Transactional transactional, FKProcessor fkProcessor) {
-        // TransactionalNull - no batch transaction.
-        if ( transactional == null )
-            transactional = TransactionalNull.create();
         this.transactional = transactional;
         this.fkProcessor = fkProcessor;
     }
@@ -116,10 +115,14 @@ public class FKBatchProcessor {
     /** Do one Kafka consumer poll step. */
     private long receiverStep(String topic, long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
-
-        //FmtLog.debug(LOG, "[%s] consumer.poll(%s ms)", topic, pollingDuration.toMillis());
+        Objects.requireNonNull(consumer);
+        if ( LOG.isDebugEnabled() )
+            FmtLog.debug(LOG, "[%s] consumer.poll(%s ms)", topic, pollingDuration.toMillis());
         ConsumerRecords<String, RequestFK> cRecords = consumer.poll(pollingDuration);
+        return processBatch(topic, lastOffsetState, cRecords);
+    }
 
+    public long processBatch(String topic, long lastOffsetState, ConsumerRecords<String, RequestFK> cRecords) {
         if ( cRecords.isEmpty() )
             // Nothing received - no change.
             return lastOffsetState;
@@ -150,20 +153,28 @@ public class FKBatchProcessor {
         return sizeBytes;
     }
 
-    private Timer batchStart(String topic, long lastOffsetState, long count, long numBytes) {
+    private Timer batchStart(String topic, long lastOffsetState, int count, long numBytes) {
         FmtLog.info(LOG, "[%s] Batch: Start offset = %d ; Count = %d : Payload = %,d bytes", topic, lastOffsetState, count, numBytes);
         if ( ! VERBOSE )
             return null;
         Timer timer = new Timer();
         timer.startTimer();
+        fkProcessor.startBatch(count, lastOffsetState);
         return timer;
     }
 
     private long batchProcess(String topic, ConsumerRecords<String, RequestFK> cRecords) {
+        if ( transactional == null ) {
+            // No transactional set. Assume the fkProcessor.process knows what it is doing.
+            return execBatch(cRecords);
+        }
         return transactional.calculate(()->execBatch(cRecords));
     }
 
     private void batchFinish(String topic, long lastOffsetState, long newOffsetState, Timer timer) {
+        int numProcessed = Math.toIntExact(newOffsetState - lastOffsetState);
+
+        fkProcessor.finishBatch(numProcessed, newOffsetState, lastOffsetState);
         if ( timer == null )
             FmtLog.info(LOG, "[%s] Batch: Finished [%d, %d]", topic, lastOffsetState, newOffsetState);
         else {

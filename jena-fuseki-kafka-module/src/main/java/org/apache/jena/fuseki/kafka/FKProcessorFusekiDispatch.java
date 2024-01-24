@@ -46,6 +46,12 @@ public class FKProcessorFusekiDispatch extends FKProcessorBase1 {
     }
 
     @Override
+    public void startBatch(int batchSize, long offsetStart) {}
+
+    @Override
+    public void finishBatch(int processedCount, long finishOffset, long startOffset) {}
+
+    @Override
     protected ResponseFK process1(RequestFK requestFK) {
         Map<String, String> requestParameters = Map.of();
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
@@ -60,4 +66,5 @@ public class FKProcessorFusekiDispatch extends FKProcessorBase1 {
         ResponseFK result = ResponseFK.create(requestFK.getTopic(), response.headers(), responseBytes);
         return result;
     }
+
 }

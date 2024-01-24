@@ -31,5 +31,19 @@ import org.apache.jena.sparql.core.Transactional;
  * responsible for transactions.
  */
 public interface FKProcessor {
+
+    /**
+     * Start batch.
+     */
+    public void startBatch(int batchSize, long offsetStart);
+
+    /**
+     * Process one request.
+     */
     public ResponseFK process(RequestFK request);
+
+    /**
+     * Finished batch.
+     */
+    public void finishBatch(int processedCount, long finishOffset, long startOffset);
 }
