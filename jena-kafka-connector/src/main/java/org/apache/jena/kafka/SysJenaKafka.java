@@ -16,9 +16,9 @@
 
 package org.apache.jena.kafka;
 
-import java.util.Optional;
 import java.util.Properties;
 
+import org.apache.jena.atlas.lib.Version;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 public class SysJenaKafka {
@@ -28,16 +28,8 @@ public class SysJenaKafka {
     /** The product name */
     public static final String NAME         = "Apache Jena Kafka Connector";
 
-    // TODO Remove after Jena 4.9.0 update.
-    // Copied from jena development. This can be replaced by Version.versionForClass
-    // when jena 4.9.0 is available.
-    private static Optional<String> versionForClass(Class<?> cls) {
-        String x = cls.getPackage().getImplementationVersion();
-        return Optional.ofNullable(x);
-    }
-
     /** Software version taken from the jar file. */
-    public static final String VERSION      = /*Version.*/versionForClass(FusekiKafka.class).orElse("<development>");
+    public static final String VERSION      = Version.versionForClass(FusekiKafka.class).orElse("<development>");
 
     public static void init() {}
 
