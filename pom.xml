@@ -67,7 +67,7 @@
     <ver.plugin.compiler>3.11.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.7.10</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.3.0</ver.plugin.jar>
-    <ver.plugin.source>3.2.1</ver.plugin.source>
+    <ver.plugin.source>3.3.0</ver.plugin.source>
     <ver.plugin.surefire>3.0.0-M7</ver.plugin.surefire>
     <ver.plugin.javadoc>3.5.0</ver.plugin.javadoc>
     <ver.plugin.resources>2.5</ver.plugin.resources>
