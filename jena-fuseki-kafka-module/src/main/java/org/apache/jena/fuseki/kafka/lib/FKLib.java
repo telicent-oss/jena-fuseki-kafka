@@ -18,7 +18,6 @@ package org.apache.jena.fuseki.kafka.lib;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;

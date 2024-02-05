@@ -18,7 +18,6 @@ package org.apache.jena.kafka.cmd;
 
 import java.io.*;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;

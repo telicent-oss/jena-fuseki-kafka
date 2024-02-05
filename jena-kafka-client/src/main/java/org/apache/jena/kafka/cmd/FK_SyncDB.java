@@ -16,13 +16,12 @@
 
 package org.apache.jena.kafka.cmd;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.DeserializerActionFK;
+import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
