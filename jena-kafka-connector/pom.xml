@@ -31,12 +31,9 @@
     <relativePath>..</relativePath>
   </parent> 
 
-  <!--
-      Break javadoc (3.4.0)
   <properties>
     <automatic.module.name>io.telicent.jena.kafka.connector</automatic.module.name>
   </properties>
-  -->
 
   <dependencies>
     <!--
@@ -53,8 +50,7 @@
 
     <dependency>
       <groupId>org.apache.jena</groupId>
-      <artifactId>apache-jena-libs</artifactId>
-      <type>pom</type>
+      <artifactId>jena-arq</artifactId>
     </dependency>
 
   </dependencies>
@@ -75,8 +71,6 @@
       </resource>
     </resources>
 
-    <!--
-      See above about Automatic-Module-Name
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -97,7 +91,7 @@
         </executions>
       </plugin>
     </plugins>
-    -->
+
   </build>
 
 </project>

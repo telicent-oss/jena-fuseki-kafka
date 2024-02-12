@@ -51,6 +51,14 @@
           <groupId>org.apache.jena</groupId>
           <artifactId>apache-jena-libs</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.jena</groupId>
+          <artifactId>jena-arq</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.jena</groupId>
+          <artifactId>jena-cmds</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     
