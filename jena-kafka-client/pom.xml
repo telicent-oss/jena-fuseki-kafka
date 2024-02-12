@@ -32,12 +32,9 @@
     <relativePath>..</relativePath>
   </parent> 
 
-  <!--
-      Breaks javadoc (3.4.0)
   <properties>
     <automatic.module.name>io.telicent.jena.kafka.client</automatic.module.name>
   </properties>
-  -->
 
   <dependencies>
 
@@ -61,8 +58,7 @@
 
     <dependency>
       <groupId>org.apache.jena</groupId>
-      <artifactId>apache-jena-libs</artifactId>
-      <type>pom</type>
+      <artifactId>jena-cmds</artifactId>
     </dependency>
 
     <dependency>

@@ -31,14 +31,10 @@
     <relativePath>..</relativePath>
   </parent>
 
-  
-  <!--
-      Breaks javadoc-plugin (3.4.0).
   <properties>
     <automatic.module.name>io.telicent.jena.fuseki.kafka</automatic.module.name>
   </properties>
-  -->
-
+  
   <dependencies>
 
     <dependency>
@@ -84,8 +80,6 @@
 
   </dependencies>
 
-  <!--
-      See above about Automatic-Module-Name>
   <build>
     <plugins>
       <plugin>
@@ -100,7 +94,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-	      <version>3.3.0</version>
         <configuration>
           <archive>
             <manifestEntries>
@@ -118,33 +111,5 @@
       </plugin>
     </plugins>
   </build>
-  -->
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>**/TestFK.java</include>
-          </includes>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-	    <version>3.3.0</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
-
 
 </project>

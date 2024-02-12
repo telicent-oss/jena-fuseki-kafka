@@ -67,6 +67,7 @@
     <ver.plugin.compiler>3.11.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.7.10</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.3.0</ver.plugin.jar>
+    <ver.plugin.shade>3.5.1</ver.plugin.shade>
     <ver.plugin.source>3.3.0</ver.plugin.source>
     <ver.plugin.surefire>3.2.5</ver.plugin.surefire>
     <ver.plugin.javadoc>3.5.0</ver.plugin.javadoc>
@@ -106,9 +107,8 @@
 
       <dependency>
         <groupId>org.apache.jena</groupId>
-        <artifactId>apache-jena-libs</artifactId>
+        <artifactId>jena-arq</artifactId>
         <version>${ver.jena}</version>
-        <type>pom</type>
         <exclusions>
           <exclusion>
             <groupId>com.google.errorprone</groupId>
@@ -119,19 +119,6 @@
             <artifactId>jcl-over-slf4j</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-
-      <!--
-           jsonld-java pulls in an older version causing an issue
-           signalled by the enforcer
-           plugin.
-           Fixed at Jena 4.6.0.
-      -->
-
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.15.0</version>
       </dependency>
 
       <dependency>
@@ -151,6 +138,12 @@
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-server</artifactId>
         <version>${ver.jena}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.15.0</version>
       </dependency>
 
       <dependency>
@@ -250,7 +243,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-	      <version>${ver.plugin.surefire}</version>
+        <version>${ver.plugin.surefire}</version>
       </plugin>
 
       <plugin>
