@@ -24,8 +24,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.servlet.ServletContext;
-
+import jakarta.servlet.ServletContext;
 import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.LogCtl;

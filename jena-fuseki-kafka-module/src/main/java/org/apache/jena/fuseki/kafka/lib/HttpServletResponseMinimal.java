@@ -22,11 +22,10 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
-
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.web.HttpSC;
@@ -110,9 +109,6 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
     public void setStatus(int sc) {
         status = sc;
     }
-
-    @Override
-    public void setStatus(int sc, String sm) { setStatus(sc); }
 
     @Override
     public int getStatus() {
@@ -258,16 +254,6 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
 
     @Override
     public String encodeRedirectURL(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String encodeUrl(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String encodeRedirectUrl(String url) {
         throw new UnsupportedOperationException();
     }
 }
