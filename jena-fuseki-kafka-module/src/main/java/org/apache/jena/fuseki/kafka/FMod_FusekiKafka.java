@@ -33,6 +33,7 @@ import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
+import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.PersistentState;

@@ -22,9 +22,8 @@ import java.io.InputStream;
 import java.security.Principal;
 import java.util.*;
 
-import javax.servlet.*;
-import javax.servlet.http.*;
-
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.sparql.util.Convert;
 
@@ -352,12 +351,6 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
         return null;
     }
 
-    @Deprecated
-    @Override
-    public String getRealPath(String path) {
-        throw new UnsupportedOperationException();
-    }
-
     @Override
     public ServletContext getServletContext() {
         return servletContext;
@@ -466,11 +459,6 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
     }
 
     @Override
-    public boolean isRequestedSessionIdFromUrl() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public boolean authenticate(HttpServletResponse response) {
         throw new UnsupportedOperationException();
     }
@@ -498,6 +486,21 @@ public class HttpServletRequestMinimal implements HttpServletRequest {
 
     @Override
     public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getRequestId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getProtocolRequestId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ServletConnection getServletConnection() {
         throw new UnsupportedOperationException();
     }
 

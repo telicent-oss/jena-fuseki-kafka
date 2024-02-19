@@ -21,10 +21,10 @@ import java.util.Objects;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.rdf.model.impl.Util;
-import org.apache.jena.riot.other.G;
-import org.apache.jena.riot.other.RDFDataException;
 import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.graph.NodeConst;
+import org.apache.jena.system.G;
+import org.apache.jena.system.RDFDataException;
 
 /**
  * This class is the beginnings of assembler-like functionality working at the Graph level.

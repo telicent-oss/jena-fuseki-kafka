@@ -34,10 +34,10 @@ import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.WebContent;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sys.JenaSystem;
+import org.apache.jena.system.G;
 import org.apache.kafka.clients.FetchSessionHandler;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -233,7 +233,7 @@ public class TestConfigFK {
                                                       null).toList();
         triplesBootstrapServers.forEach(t->{
             graph.delete(t);
-            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteral(bootstrapServers));
+            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(bootstrapServers));
         });
 
         FileOps.ensureDir("target/state");
@@ -241,7 +241,7 @@ public class TestConfigFK {
         triplesStateFile.forEach(t->{
             graph.delete(t);
             String fn = t.getObject().getLiteralLexicalForm();
-            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteral(STATE_DIR+"/"+fn));
+            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(STATE_DIR+"/"+fn));
         });
 
         return graph;

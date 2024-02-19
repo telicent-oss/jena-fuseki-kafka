@@ -19,9 +19,8 @@ package org.apache.jena.fuseki.kafka;
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
 
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.jena.fuseki.kafka.lib.HttpServletRequestMinimal;
 import org.apache.jena.fuseki.kafka.lib.HttpServletResponseMinimal;
 import org.apache.jena.fuseki.server.Dispatcher;
