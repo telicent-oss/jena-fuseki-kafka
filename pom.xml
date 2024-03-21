@@ -53,21 +53,22 @@
 
     <java.version>17</java.version>
 
-    <ver.jena>5.0.0-rc1</ver.jena>
+    <ver.jena>5.0.0</ver.jena>
+
     <ver.kafka>3.7.0</ver.kafka> 
 
-    <ver.slf4j>1.7.36</ver.slf4j>
-    <ver.log4j2>2.23.0</ver.log4j2>
+    <ver.slf4j>2.0.7</ver.slf4j>
+    <ver.log4j2>2.23.1</ver.log4j2>
 
     <ver.junit5>5.10.2</ver.junit5>
     <ver.junit5-platform>1.10.1</ver.junit5-platform>
 
-    <ver.testcontainers>1.19.5</ver.testcontainers>
+    <ver.testcontainers>1.19.7</ver.testcontainers>
 
     <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.7.11</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.3.0</ver.plugin.jar>
-    <ver.plugin.shade>3.5.1</ver.plugin.shade>
+    <ver.plugin.shade>3.5.2</ver.plugin.shade>
     <ver.plugin.source>3.3.0</ver.plugin.source>
     <ver.plugin.surefire>3.2.5</ver.plugin.surefire>
     <ver.plugin.javadoc>3.6.3</ver.plugin.javadoc>
@@ -154,7 +155,7 @@
 
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j-impl</artifactId>
+        <artifactId>log4j-slf4j2-impl</artifactId>
         <version>${ver.log4j2}</version>
         <exclusions>
           <!-- Apache Kafka client pulls in org.osgi:org.osgi.core:jar -->
@@ -218,6 +219,12 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${ver.plugin.shade}</version>
       </plugin>
 
       <plugin>
