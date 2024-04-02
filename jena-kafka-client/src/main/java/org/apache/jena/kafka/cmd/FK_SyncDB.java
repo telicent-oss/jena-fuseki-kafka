@@ -26,7 +26,6 @@ import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.PersistentState;
-import org.apache.jena.riot.RIOT;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sys.JenaSystem;
@@ -45,7 +44,6 @@ public class FK_SyncDB {
     static {
         LogCtl.setLog4j2();
         JenaSystem.init();
-        RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
     }
     public static void main(String... args) {
         // No args - assumes FK_Defaults.connectorFile

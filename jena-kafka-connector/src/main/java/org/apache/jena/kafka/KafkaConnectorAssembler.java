@@ -338,4 +338,3 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return datasetPath;
     }
 }
-
