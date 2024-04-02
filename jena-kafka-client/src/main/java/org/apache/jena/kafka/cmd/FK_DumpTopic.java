@@ -33,7 +33,6 @@ import org.apache.jena.cmd.ArgDecl;
 import org.apache.jena.cmd.CmdException;
 import org.apache.jena.cmd.CmdGeneral;
 import org.apache.jena.kafka.common.DataState;
-import org.apache.jena.riot.RIOT;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.Producer;
@@ -54,7 +53,6 @@ public class FK_DumpTopic extends CmdGeneral {
     static {
         LogCtl.setLog4j2();
         JenaSystem.init();
-        RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
     }
 
     public static void main(String...args) {

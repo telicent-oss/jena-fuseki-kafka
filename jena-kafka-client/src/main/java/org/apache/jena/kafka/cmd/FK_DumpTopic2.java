@@ -27,7 +27,6 @@ import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.common.DataState;
 import org.apache.jena.kafka.common.DeserializerDump;
-import org.apache.jena.riot.RIOT;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -44,13 +43,11 @@ public class FK_DumpTopic2 {
     static {
         LogCtl.setLog4j2();
         JenaSystem.init();
-        RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
     }
 
     public static void main(String... args) {
         // No args - assumes FK_Defaults.connectorFile
         LogCtl.setLog4j2();
-        RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
 
         AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
         KConnectorDesc conn = (KConnectorDesc)AssemblerUtils.build(FK_Defaults.connectorFile, KafkaConnectorAssembler.getType());

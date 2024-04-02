@@ -32,7 +32,6 @@ import org.apache.jena.cmd.CmdException;
 import org.apache.jena.cmd.CmdGeneral;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFLanguages;
-import org.apache.jena.riot.RIOT;
 import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.sys.JenaSystem;
@@ -56,7 +55,6 @@ public class FK_Send extends CmdGeneral {
     static {
         LogCtl.setLog4j2();
         JenaSystem.init();
-        RIOT.getContext().set(RIOT.symTurtleDirectiveStyle, "sparql");
     }
 
     public static void main(String... args) {
