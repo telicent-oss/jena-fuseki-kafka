@@ -69,7 +69,7 @@
     <ver.plugin.cyclonedx>2.8.0</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.3.0</ver.plugin.jar>
     <ver.plugin.shade>3.5.2</ver.plugin.shade>
-    <ver.plugin.source>3.3.0</ver.plugin.source>
+    <ver.plugin.source>3.3.1</ver.plugin.source>
     <ver.plugin.surefire>3.2.5</ver.plugin.surefire>
     <ver.plugin.javadoc>3.6.3</ver.plugin.javadoc>
     <ver.plugin.resources>3.3.1</ver.plugin.resources>
