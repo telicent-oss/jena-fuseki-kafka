@@ -175,6 +175,12 @@
         <artifactId>kafka</artifactId>
         <version>${ver.testcontainers}</version>
         <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
