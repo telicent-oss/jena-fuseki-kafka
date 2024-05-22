@@ -18,7 +18,6 @@ package org.apache.jena.kafka;
 
 import static org.apache.jena.kafka.Assem2.onError;
 
-import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -30,7 +29,6 @@ import org.apache.jena.assembler.Mode;
 import org.apache.jena.assembler.assemblers.AssemblerBase;
 import org.apache.jena.atlas.lib.IRILib;
 import org.apache.jena.atlas.lib.StrUtils;
-import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -120,7 +118,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     public static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
     public static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
 
-    // Values.
+    // Default values.
     private static boolean dftSyncTopic       = true;
     private static boolean dftReplayTopic     = false;
     public static String dftKafkaGroupId      = "JenaFusekiKafka";
@@ -201,22 +199,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, dftReplayTopic, errorException);
 
-        String eventSource = Assem2.getStringOrDft(graph, node, pEventSource, null, errorException);
-        if ( eventSource != null )
-            Log.warn(this, "Event source not supported");
-
-        String logDestination = Assem2.getStringOrDft(graph, node, pEventLog, null, errorException);
-        boolean verbose = logDestination != null;
-        @SuppressWarnings("resource")
-        PrintStream logOutput =
-                logDestination == null ? null :
-                    switch(logDestination) {
-                            case "", "stdout" -> System.out;
-                            case "stderr" -> System.err;
-                            // For now - later, filename base.
-                            default -> null;
-                    };
-
         String stateFile = Assem2.getAsString(graph, node, pStateFile, errorException);
         // The file name can be a relative file name as a string or a
         // file: can URL place the area next to the configuration file.
@@ -232,8 +214,8 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         // ----
         Properties kafkaConsumerProps = kafkaConsumerProps(graph,  node,  topic, bootstrapServers, groupId);
         return new KConnectorDesc(topic, bootstrapServers,
-                                       datasetName, remoteEndpoint, stateFile, syncTopic,
-                                       replayTopic, kafkaConsumerProps);
+                                  datasetName, remoteEndpoint, stateFile, syncTopic,
+                                  replayTopic, kafkaConsumerProps);
     }
 
     private Properties kafkaConsumerProps(Graph graph, Node node,
