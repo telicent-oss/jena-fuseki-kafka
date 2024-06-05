@@ -1,0 +1,27 @@
+name: Sync with JIRA
+
+on:
+  # Allow manual triggering of the JIRA Sync
+  workflow_dispatch: 
+  # Automatically trigger whenever an issue is created/edited etc.
+  issues: 
+    types:
+      - opened
+      - edited
+      - transferred
+      - reopened
+
+jobs:
+  sync-to-jira:
+    permissions: 
+      contents: read
+      issues: write
+    uses: telicent-oss/shared-workflows/.github/workflows/jira-sync.yml@main
+    with:
+      jira-url: https://telicent.atlassian.net
+      jira-project: CORE
+      issue-mapping-file: .github/jira-mapping-rules.yml
+      extra-sync-options: "--skip-existing --extra-labels stream/security --close-after-sync"
+    secrets: inherit
+
+  

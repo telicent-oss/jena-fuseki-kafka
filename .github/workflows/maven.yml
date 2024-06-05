@@ -1,0 +1,29 @@
+name: Maven Build
+
+# Run workflow for any push to a branch
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  workflow_dispatch:
+
+# Only permit one build per branch/tag, except on release branches where we want all
+# builds to proceed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: ${{ !contains(github.ref_name, 'release/') }}
+
+jobs:
+  maven-build:
+    uses: Telicent-oss/shared-workflows/.github/workflows/maven.yml@main
+    with:
+      # No Docker based tests in this repository
+      USES_DOCKERHUB_IMAGES: false
+      # Want SNAPSHOTs to be published from main
+      PUBLISH_SNAPSHOTS: true
+      MAIN_BRANCH: main
+      JAVA_VERSION: 17
+      CHANGELOG_FILE: CHANGELOG.md
+    secrets: inherit

@@ -30,16 +30,21 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestConnectorDescriptor {
     private static String DIR = "src/test/files";
 
-    static { JenaSystem.init(); }
+    static {
+        JenaSystem.init();
+        AssemblerUtils.registerAssembler(null, KafkaConnectorAssembler.getType(), new KafkaConnectorAssembler());
+    }
 
-    @Test public void descriptor_1() {
+    @Test
+    public void descriptor_1() {
         KConnectorDesc conn = connectorByType("assem-connector-1.ttl");
         assertNotNull(conn);
         assertNotNull(conn.getBootstrapServers());
         assertNotNull(conn.getKafkaConsumerProps());
     }
 
-    @Test public void descriptor_2() {
+    @Test
+    public void descriptor_2() {
         KConnectorDesc conn = connectorByType("assem-connector-2.ttl");
         assertNotNull(conn);
         assertNotNull(conn.getBootstrapServers());
@@ -55,7 +60,7 @@ public class TestConnectorDescriptor {
 
     private KConnectorDesc connectorByType(String filename) {
         KConnectorDesc conn =
-                (KConnectorDesc)AssemblerUtils.build(DIR+"/"+filename, KafkaConnectorAssembler.getType());
+                (KConnectorDesc) AssemblerUtils.build(DIR + "/" + filename, KafkaConnectorAssembler.getType());
         return conn;
     }
 

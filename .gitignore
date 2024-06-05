@@ -33,6 +33,9 @@ gradle-app.setting
 *.iml
 *.ipr
 
+## VSCode
+.vscode/
+
 ## Editor backups
 *~
 .#*
