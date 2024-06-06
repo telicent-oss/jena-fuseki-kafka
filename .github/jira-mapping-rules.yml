@@ -1,0 +1,33 @@
+# Default to a JIRA Task if none of the more specific rules apply
+defaultJiraIssueType: 10009 # Task
+rules:
+  # If labelled in GitHub as a bug make it a JIRA Bug
+  - type: label
+    labels:
+      - bug
+    jiraIssueType: 10011 # Bug
+  # If labelled in GitHub as a feature/story
+  # Or if title contains "[feature]"
+  # Then make it a JIRA Story
+  - type: label
+    labels:
+      - new feature
+      - new-feature
+      - feature request
+      - feature-request
+      - story
+    jiraIssueType: 10008 # Story
+  - type: title
+    searchTerms:
+      - "[feature]"
+    jiraIssueType: 10008 # Story
+  # If labelled in GitHub as an epic
+  # Or if title contains "[epic]"
+  - type: label
+    labels:
+      - epic
+    jiraIssueType: 10000 # Epic
+  - type: title
+    searchTerms:
+      - "[epic]"
+    jiraIssueType: 10000 # Epic
