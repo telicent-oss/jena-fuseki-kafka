@@ -48,7 +48,7 @@ import org.junit.jupiter.api.*;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
-public class TestConfigFK {
+public class DockerTestConfigFK {
     static {
         JenaSystem.init();
         FusekiLogging.setLogging();

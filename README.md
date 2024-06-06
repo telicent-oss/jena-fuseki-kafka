@@ -130,9 +130,12 @@ and for real
 
 ```
 mvn $MVN_ARGS release:clean release:prepare
-mvn $MVN_ARGS release:perform
 ```
-After `release:perform` the local git repo status may say it is ahead of the
+**NB** Note that a `mvn release:peform` is not required as the release to Maven 
+Central will be triggered automatically by the `git tag` created by the release
+preparation.
+
+After `release:prepare` the local git repo status may say it is ahead of the
 upstream github repo by 2 commits. It isn't - they should be in-step but not 
 sync'ed. Do a `git pull` and then `git status` should say "up-to-date". 
 
@@ -159,7 +162,7 @@ Get a copy of Fuseki Main:
 ```
 wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.7.0/jena-fuseki-server-4.7.0.jar
 ```
-and place in the curret directory.
+and place in the current directory.
 
 Get a copy of the script [fuseki-main](https://github.com/Telicent-io/jena-fuseki-kafka/blob/main/fuseki-main)
 then run 

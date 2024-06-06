@@ -26,6 +26,16 @@
 
   <name>Apache Jena Fuseki-Kafka Connector</name>
   <description>Fuseki Module : Kafka Connector</description>
+  <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
+
+  <developers>
+    <developer>
+        <name>Telicent Developers</name>
+        <email>opensource@telicent.io</email>
+        <organization>Telicent Ltd</organization>
+        <organizationUrl>https://telicent.io</organizationUrl>
+    </developer>
+  </developers>
 
   <licenses>
     <license>
@@ -35,13 +45,13 @@
   </licenses>
 
   <issueManagement>
-    <url>https://github.com/telicent-io/jena-fuseki-kafka</url>
+    <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
   </issueManagement>
 
   <scm>
-    <connection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</connection>
-    <developerConnection>scm:git:git@github.com:telicent-io/jena-fuseki-kafka</developerConnection>
-    <url>https://github.com/telicent-io/jena-fuseki-kafka</url>
+    <connection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</connection>
+    <developerConnection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</developerConnection>
+    <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -79,6 +89,8 @@
     <ver.plugin.clean>3.3.2</ver.plugin.clean>
     <ver.plugin.install>3.1.2</ver.plugin.install>
     <ver.plugin.site>3.12.1</ver.plugin.site>
+    <ver.plugin.nexus>1.7.0</ver.plugin.nexus>
+    <ver.plugin.gpg>3.2.4</ver.plugin.gpg>
 
   </properties>
 
@@ -393,6 +405,33 @@
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>${ver.plugin.gpg}</version>
+        <executions>
+            <execution>
+                <goals>
+                    <goal>sign</goal>
+                </goals>
+                <phase>verify</phase>
+            </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>${ver.plugin.nexus}</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>ossrh</serverId>
+          <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+          <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
+          <stagingProgressTimeoutMinutes>15</stagingProgressTimeoutMinutes>
+        </configuration>
+      </plugin>
 
     </plugins>
   </build>
@@ -408,13 +447,28 @@
         <enabled>true</enabled>
       </snapshots>
     </repository>
+    <repository>
+      <id>sonatype-oss</id>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 
   <distributionManagement>
+    <snapshotRepository>
+      <id>sonatype-oss</id>
+      <name>Sonatype OSS Snapshots</name>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
     <repository>
-      <id>aws-codeartifact-telicent</id>
-      <name>Telicent Apache Maven Packages (AWS CodeArtifact)</name>
-      <url>https://telicent-098669589541.d.codeartifact.eu-west-2.amazonaws.com/maven/telicent-code-artifacts/</url>
+        <id>sonatype-oss</id>
+        <name>Sonatype OSS</name>
+        <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
     </repository>
   </distributionManagement>
 

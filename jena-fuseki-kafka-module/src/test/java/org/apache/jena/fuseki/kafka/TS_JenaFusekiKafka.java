@@ -23,8 +23,8 @@ import org.junit.platform.suite.api.Suite;
 @Suite
 @SelectClasses({
     TestConnectorDescriptor.class
-    , TestFK.class
-    , TestConfigFK.class
+    , DockerTestFK.class
+    , DockerTestConfigFK.class
 })
 
 public class TS_JenaFusekiKafka {}

@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
-public class TestFK {
+public class DockerTestFK {
     // Logging
 
     static { FusekiLogging.setLogging(); }
