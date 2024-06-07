@@ -217,6 +217,30 @@ public class DockerTestConfigFK {
         } finally { server.stop(); }
     }
 
+    // Env Variable use
+    @Test public void fk05_fuseki_env_config() {
+        System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
+        System.clearProperty("TEST_KAFKA_TOPIC");
+        Graph graph = configuration(DIR+"/config-connector-env.ttl", mock.getServer());
+        FileOps.ensureDir(STATE_DIR);
+        FileOps.clearDirectory(STATE_DIR);
+
+        // Configuration knows the topic name.
+        FusekiServer server = FusekiServer.create()
+                                          .port(0)
+                                          .parseConfig(ModelFactory.createModelForGraph(graph))
+                                          .build();
+        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR+"/data.ttl"));
+        server.start();
+        try {
+            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
+            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
+            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+            assertEquals(1, count);
+        } finally { server.stop(); }
+        System.clearProperty("TEST_BOOTSTRAP_SERVER");
+    }
+
     private static int count(String URL) {
         RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
         int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();

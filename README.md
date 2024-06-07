@@ -47,7 +47,7 @@ for access control and other features.
 This project uses the Apache Jena Fuseki Main server and is configured with a
 Fuseki configuration file.
 
-Java17 or later is required.
+Java 17 or later is required.
 
 ## Connector Configuration
 
@@ -101,7 +101,7 @@ Run
 This includes running Apache Kafka via docker containers from
 `testcontainers.io`. There is a large, one time, download.
 
-This create a jar file `jena-fmod-kafka-VER.jar` in
+This creates a jar file `jena-fmod-kafka-VER.jar` in
 `jena-fmod-kafka/target/`
 
 Move this jar to 'lib/' in the directory you wish to run Fuseki with the

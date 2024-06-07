@@ -48,7 +48,7 @@ case $CMD in
 ##     "replay")      CMD=cmd2.FK_Replay ;;
     
     *)
-	echo "Warning: unrecognize command" 1>&2
+	echo "Warning: unrecognised command" 1>&2
 	exit
     ;;
 esac

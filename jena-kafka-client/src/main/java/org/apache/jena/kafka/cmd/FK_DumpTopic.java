@@ -72,7 +72,7 @@ public class FK_DumpTopic extends CmdGeneral {
 
     @Override
     protected String getCommandName() {
-        return "fksend";
+        return "fk dump";
     }
 
     @Override
@@ -192,7 +192,7 @@ public class FK_DumpTopic extends CmdGeneral {
         return lastOffset;
     }
 
-    // ---- Write to replayabale files.
+    // ---- Write to replay-able files.
     private static long receiverStepDumpMessages(String msgDirectory, long lastOffsetState, Consumer<String, String> consumer) {
         ConsumerRecords<String, String> cRec = consumer.poll(Duration.ofMillis(1000));
         long lastOffset = lastOffsetState;
