@@ -63,7 +63,8 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 <#connector> rdf:type fk:Connector ;
     # Kafka topic
-    fk:topic              "RDF";
+    fk:topic              "env:{ENV_KAFKA_TOPIC:RDF}";
+   
 
     # Destination Fuseki service. This is a URI path (no scheme, host or port).
     # This can be the dataset, a specific endpoint ("/ds/kafkaIncoming")
@@ -91,6 +92,14 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 ##   fk:config ( "key" "value") ;
     .
 ```
+
+### Environment variable configuration
+As illustrated in the example configuration above with `fk:topic` environment variables (or System Properties) can be 
+used when configuring variables. It has two formats, with a default value (if the environment variable is not set) 
+or not. 
+
+#### With default - `"env:{ENV_VARIABLE:default}"`
+#### Without default - `"env:{ENV_VARIABLE}"`
 
 ## Build
 
