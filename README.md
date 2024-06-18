@@ -47,7 +47,7 @@ for access control and other features.
 This project uses the Apache Jena Fuseki Main server and is configured with a
 Fuseki configuration file.
 
-Java17 or later is required.
+Java 17 or later is required.
 
 ## Connector Configuration
 
@@ -63,7 +63,8 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 <#connector> rdf:type fk:Connector ;
     # Kafka topic
-    fk:topic              "RDF";
+    fk:topic              "env:{ENV_KAFKA_TOPIC:RDF}";
+   
 
     # Destination Fuseki service. This is a URI path (no scheme, host or port).
     # This can be the dataset, a specific endpoint ("/ds/kafkaIncoming")
@@ -92,6 +93,14 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     .
 ```
 
+### Environment variable configuration
+As illustrated in the example configuration above with `fk:topic` environment variables (or System Properties) can be 
+used when configuring variables. It has two formats, with a default value (if the environment variable is not set) 
+or not. 
+
+#### With default - `"env:{ENV_VARIABLE:default}"`
+#### Without default - `"env:{ENV_VARIABLE}"`
+
 ## Build
 
 Run
@@ -101,7 +110,7 @@ Run
 This includes running Apache Kafka via docker containers from
 `testcontainers.io`. There is a large, one time, download.
 
-This create a jar file `jena-fmod-kafka-VER.jar` in
+This creates a jar file `jena-fmod-kafka-VER.jar` in
 `jena-fmod-kafka/target/`
 
 Move this jar to 'lib/' in the directory you wish to run Fuseki with the

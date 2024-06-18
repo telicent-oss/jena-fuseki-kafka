@@ -17,6 +17,7 @@
 package org.apache.jena.kafka;
 
 import static org.apache.jena.kafka.Assem2.onError;
+import static org.apache.jena.kafka.utils.EnvVariables.checkForEnvironmentVariableValue;
 
 import java.util.List;
 import java.util.Properties;
@@ -188,18 +189,18 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          */
 
         // Required!
-        String topic = Assem2.getString(graph, node, pKafkaTopic, errorException);
+        String topic = getConfigurationValue(graph, node, pKafkaTopic, errorException);
 
         String datasetName = datasetName(graph, node);
         datasetName = /*DataAccessPoint.*/canonical(datasetName);
 
         String remoteEndpoint = remoteEndpointName(graph, node);
-        String bootstrapServers = Assem2.getString(graph, node, pKafkaBootstrapServers, errorException);
+        String bootstrapServers = getConfigurationValue(graph, node, pKafkaBootstrapServers, errorException);
 
         boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, dftReplayTopic, errorException);
 
-        String stateFile = Assem2.getAsString(graph, node, pStateFile, errorException);
+        String stateFile = getConfigurationValue(graph, node, pStateFile, errorException);
         // The file name can be a relative file name as a string or a
         // file: can URL place the area next to the configuration file.
         // Turn "file:/" to a filename.
@@ -318,5 +319,11 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         if ( datasetPath.endsWith("/") )
             datasetPath = datasetPath.substring(0, datasetPath.length() - 1);
         return datasetPath;
+    }
+
+    public static String getConfigurationValue(Graph graph, Node node, Node configNode, Assem2.OnError errorException) {
+        String configurationValue = Assem2.getString(graph, node, configNode, errorException);
+        configurationValue = checkForEnvironmentVariableValue(configNode.getURI(), configurationValue);
+        return configurationValue;
     }
 }

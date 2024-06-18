@@ -1,3 +1,4 @@
+# Test configuration file making use of env variables (which subsequently need set in tests).
 PREFIX fuseki:  <http://jena.apache.org/fuseki#>
 PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
@@ -25,8 +26,8 @@ PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
 
 <#connector> rdf:type fk:Connector ;
     ## Modified by tests for the testcontainers port.
-    fk:bootstrapServers    "localhost:9092";
-    fk:topic               "RDF0";
+    fk:bootstrapServers    "env:TEST_BOOTSTRAP_SERVER";
+    fk:topic               "env:{TEST_KAFKA_TOPIC:RDF0}";
     fk:fusekiServiceName   "/ds";
     
     fk:syncTopic           true;
