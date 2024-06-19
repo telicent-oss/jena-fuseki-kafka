@@ -46,29 +46,7 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-fuseki-main</artifactId>    
-      <exclusions>
-        <exclusion>
-          <!-- Prefer the version coming via Jetty -->
-          <groupId>jakarta.servlet</groupId>
-          <artifactId>jakarta.servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency> 
-
-    <!-- Temporary. 
-      Choose the version coming via Jetty12/ee10
-      This is only necessary because Fuseki has
-        org.apache.commons:commons-fileupload2-jakarta (2.0.0-M1)
-       and not
-        org.apache.commons:commons-fileupload2-jakarta-servlet6 (2.0.0-M2)
-      When Fuseki gets sorted out and releasesd (Jena5.0.0), this can go away.
-    -->
-    <dependency>
-      <groupId>jakarta.servlet</groupId>
-      <artifactId>jakarta.servlet-api</artifactId>
-      <version>6.0.0</version>
-    </dependency>
-
 
     <dependency>
       <groupId>org.junit.platform</groupId>

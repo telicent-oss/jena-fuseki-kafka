@@ -28,7 +28,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.web.HttpNames;
-import org.apache.jena.web.HttpSC;
 
 public class HttpServletResponseMinimal implements HttpServletResponse {
 
@@ -96,11 +95,23 @@ public class HttpServletResponseMinimal implements HttpServletResponse {
         hasCommitted = true;
     }
 
+    // At jakarta.servlet-api v6.1.0 this can be deleted
+    // and the next method have the @Override uncommented.
     @Override
     public void sendRedirect(String location) {
         if ( hasCommitted )
             throw new IllegalStateException();
-        setStatus(HttpSC.FOUND_302);
+        setStatus(HttpServletResponse.SC_FOUND);
+        setHeader(HttpNames.hLocation, location);
+        hasCommitted = true;
+    }
+
+    // At jakarta.servlet-api v6.1.0 this will be needed
+    //@Override
+    public void sendRedirect(String location, int sc, boolean clearBuffer) throws IOException {
+        if ( hasCommitted )
+            throw new IllegalStateException();
+        setStatus(sc);
         setHeader(HttpNames.hLocation, location);
         hasCommitted = true;
     }
