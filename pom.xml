@@ -81,7 +81,7 @@
     <ver.plugin.jar>3.4.1</ver.plugin.jar>
     <ver.plugin.shade>3.6.0</ver.plugin.shade>
     <ver.plugin.source>3.3.1</ver.plugin.source>
-    <ver.plugin.surefire>3.2.5</ver.plugin.surefire>
+    <ver.plugin.surefire>3.3.0</ver.plugin.surefire>
     <ver.plugin.javadoc>3.7.0</ver.plugin.javadoc>
     <ver.plugin.resources>3.3.1</ver.plugin.resources>
     <ver.plugin.deploy>3.1.2</ver.plugin.deploy>
