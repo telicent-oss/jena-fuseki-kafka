@@ -123,7 +123,15 @@
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-arq</artifactId>
         <version>${ver.jena}</version>
+        <!-- 
+             Exclusions for checkerframework and errorprone can be
+             removed for Jena 5.1.0 because Jena does not pass them on.
+        -->
         <exclusions>
+          <exclusion>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>com.google.errorprone</groupId>
             <artifactId>error_prone_annotations</artifactId>
