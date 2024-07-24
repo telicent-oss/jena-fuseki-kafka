@@ -74,7 +74,7 @@
     <ver.junit5-platform>1.10.1</ver.junit5-platform>
     <ver.mockito>5.12.0</ver.mockito>
 
-    <ver.testcontainers>1.19.8</ver.testcontainers>
+    <ver.testcontainers>1.20.0</ver.testcontainers>
 
     <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.8.0</ver.plugin.cyclonedx>
