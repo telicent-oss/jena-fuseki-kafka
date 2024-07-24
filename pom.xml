@@ -63,7 +63,7 @@
 
     <java.version>17</java.version>
 
-    <ver.jena>5.0.0</ver.jena>
+    <ver.jena>5.1.0</ver.jena>
 
     <ver.kafka>3.7.1</ver.kafka> 
 
