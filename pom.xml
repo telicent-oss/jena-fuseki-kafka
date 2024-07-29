@@ -63,7 +63,7 @@
 
     <java.version>17</java.version>
 
-    <ver.jena>5.0.0</ver.jena>
+    <ver.jena>5.1.0</ver.jena>
 
     <ver.kafka>3.7.1</ver.kafka> 
 
@@ -160,12 +160,6 @@
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-server</artifactId>
         <version>${ver.jena}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.16.1</version>
       </dependency>
 
       <dependency>
@@ -376,7 +370,6 @@
             </goals>
             <configuration combine.self="override">
               <rules>
-                <dependencyConvergence />
                 <requirePluginVersions>
                   <message>Best practice is to always define plugin versions!</message>
                   <banLatest>true</banLatest>
