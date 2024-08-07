@@ -77,7 +77,7 @@
     <ver.testcontainers>1.20.0</ver.testcontainers>
 
     <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
-    <ver.plugin.cyclonedx>2.8.0</ver.plugin.cyclonedx>
+    <ver.plugin.cyclonedx>2.8.1</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.4.2</ver.plugin.jar>
     <ver.plugin.shade>3.6.0</ver.plugin.shade>
     <ver.plugin.source>3.3.1</ver.plugin.source>
