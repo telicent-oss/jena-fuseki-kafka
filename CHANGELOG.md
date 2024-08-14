@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.3.4
+
+- Changed Kafka polling durations to be consistenly longer to avoid processing too small batches when the consumer is
+  caught up with the producer
+- Upgraded various test and build dependencies to latest available
+
 ## 1.3.3
 
 - Apache Jena upgraded to 5.1.0

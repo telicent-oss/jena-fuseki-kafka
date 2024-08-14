@@ -97,8 +97,6 @@ public class FKBatchProcessor {
                 dataState.setLastOffset(newOffset);
                 commitedState = newOffset;
                 rtn = true;
-                // Switch to shorter polling wait
-                pollingDuration = FKConst.pollingWaitDurationMore;
             }
             if ( LOG.isDebugEnabled() )
                 FmtLog.debug(LOG, "[%s] Exit receiver loop at i=%d", topic, i);
