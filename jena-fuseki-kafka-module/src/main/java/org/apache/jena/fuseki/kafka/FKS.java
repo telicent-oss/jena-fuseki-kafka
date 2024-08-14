@@ -102,7 +102,7 @@ public class FKS {
             FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic = %s : Relay = %s", topicName, topicName, conn.getRemoteEndpoint());
 
         // Do now for some catchup.
-        oneTopicPoll(batchProcessor, consumer, dataState, FKConst.initialWaitDuration);
+        oneTopicPoll(batchProcessor, consumer, dataState, FKConst.pollingWaitDuration);
 
         FmtLog.info(LOG, "[%s] Initial sync : Offset = %d", topicName, dataState.getLastOffset());
 

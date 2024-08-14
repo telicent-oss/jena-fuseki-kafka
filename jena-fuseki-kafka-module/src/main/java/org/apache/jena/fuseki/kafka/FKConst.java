@@ -28,26 +28,10 @@ public class FKConst {
     public static final Duration checkKafkaDuration = Duration.ofMillis(500);
 
     /**
-     * Time to wait during the initial sync from the topic during connector startup.
-     * This is a quick sync for immediate (synchronous) catch-up during connector
-     * setup. A large amount of catch is done asynchronously during the first time
-     * round the polling loop.
-     * See {@link FKS#addConnectorToServer} and {@link FKS#oneTopicPoll}.
-     */
-    public static final Duration initialWaitDuration = Duration.ofMillis(500);
-
-    /**
      * Length of the wait when polling Kafka regularly.
      * See {@link FKS#topicPoll}.
      */
     public static final Duration pollingWaitDuration = Duration.ofMillis(10_000);
-
-    /**
-     * Length of the wait when polling Kafka after having received some data.
-     * This is the loop in {@link FKBatchProcessor#receiverStep}.
-     * See {@link FKS#topicPoll}.
-     */
-    public static final Duration pollingWaitDurationMore = Duration.ofMillis(10);
 
     /**
      * Kafka has a default message of 500 for consumer.poll

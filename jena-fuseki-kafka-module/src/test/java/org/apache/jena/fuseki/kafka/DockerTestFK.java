@@ -146,8 +146,8 @@ public class DockerTestFK {
                 //.verbose(true)
                 .add(DSG,  dsg)
                 .build();
-        KConnectorDesc conn = new KConnectorDesc(TOPIC, null/*bootStrapservers*/, DSG, null/*remoteEndpoint*/, null/*stateFile*/,
-                                                           false/*syncTopic*/, true/*replayTopic*/,
+        KConnectorDesc conn = new KConnectorDesc(TOPIC, null, DSG, null, null,
+                                                           false, true,
                                                            consumerProps);
         // Manual call to setup the server.
         FKBatchProcessor batchProcessor = FKS.plainFKBatchProcessor(conn, server.getServletContext());
