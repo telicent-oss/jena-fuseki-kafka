@@ -89,7 +89,7 @@
     <ver.plugin.enforcer>3.5.0</ver.plugin.enforcer>
     <ver.plugin.clean>3.4.0</ver.plugin.clean>
     <ver.plugin.install>3.1.2</ver.plugin.install>
-    <ver.plugin.site>3.12.1</ver.plugin.site>
+    <ver.plugin.site>3.20.0</ver.plugin.site>
     <ver.plugin.nexus>1.7.0</ver.plugin.nexus>
     <ver.plugin.gpg>3.2.5</ver.plugin.gpg>
 
