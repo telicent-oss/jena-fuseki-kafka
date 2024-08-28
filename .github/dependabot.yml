@@ -4,11 +4,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: wednesday
+      day: monday
+    groups:
+      patches:
+        update-types:
+          - "minor"
+          - "patch"
+        # Since these are our key dependencies want to handle them carefully in individual PRs
+        exclude-patterns:
+          - "org.apache.jena"
     open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule: 
       interval: weekly
-      day: tuesday
+      day: monday
     open-pull-requests-limit: 5
