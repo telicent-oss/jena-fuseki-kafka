@@ -72,7 +72,7 @@
 
     <ver.junit5>5.11.0</ver.junit5>
     <ver.junit5-platform>1.10.1</ver.junit5-platform>
-    <ver.mockito>5.12.0</ver.mockito>
+    <ver.mockito>5.13.0</ver.mockito>
 
     <ver.testcontainers>1.20.1</ver.testcontainers>
 
@@ -81,11 +81,11 @@
     <ver.plugin.jar>3.4.2</ver.plugin.jar>
     <ver.plugin.shade>3.6.0</ver.plugin.shade>
     <ver.plugin.source>3.3.1</ver.plugin.source>
-    <ver.plugin.surefire>3.4.0</ver.plugin.surefire>
-    <ver.plugin.javadoc>3.8.0</ver.plugin.javadoc>
+    <ver.plugin.surefire>3.5.0</ver.plugin.surefire>
+    <ver.plugin.javadoc>3.10.0</ver.plugin.javadoc>
     <ver.plugin.resources>3.3.1</ver.plugin.resources>
     <ver.plugin.deploy>3.1.3</ver.plugin.deploy>
-    <ver.plugin.dependency>3.7.1</ver.plugin.dependency>
+    <ver.plugin.dependency>3.8.0</ver.plugin.dependency>
     <ver.plugin.enforcer>3.5.0</ver.plugin.enforcer>
     <ver.plugin.clean>3.4.0</ver.plugin.clean>
     <ver.plugin.install>3.1.3</ver.plugin.install>
