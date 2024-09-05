@@ -31,8 +31,6 @@ public class SysJenaKafka {
     /** Software version taken from the jar file. */
     public static final String VERSION      = Version.versionForClass(FusekiKafka.class).orElse("<development>");
 
-    public static void init() {}
-
     /**
      * Size in bytes per consumer.poll in a system.
      * <p>
@@ -44,7 +42,7 @@ public class SysJenaKafka {
      * {@link ConsumerConfig#FETCH_MAX_BYTES_CONFIG} which has a Kafka default of
      * 50Mb.
      */
-    private static int KafkaFetchBytesSize = 50 * 1024 * 1024;
+    public static int KAFKA_FETCH_BYTE_SIZE = 50 * 1024 * 1024;
 
     /**
      * Size in messages per consumer.poll in a system.
@@ -52,7 +50,7 @@ public class SysJenaKafka {
      * This sets {@link ConsumerConfig#MAX_POLL_RECORDS_CONFIG} ({@code max.poll.records})
      * which has a Kafka default of 500.
      */
-    private static int KafkaFetchPollSize = 5000;
+    public static int KAFKA_FETCH_POLL_SIZE = 5000;
 
     /**
      * Kafka consumer properties.
@@ -60,8 +58,8 @@ public class SysJenaKafka {
     public static Properties consumerProperties(String server) {
         Properties props = new Properties();
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, KafkaFetchBytesSize);
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, KafkaFetchPollSize);
+        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, KAFKA_FETCH_BYTE_SIZE);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, KAFKA_FETCH_POLL_SIZE);
 
         // Default is 50M
         //props.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 50*1024*1024);
