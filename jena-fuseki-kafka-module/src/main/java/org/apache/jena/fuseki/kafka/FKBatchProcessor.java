@@ -219,7 +219,7 @@ public class FKBatchProcessor {
             // No transactional set. Assume the fkProcessor.process knows what it is doing.
             return execBatch(recordList);
         }
-        return transactional.calculate(()->execBatch(recordList));
+        return transactional.calculateWrite(()->execBatch(recordList));
     }
 
     private void batchFinish(String topic, long lastOffsetState, long newOffsetState, Timer timer) {
