@@ -17,6 +17,8 @@
 package org.apache.jena.fuseki.kafka;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.jena.atlas.lib.Timer;
@@ -31,6 +33,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.slf4j.Logger;
 
+import static org.apache.jena.kafka.SysJenaKafka.*;
+
 /**
  * The engine for the Kafka-Fuseki connector.
  * <p>
@@ -38,7 +42,7 @@ import org.slf4j.Logger;
  */
 public class FKBatchProcessor {
 
-    private static Logger LOG = FusekiKafka.LOG;
+    private static final Logger LOG = FusekiKafka.LOG;
 
     /**
      * A batch processor that applies a FKProcessor fkProcessor.
@@ -110,26 +114,75 @@ public class FKBatchProcessor {
 
     private static final boolean VERBOSE = true;
 
+    public static int MIN_BATCH_CHECK_THRESHOLD = 25;
+
+
     /** Do one Kafka consumer poll step. */
     private long receiverStep(String topic, long lastOffsetState, Consumer<String, RequestFK> consumer, Duration pollingDuration) {
         Objects.requireNonNull(pollingDuration);
         Objects.requireNonNull(consumer);
         if ( LOG.isDebugEnabled() )
             FmtLog.debug(LOG, "[%s] consumer.poll(%s ms)", topic, pollingDuration.toMillis());
-        ConsumerRecords<String, RequestFK> cRecords = consumer.poll(pollingDuration);
-        return processBatch(topic, lastOffsetState, cRecords);
+        List<ConsumerRecords<String,RequestFK>> recordList = consumeMessages(consumer, pollingDuration);
+        return processBatch(topic, lastOffsetState, recordList);
     }
 
-    public long processBatch(String topic, long lastOffsetState, ConsumerRecords<String, RequestFK> cRecords) {
-        if ( cRecords.isEmpty() )
+    /**
+     * Poll Kafka - if results are beneath min batching thresholds, poll again
+     * until we do or receive an empty return set.
+     *
+     * @param consumer Kafka Consumer
+     * @param pollingDuration how long to take pulling
+     * @return a List of Consumer Records retrieved from Kafka.
+     */
+    private List<ConsumerRecords<String, RequestFK>> consumeMessages(Consumer<String, RequestFK> consumer, Duration pollingDuration) {
+        List<ConsumerRecords<String,RequestFK>> recordList = new ArrayList<>();
+        ConsumerRecords<String, RequestFK> cRecords = consumer.poll(pollingDuration);
+        recordList.add(cRecords);
+        int totalRecordCountSoFar = cRecords.count();
+        long totalPayloadSizeSoFar = payloadSize(cRecords);
+        while (shouldProcessMoreForBatch(cRecords, totalRecordCountSoFar, totalPayloadSizeSoFar)) {
+            cRecords = consumer.poll(pollingDuration);
+            recordList.add(cRecords);
+            totalRecordCountSoFar += cRecords.count();
+            totalPayloadSizeSoFar += payloadSize(cRecords);
+        }
+        return recordList;
+    }
+
+    /**
+     * Checks whether we should continue checking kafka for messages.
+     * This is to avoid out-pacing the feeds and inefficiently reading
+     * 1-2 messages at a time. By polling again we can build a more
+     * efficient batch of records to process.
+     *
+     * @param currentRecords latest records polled from Kafka
+     * @param totalCountSoFar count of records acquired so far
+     * @param totalPayloadSizeSoFar size of payload acquired so far
+     * @return true to continue reading from kafka, false to continue processing.
+     */
+    private boolean shouldProcessMoreForBatch(ConsumerRecords<String, RequestFK> currentRecords, int totalCountSoFar, long totalPayloadSizeSoFar) {
+        return !currentRecords.isEmpty()
+                && currentRecords.count() < MIN_BATCH_CHECK_THRESHOLD
+                && totalCountSoFar < KAFKA_FETCH_POLL_SIZE
+                && totalPayloadSizeSoFar < KAFKA_FETCH_BYTE_SIZE;
+    }
+
+    public long processBatch(String topic, long lastOffsetState, List<ConsumerRecords<String,RequestFK>> recordList) {
+        if (recordList.isEmpty() || recordList.get(0).isEmpty() ) {
             // Nothing received - no change.
             return lastOffsetState;
+        }
+        int count = 0;
+        long payloadSize = 0L;
+        for (ConsumerRecords<String, RequestFK> cRecords : recordList) {
+            count += cRecords.count();
+            payloadSize += payloadSize(cRecords);
+        }
 
-        int count = cRecords.count();
-        long payloadSize = payloadSize(cRecords);
         Timer timer = batchStart(topic, lastOffsetState, count, payloadSize);
 
-        long newOffset = batchProcess(topic, cRecords);
+        long newOffset = batchProcess(topic, recordList);
 
         // Check expectation.
         long newOffset2 = lastOffsetState + count;
@@ -161,12 +214,12 @@ public class FKBatchProcessor {
         return timer;
     }
 
-    private long batchProcess(String topic, ConsumerRecords<String, RequestFK> cRecords) {
+    private long batchProcess(String topic, List<ConsumerRecords<String,RequestFK>> recordList) {
         if ( transactional == null ) {
             // No transactional set. Assume the fkProcessor.process knows what it is doing.
-            return execBatch(cRecords);
+            return execBatch(recordList);
         }
-        return transactional.calculate(()->execBatch(cRecords));
+        return transactional.calculateWrite(()->execBatch(recordList));
     }
 
     private void batchFinish(String topic, long lastOffsetState, long newOffsetState, Timer timer) {
@@ -182,21 +235,23 @@ public class FKBatchProcessor {
     }
 
     /** Execute a batch - return the new last seen offset. */
-    private long execBatch(ConsumerRecords<String, RequestFK> cRecords) {
+    private long execBatch(List<ConsumerRecords<String, RequestFK>> recordList) {
         long lastOffset = -1;
-        for ( ConsumerRecord<String, RequestFK> cRec : cRecords ) {
-            RequestFK requestFK = cRec.value();
-            if ( LOG.isDebugEnabled() )
-                FmtLog.debug(LOG, "[%s] Record Offset %s", requestFK.getTopic(), cRec.offset());
-            try {
-                fkProcessor.process(requestFK);
-                lastOffset = cRec.offset();
-            } catch(Throwable ex) {
-                // Something unexpected went wrong.
-                // Polling is asynchronous to the server.
-                // When shutting down, various things can go wrong.
-                // Log and ignore!
-                FmtLog.warn(LOG, ex, "Exception in processing: %s", ex.getMessage());
+        for(ConsumerRecords<String, RequestFK> cRecords : recordList) {
+            for (ConsumerRecord<String, RequestFK> cRec : cRecords) {
+                RequestFK requestFK = cRec.value();
+                if (LOG.isDebugEnabled())
+                    FmtLog.debug(LOG, "[%s] Record Offset %s", requestFK.getTopic(), cRec.offset());
+                try {
+                    fkProcessor.process(requestFK);
+                    lastOffset = cRec.offset();
+                } catch (Throwable ex) {
+                    // Something unexpected went wrong.
+                    // Polling is asynchronous to the server.
+                    // When shutting down, various things can go wrong.
+                    // Log and ignore!
+                    FmtLog.warn(LOG, ex, "Exception in processing: %s", ex.getMessage());
+                }
             }
         }
         return lastOffset;

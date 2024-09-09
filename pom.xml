@@ -208,6 +208,13 @@
 
       <dependency>
         <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${ver.mockito}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mockito</groupId>
         <artifactId>mockito-junit-jupiter</artifactId>
         <version>${ver.mockito}</version>
         <scope>test</scope>
