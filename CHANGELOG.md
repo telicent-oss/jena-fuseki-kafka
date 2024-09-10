@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.3.5
+
+- Improved Kafka batching strategy to further reduce small batch consumption of Kafka records where possible
+- Apache Log4j upgraded to 2.24.0
+- Various build and test dependencies upgraded to latest available
+
 ## 1.3.4
 
 - Changed Kafka polling durations to be consistenly longer to avoid processing too small batches when the consumer is
