@@ -76,7 +76,10 @@
 
     <ver.testcontainers>1.20.1</ver.testcontainers>
 
+    <!-- Vulnerability fixes -->
+    <ver.commons-collection>4.5.0-M2</ver.commons-collection> <!-- CVE-2015-6420 -->
     <ver.protobuf>4.27.5</ver.protobuf> <!-- CVE-2024-7254 -->
+    <ver.snappy>1.1.10.7</ver.snappy> <!-- CVE-2023-43642, CVE-2023-34455 -->
 
     <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.8.1</ver.plugin.cyclonedx>
@@ -119,6 +122,13 @@
         <groupId>org.apache.kafka</groupId>
         <artifactId>kafka-clients</artifactId>
         <version>${ver.kafka}</version>
+        <exclusions>
+          <!-- CVE-2023-43642, CVE-2023-34455 -->
+          <exclusion>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -147,6 +157,11 @@
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
           </exclusion>
+          <!-- CVE-2015-6420 -->
+          <exclusion>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -159,6 +174,11 @@
           <exclusion>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
+          </exclusion>
+          <!-- CVE-2015-6420 -->
+          <exclusion>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -241,11 +261,27 @@
         <scope>test</scope>
       </dependency>
 
+      <!-- Vulnerability fixes -->
+
       <!-- CVE-2024-7254 -->
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
         <version>${ver.protobuf}</version>
+      </dependency>
+
+      <!-- CVE-2015-6420 -->
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-collections4</artifactId>
+        <version>${ver.commons-collection}</version>
+      </dependency>
+
+      <!-- CVE-2023-43642, CVE-2023-34455 -->
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${ver.snappy}</version>
       </dependency>
 
     </dependencies>
