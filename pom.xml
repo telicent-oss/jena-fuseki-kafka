@@ -76,6 +76,8 @@
 
     <ver.testcontainers>1.20.1</ver.testcontainers>
 
+    <ver.protobuf>4.27.5</ver.protobuf> <!-- CVE-2024-7254 -->
+
     <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
     <ver.plugin.cyclonedx>2.8.1</ver.plugin.cyclonedx>
     <ver.plugin.jar>3.4.2</ver.plugin.jar>
@@ -140,6 +142,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
           </exclusion>
+          <!-- CVE-2024-7254 -->
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -147,12 +154,26 @@
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-cmds</artifactId>
         <version>${ver.jena}</version>
+        <exclusions>
+          <!-- CVE-2024-7254 -->
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-main</artifactId>
         <version>${ver.jena}</version>
+        <exclusions>
+          <!-- CVE-2024-7254 -->
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <!-- The combined jar for Fuseki main -->
@@ -218,6 +239,13 @@
         <artifactId>mockito-junit-jupiter</artifactId>
         <version>${ver.mockito}</version>
         <scope>test</scope>
+      </dependency>
+
+      <!-- CVE-2024-7254 -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${ver.protobuf}</version>
       </dependency>
 
     </dependencies>
