@@ -22,7 +22,7 @@
   <groupId>io.telicent.jena</groupId>
   <artifactId>jena-kafka</artifactId>
   <packaging>pom</packaging>
-  <version>1.3.6-SNAPSHOT</version>
+  <version>1.4.0-SNAPSHOT</version>
 
   <name>Apache Jena Fuseki-Kafka Connector</name>
   <description>Fuseki Module : Kafka Connector</description>
@@ -59,13 +59,13 @@
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
     
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2024-09-10T13:43:33Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-09-20T08:59:47Z</project.build.outputTimestamp>
 
     <java.version>17</java.version>
 
     <ver.jena>5.1.0</ver.jena>
-
-    <ver.kafka>3.8.0</ver.kafka> 
+    <ver.kafka>3.8.0</ver.kafka>
+    <ver.protobuf>4.27.5</ver.protobuf> <!-- CVE-2024-7254 -->
 
     <ver.slf4j>2.0.7</ver.slf4j>
     <ver.log4j2>2.24.0</ver.log4j2>
@@ -140,6 +140,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
           </exclusion>
+          <!-- CVE-2024-7254 -->
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -153,6 +158,13 @@
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-main</artifactId>
         <version>${ver.jena}</version>
+      </dependency>
+
+      <!-- CVE-2024-7254 -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${ver.protobuf}</version>
       </dependency>
 
       <!-- The combined jar for Fuseki main -->

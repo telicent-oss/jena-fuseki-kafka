@@ -1,17 +1,15 @@
 # jena-fuseki-kafka 
 
-Apache Jena Fuseki extension module for receiving data over
-Apache Kafka topics.
+Apache Jena Fuseki extension module for receiving data over Apache Kafka topics.
 
 License: Apache License 2.0.  
 See [LICENSE](./LICENSE).
 
-The Fuseki-Kafka connector receives Kafka events on a topic and applies them to
-a Fuseki service endpoint. In effect, it is the same as if an HTTP POST request is sent to
-the Fuseki service.
+The Fuseki-Kafka connector receives Kafka events on a topic and applies them to a Fuseki service endpoint. In effect, it
+is the same as if an HTTP POST request is sent to the Fuseki service.
 
-The Kafka event must have a Kafka message header "Content-Type" set to the MIME
-type of the content. No other headers are required.
+The Kafka event must have a Kafka message header `Content-Type` set to the MIME type of the content. No other headers
+are required.
 
 Supported MIME types:
 * An RDF triples or quads format - any syntax supported by 
@@ -19,12 +17,9 @@ Supported MIME types:
 * SPARQL Update
 * [RDF Patch](https://jena.apache.org/documentation/rdf-patch/)
 
-The Fuseki service must be configured with the appropriate operations.
-`fuseki:gsp-rw` or `fuseki:upload` for pushing RDF into a dataset; 
-`fuseki:update` for SPARQL Update,
-`fuseki:patch` for RDF Patch.
-The Fuseki implementation of the SPARQL Graph Store Protocol is extended to
-support data sent to the dataset without graph name (i.e. quads).
+The Fuseki service must be configured with the appropriate operations. `fuseki:gsp-rw` or `fuseki:upload` for pushing
+RDF into a dataset; `fuseki:update` for SPARQL Update, `fuseki:patch` for RDF Patch. The Fuseki implementation of the
+SPARQL Graph Store Protocol is extended to support data sent to the dataset without graph name (i.e. quads).
 
 ```
 :service rdf:type fuseki:Service ;
@@ -41,11 +36,10 @@ support data sent to the dataset without graph name (i.e. quads).
     .
 ```
 
-See "[Configuring Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html)"
-for access control and other features.
+See [Configuring Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html) for access control and
+other features.
 
-This project uses the Apache Jena Fuseki Main server and is configured with a
-Fuseki configuration file.
+This project uses the Apache Jena Fuseki Main server and is configured with a Fuseki configuration file.
 
 Java 17 or later is required.
 
@@ -93,7 +87,25 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     .
 ```
 
+Note that the Fuseki Kafka Module by default starts the Kafka connectors prior to the Fuseki HTTP Server starting and
+attempts to catch up with the Kafka topic(s) prior to allowing the HTTP Server to start.  Depending on the batching
+strategy that you have implemented for messages this **MAY** block the HTTP Server from starting for a prolonged period.
+While this ensures that Fuseki is up to date with the Kafka topic(s) it does have some potential pitfalls:
+
+- If Fuseki is a long way behind the Kafka topic(s), or `fk:replay true` was set, then it may take a very long time
+  before Fuseki can service requests.
+    - If you are deploying Fuseki somewhere that relies on HTTP Health Checks against the server you may find Fuseki
+      goes into a Crash Restart Loop as a result which further delays it's ability to catch up with the Kafka topic(s)
+- If there are active producers writing to the Kafka topic(s) faster than Fuseki can read from them it could never catch
+  up, and never start servicing HTTP requests.
+
+Therefore as of `1.4.0` the connector start has been placed into its own `startKafkaConnectors()` method allowing
+developers to choose to extend `FMod_FusekiKafka` and override `serverBeforeStarting()` to not call this method and
+instead call it from a different lifecycle method e.g. `serverAfterStarting()`.  You can find more discussion on this in
+the Javadoc on `FMod_FusekiKafka`
+
 ### Environment variable configuration
+
 As illustrated in the example configuration above with `fk:topic` environment variables (or System Properties) can be 
 used when configuring variables. It has two formats, with a default value (if the environment variable is not set) 
 or not. 
@@ -107,14 +119,11 @@ Run
 ```
    mvn clean package
 ```
-This includes running Apache Kafka via docker containers from
-`testcontainers.io`. There is a large, one time, download.
+This includes running Apache Kafka via docker containers from `testcontainers.io`. There is a large, one time, download.
 
-This creates a jar file `jena-fmod-kafka-VER.jar` in
-`jena-fmod-kafka/target/`
+This creates a jar file `jena-fmod-kafka-VER.jar` in `jena-fmod-kafka/target/`
 
-Move this jar to 'lib/' in the directory you wish to run Fuseki with the
-Fuseki-Kafka connector.
+Move this jar to 'lib/' in the directory you wish to run Fuseki with the Fuseki-Kafka connector.
 
 Copy the bash script `fuseki-main` to the same directory.
 
@@ -127,8 +136,7 @@ source release-setup
 ```
 This prints the dry-run command.
 
-If you need to change the setup, edit this file, commit it and simply source the
-file again.
+If you need to change the setup, edit this file, commit it and simply source the file again.
 
 Dry run 
 ```
@@ -140,13 +148,11 @@ and for real
 ```
 mvn $MVN_ARGS release:clean release:prepare
 ```
-**NB** Note that a `mvn release:peform` is not required as the release to Maven 
-Central will be triggered automatically by the `git tag` created by the release
-preparation.
+**NB** Note that a `mvn release:peform` is not required as the release to Maven Central will be triggered automatically
+by the `git tag` created by the release preparation.
 
-After `release:prepare` the local git repo status may say it is ahead of the
-upstream github repo by 2 commits. It isn't - they should be in-step but not 
-sync'ed. Do a `git pull` and then `git status` should say "up-to-date". 
+After `release:prepare` the local git repo status may say it is ahead of the upstream github repo by 2 commits. It isn't
+- they should be in-step but not sync'ed. Do a `git pull` and then `git status` should say "up-to-date". 
 
 ### Rollback
 

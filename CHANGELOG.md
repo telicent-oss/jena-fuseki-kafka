@@ -1,5 +1,12 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.3.6
+
+- `FMod_FusekiKafka` makes `startKafkaConnectors()` a protected method to allow derived modules flexiblity in deciding
+  when to start the Kafka Connectors as there are trade off involved, see Javadoc on that method for discussion
+- Upgraded Protobuf to 4.27.5
+- Various build and test dependencies upgraded to latest available
+
 ## 1.3.5
 
 - Improved Kafka batching strategy to further reduce small batch consumption of Kafka records where possible
