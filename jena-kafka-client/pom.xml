@@ -29,7 +29,7 @@
     <groupId>io.telicent.jena</groupId>
     <artifactId>jena-kafka</artifactId>
     <version>1.4.1-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent> 
 
   <properties>
@@ -38,22 +38,11 @@
 
   <dependencies>
 
+    <!-- Internal dependencies -->
     <dependency>
       <groupId>io.telicent.jena</groupId>
       <artifactId>jena-kafka-connector</artifactId>
-      <version>1.4.1-SNAPSHOT</version>
-    </dependency>
-    
-    <!--
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-streams</artifactId>
-    </dependency>
-    -->
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -61,37 +50,17 @@
       <artifactId>jena-cmds</artifactId>
     </dependency>
 
+    <!-- External dependencies -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
-    
-  </dependencies>
 
-  <!--
-      See above about Automatic-Module-Name
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifestEntries>
-              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
-            </manifestEntries>
-          </archive>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
-  -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+    </dependency>
+
+  </dependencies>
 
 </project>

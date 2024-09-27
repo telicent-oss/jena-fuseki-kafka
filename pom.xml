@@ -56,42 +56,46 @@
   </scm>
 
   <properties>
+    <!-- build properties -->
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
-    
+    <java.version>17</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>2024-09-20T10:32:13Z</project.build.outputTimestamp>
 
-    <java.version>17</java.version>
+    <!-- Maven Plugin versions -->
+    <plugin.clean>3.4.0</plugin.clean>
+    <plugin.compiler>3.13.0</plugin.compiler>
+    <plugin.cyclonedx>2.8.1</plugin.cyclonedx>
+    <plugin.dependency>3.8.0</plugin.dependency>
+    <plugin.deploy>3.1.3</plugin.deploy>
+    <plugin.enforcer>3.5.0</plugin.enforcer>
+    <plugin.gpg>3.2.6</plugin.gpg>
+    <plugin.install>3.1.3</plugin.install>
+    <plugin.jar>3.4.2</plugin.jar>
+    <plugin.javadoc>3.10.0</plugin.javadoc>
+    <plugin.nexus>1.7.0</plugin.nexus>
+    <plugin.resources>3.3.1</plugin.resources>
+    <plugin.shade>3.6.0</plugin.shade>
+    <plugin.site>3.20.0</plugin.site>
+    <plugin.source>3.3.1</plugin.source>
+    <plugin.surefire>3.5.0</plugin.surefire>
 
-    <ver.jena>5.1.0</ver.jena>
-    <ver.kafka>3.8.0</ver.kafka>
-    <ver.protobuf>4.28.2</ver.protobuf> <!-- CVE-2024-7254 -->
+    <!-- Internal dependencies -->
+    <dependency.jena>5.1.0</dependency.jena>
 
-    <ver.slf4j>2.0.7</ver.slf4j>
-    <ver.log4j2>2.24.0</ver.log4j2>
+    <!-- External dependencies -->
+    <dependency.kafka>3.8.0</dependency.kafka>
+    <dependency.log4j2>2.24.0</dependency.log4j2>
+    <dependency.slf4j>2.0.7</dependency.slf4j>
 
-    <ver.junit5>5.11.0</ver.junit5>
-    <ver.junit5-platform>1.10.1</ver.junit5-platform>
-    <ver.mockito>5.13.0</ver.mockito>
+    <!-- Test dependencies -->
+    <dependency.junit5>5.11.0</dependency.junit5>
+    <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
+    <dependency.mockito>5.13.0</dependency.mockito>
+    <dependency.testcontainers>1.20.1</dependency.testcontainers>
 
-    <ver.testcontainers>1.20.1</ver.testcontainers>
-
-    <ver.plugin.compiler>3.13.0</ver.plugin.compiler>
-    <ver.plugin.cyclonedx>2.8.1</ver.plugin.cyclonedx>
-    <ver.plugin.jar>3.4.2</ver.plugin.jar>
-    <ver.plugin.shade>3.6.0</ver.plugin.shade>
-    <ver.plugin.source>3.3.1</ver.plugin.source>
-    <ver.plugin.surefire>3.5.0</ver.plugin.surefire>
-    <ver.plugin.javadoc>3.10.0</ver.plugin.javadoc>
-    <ver.plugin.resources>3.3.1</ver.plugin.resources>
-    <ver.plugin.deploy>3.1.3</ver.plugin.deploy>
-    <ver.plugin.dependency>3.8.0</ver.plugin.dependency>
-    <ver.plugin.enforcer>3.5.0</ver.plugin.enforcer>
-    <ver.plugin.clean>3.4.0</ver.plugin.clean>
-    <ver.plugin.install>3.1.3</ver.plugin.install>
-    <ver.plugin.site>3.20.0</ver.plugin.site>
-    <ver.plugin.nexus>1.7.0</ver.plugin.nexus>
-    <ver.plugin.gpg>3.2.6</ver.plugin.gpg>
+    <!-- Temporary dependencies -->
+    <dependency.protobuf>4.28.2</dependency.protobuf> <!-- CVE-2024-7254 -->
 
   </properties>
 
@@ -105,24 +109,11 @@
   <dependencyManagement>
     <dependencies>
 
-      <!--
-        <dependency>
-          <groupId>org.apache.kafka</groupId>
-          <artifactId>kafka-streams</artifactId>
-          <version>${ver.kafka}</version>
-        </dependency>
-      -->
-
-      <dependency>
-        <groupId>org.apache.kafka</groupId>
-        <artifactId>kafka-clients</artifactId>
-        <version>${ver.kafka}</version>
-      </dependency>
-
+      <!-- Internal dependency -->
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-arq</artifactId>
-        <version>${ver.jena}</version>
+        <version>${dependency.jena}</version>
         <!-- 
              Exclusions for checkerframework and errorprone can be
              removed for Jena 5.1.0 because Jena does not pass them on.
@@ -151,45 +142,39 @@
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-cmds</artifactId>
-        <version>${ver.jena}</version>
+        <version>${dependency.jena}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-main</artifactId>
-        <version>${ver.jena}</version>
-      </dependency>
-
-      <!-- CVE-2024-7254 -->
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${ver.protobuf}</version>
+        <version>${dependency.jena}</version>
       </dependency>
 
       <!-- The combined jar for Fuseki main -->
       <dependency>
         <groupId>org.apache.jena</groupId>
         <artifactId>jena-fuseki-server</artifactId>
-        <version>${ver.jena}</version>
+        <version>${dependency.jena}</version>
       </dependency>
 
+      <!-- External dependencies -->
       <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>${ver.slf4j}</version>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${dependency.kafka}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-slf4j2-impl</artifactId>
-        <version>${ver.log4j2}</version>
+        <version>${dependency.log4j2}</version>
         <exclusions>
           <!-- Apache Kafka client pulls in org.osgi:org.osgi.core:jar -->
           <exclusion>
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.core</artifactId>
-          </exclusion>  
+          </exclusion>
           <exclusion>
             <groupId>com.google.errorprone</groupId>
             <artifactId>error_prone_annotations</artifactId>
@@ -198,9 +183,16 @@
       </dependency>
 
       <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${dependency.slf4j}</version>
+      </dependency>
+
+      <!-- Test dependencies -->
+      <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>kafka</artifactId>
-        <version>${ver.testcontainers}</version>
+        <version>${dependency.testcontainers}</version>
         <scope>test</scope>
         <exclusions>
           <exclusion>
@@ -213,7 +205,7 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>${ver.junit5}</version>
+        <version>${dependency.junit5}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -221,15 +213,24 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>${ver.mockito}</version>
+        <version>${dependency.mockito}</version>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-junit-jupiter</artifactId>
-        <version>${ver.mockito}</version>
+        <version>${dependency.mockito}</version>
         <scope>test</scope>
+      </dependency>
+
+
+      <!-- Temporary dependencies -->
+      <!-- CVE-2024-7254 -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${dependency.protobuf}</version>
       </dependency>
 
     </dependencies>
@@ -242,7 +243,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>${ver.plugin.compiler}</version>
+        <version>${plugin.compiler}</version>
         <configuration>
           <release>${java.version}</release>
           <compilerArgument>-proc:none</compilerArgument>
@@ -252,7 +253,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>${ver.plugin.jar}</version>
+        <version>${plugin.jar}</version>
         <configuration>
           <archive>
             <manifest> 
@@ -272,13 +273,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>${ver.plugin.shade}</version>
+        <version>${plugin.shade}</version>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>${ver.plugin.source}</version>
+          <version>${plugin.source}</version>
           <executions>
             <execution>
               <id>attach-sources</id>
@@ -298,7 +299,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${ver.plugin.surefire}</version>
+        <version>${plugin.surefire}</version>
         <configuration>
           <argLine>
             --add-opens java.base/java.util=ALL-UNNAMED
@@ -310,7 +311,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>${ver.plugin.javadoc}</version>
+        <version>${plugin.javadoc}</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
@@ -354,7 +355,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-	      <version>${ver.plugin.resources}</version>
+	      <version>${plugin.resources}</version>
         <configuration>
           <encoding>UTF-8</encoding>
         </configuration>
@@ -363,13 +364,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>${ver.plugin.deploy}</version>
+        <version>${plugin.deploy}</version>
       </plugin>
       
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>${ver.plugin.dependency}</version>
+        <version>${plugin.dependency}</version>
         <configuration>
           <overWriteReleases>false</overWriteReleases>
           <overWriteIfNewer>true</overWriteIfNewer>
@@ -380,7 +381,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${ver.plugin.enforcer}</version>
+        <version>${plugin.enforcer}</version>
         <executions>
           <execution>
             <id>enforce</id>
@@ -412,25 +413,25 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>${ver.plugin.clean}</version>
+        <version>${plugin.clean}</version>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-install-plugin</artifactId>
-        <version>${ver.plugin.install}</version>
+        <version>${plugin.install}</version>
       </plugin>
       
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-site-plugin</artifactId>
-        <version>${ver.plugin.site}</version>
+        <version>${plugin.site}</version>
       </plugin>
 
       <plugin>
         <groupId>org.cyclonedx</groupId>
         <artifactId>cyclonedx-maven-plugin</artifactId>
-        <version>${ver.plugin.cyclonedx}</version>
+        <version>${plugin.cyclonedx}</version>
         <executions>
           <execution>
             <id>build-sbom-cyclonedx</id>
@@ -448,7 +449,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-gpg-plugin</artifactId>
-        <version>${ver.plugin.gpg}</version>
+        <version>${plugin.gpg}</version>
         <executions>
             <execution>
                 <goals>
@@ -462,7 +463,7 @@
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>${ver.plugin.nexus}</version>
+        <version>${plugin.nexus}</version>
         <extensions>true</extensions>
         <configuration>
           <serverId>sonatype-oss</serverId>
