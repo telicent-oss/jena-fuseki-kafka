@@ -61,3 +61,6 @@ gradle-app.setting
 
 # virtual machine crash logs
 hs_err_pid*
+
+# Trivy Cache
+.trivy/
