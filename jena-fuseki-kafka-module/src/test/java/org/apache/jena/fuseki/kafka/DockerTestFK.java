@@ -27,6 +27,7 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.FetchSessionHandler;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -50,7 +51,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class DockerTestFK {
     // Logging
 
-    static { FusekiLogging.setLogging(); }
+    static {
+        JenaSystem.init();
+        FusekiLogging.setLogging();
+    }
     private static final String TOPIC ="TEST";
     private static final String DSG ="/ds";
     private static MockKafka mock;

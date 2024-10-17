@@ -31,6 +31,7 @@ import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
+import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.RequestFK;
@@ -203,6 +204,9 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
      * such as aggregating batches or directly applying to a dataset.
      */
     protected FKBatchProcessor makeFKBatchProcessor(KConnectorDesc conn, FusekiServer server) {
+        if (DataAccessPointRegistry.get(server.getServletContext()) == null) {
+            DataAccessPointRegistry.set(server.getServletContext(), server.getDataAccessPointRegistry());
+        }
         return FKS.plainFKBatchProcessor(conn, server.getServletContext());
     }
 
