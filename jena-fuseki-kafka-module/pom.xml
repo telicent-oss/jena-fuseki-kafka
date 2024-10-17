@@ -92,10 +92,12 @@
       </exclusions>
     </dependency>
 
+    <!-- Adding to avoid incompatibility with older versions and Test Containers -->
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>${dependency.commons-io}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
