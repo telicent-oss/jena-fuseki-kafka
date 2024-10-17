@@ -92,15 +92,13 @@
       </exclusions>
     </dependency>
 
-
-    <!-- Temporary dependency -->
-    <!-- CVE-2024-7254 -->
+    <!-- Adding to avoid incompatibility with older versions and Test Containers -->
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>${dependency.protobuf}</version>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${dependency.commons-io}</version>
+      <scope>test</scope>
     </dependency>
-
   </dependencies>
 
   <build>
