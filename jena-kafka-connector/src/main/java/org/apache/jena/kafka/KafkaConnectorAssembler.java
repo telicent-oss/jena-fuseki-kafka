@@ -19,6 +19,11 @@ package org.apache.jena.kafka;
 import static org.apache.jena.kafka.Assem2.onError;
 import static org.apache.jena.kafka.utils.EnvVariables.checkForEnvironmentVariableValue;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -33,6 +38,7 @@ import org.apache.jena.atlas.lib.StrUtils;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.impl.Util;
@@ -41,8 +47,9 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.system.G;
-import org.apache.jena.system.RDFDataException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Assembler for a Fuseki-Kafka connector that takes Kafka events and executes them on
@@ -72,18 +79,20 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
  */
 public class KafkaConnectorAssembler extends AssemblerBase implements Assembler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectorAssembler.class);
+
     private static String NS = "http://jena.apache.org/fuseki/kafka#";
     public static String getNS() { return NS; }
 
     /** Type of a connector description */
-    private static Resource tKafkaConnector = ResourceFactory.createResource(NS+"Connector");
+    public static Resource tKafkaConnector = ResourceFactory.createResource(NS+"Connector");
 
     // Preferred:   "fusekiServiceName"
     // Alternative: "datasetName"
 
     /** Destination dataset and endpoint for dispatching Kafka events. */
     public static Node pFusekiServiceName     = NodeFactory.createURI(NS+"fusekiServiceName");
-    /** @deprecated Use {@link pFusekiServiceName} */
+    /** @deprecated Use {@link #pFusekiServiceName} */
     @Deprecated
     private static Node pFusekiDatasetName    = NodeFactory.createURI(NS+"datasetName");       // Old name.
 
@@ -116,6 +125,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     // Kafka cluster
     public static Node pKafkaProperty         = NodeFactory.createURI(NS+"config");
+    public static Node pKafkaPropertyFile     = NodeFactory.createURI(NS+"configFile");
     public static Node pKafkaBootstrapServers = NodeFactory.createURI(NS+"bootstrapServers");
     public static Node pKafkaGroupId          = NodeFactory.createURI(NS+"groupId");
 
@@ -143,23 +153,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         }
     }
 
-    static RDFDataException dataException(Node node, String msg) {
-        return new RDFDataException(NodeFmtLib.displayStr(node)+" : "+msg);
-    }
-
-    static RDFDataException dataException(Node node, Node property, String msg) {
-        return new RDFDataException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
-    }
-
     private static Assem2.OnError errorException = JenaKafkaException::new;
-
-    static JenaKafkaException error(Node node, String msg) {
-        return new JenaKafkaException(NodeFmtLib.displayStr(node)+" : "+msg);
-    }
-
-    static JenaKafkaException error(Node node, Node property, String msg) {
-        return new JenaKafkaException(NodeFmtLib.displayStr(node)+" "+NodeFmtLib.displayStr(property)+" : "+msg);
-    }
 
     private KConnectorDesc createSub(Graph graph, Node node, Node type) {
         /*
@@ -244,15 +238,46 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                     String value = nv.getLiteralLexicalForm();
                     props.setProperty(key, value);
                 });
-//        // These are ignored if the deserializers are in the Kafka consumer constructor.
-//        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-//        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, DeserializerActionFK.class.getName());
+
+        // External Kafka Properties File
+        graph.stream(node, pKafkaPropertyFile, Node.ANY)
+             .map(Triple::getObject)
+             .forEach(propertyFile -> {
+                if (propertyFile.isURI()) {
+                    if (propertyFile.getURI().startsWith("file:")) {
+                        loadKafkaPropertiesFile(node, props, new File(URI.create(propertyFile.getURI())));
+                    } else {
+                        throw onError(node, pKafkaPropertyFile, "Properties file MUST be specified as a file URI or a literal", errorException);
+                    }
+                } else if (propertyFile.isLiteral()) {
+                    String propertyFileName = checkForEnvironmentVariableValue(pKafkaPropertyFile.getURI(), propertyFile.getLiteralLexicalForm());
+                    loadKafkaPropertiesFile(node, props, new File(propertyFileName));
+                }
+             });
+
         return props;
     }
 
-    private static String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
-                                                       ,"PREFIX fk:     <"+NS+">"
-                                                       ,"" );
+    private static void loadKafkaPropertiesFile(Node node, Properties props, File file) {
+        Properties externalProperties = new Properties();
+        try (FileInputStream input = new FileInputStream(file)) {
+            externalProperties.load(input);
+
+            if (!externalProperties.isEmpty()) {
+                LOGGER.info("Loaded {} properties from Kafka properties file {}", externalProperties.size(),
+                            file.getAbsoluteFile());
+                props.putAll(externalProperties);
+            }
+        } catch (FileNotFoundException e) {
+            throw onError(node, pKafkaPropertyFile, "Properties file '" + file.getAbsolutePath() + "' not found", errorException);
+        } catch (IOException e) {
+            throw onError(node, pKafkaPropertyFile, "Error reading properties file '" + file.getAbsolutePath() + "'", errorException);
+        }
+    }
+
+    private static final String PREFIXES = StrUtils.strjoinNL("PREFIX ja:     <"+JA.getURI()+">"
+                                                       , "PREFIX fk:     <"+NS+">"
+                                                       , "" );
 
     private String datasetName(Graph graph, Node node) {
         String queryString = StrUtils.strjoinNL
@@ -321,7 +346,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return datasetPath;
     }
 
-    public static String getConfigurationValue(Graph graph, Node node, Node configNode, Assem2.OnError errorException) {
+    static String getConfigurationValue(Graph graph, Node node, Node configNode, Assem2.OnError errorException) {
         String configurationValue = Assem2.getString(graph, node, configNode, errorException);
         configurationValue = checkForEnvironmentVariableValue(configNode.getURI(), configurationValue);
         return configurationValue;
