@@ -69,6 +69,7 @@
     <plugin.dependency>3.8.0</plugin.dependency>
     <plugin.deploy>3.1.3</plugin.deploy>
     <plugin.enforcer>3.5.0</plugin.enforcer>
+    <plugin.exec>3.4.1</plugin.exec>
     <plugin.gpg>3.2.7</plugin.gpg>
     <plugin.install>3.1.3</plugin.install>
     <plugin.jar>3.4.2</plugin.jar>
@@ -82,6 +83,7 @@
 
     <!-- Internal dependencies -->
     <dependency.jena>5.2.0</dependency.jena>
+    <dependency.smart-caches>0.24.0</dependency.smart-caches>
 
     <!-- External dependencies -->
     <dependency.commons-io>2.17.0</dependency.commons-io>

@@ -16,8 +16,9 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.MutualTlsKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.SecureKafkaTestCluster;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
@@ -51,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
-public class DockerTestFK {
+public class DockerTestMutualTlsKafka {
     // Logging
 
     static {
@@ -60,7 +61,7 @@ public class DockerTestFK {
     }
     private static final String TOPIC ="TEST";
     private static final String DSG ="/ds";
-    private static final KafkaTestCluster<?> mock = new BasicKafkaTestCluster();
+    private static final KafkaTestCluster<?> mock = new MutualTlsKafkaTestCluster();
     private static String DIR = "src/test/files";
 
     // Logs to silence,

@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 import java.util.Properties;
 
+import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
@@ -44,7 +46,9 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.junit.BeforeClass;
 import org.junit.jupiter.api.*;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.introspect.TypeResolutionContext;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
@@ -54,7 +58,7 @@ public class DockerTestConfigFK {
         FusekiLogging.setLogging();
     }
 
-    private static MockKafka mock;
+    private static KafkaTestCluster<?> mock = new BasicKafkaTestCluster();
     private static String DIR = "src/test/files";
 
     // Logs to silence,
@@ -74,34 +78,22 @@ public class DockerTestConfigFK {
         }
     }
 
-    @BeforeAll public static void beforeClass() {
+    @BeforeAll
+    public static void beforeClass() {
         adjustLogs("Warning");
         Log.info("TestIntegrationFK","Starting testcontainer for Kafka");
-        mock = new MockKafka();
-        Properties consumerProps = new Properties();
-        consumerProps.put("bootstrap.servers", mock.getServer());
-        Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", mock.getServer());
 
-        mock.createTopic("RDF0");
-        mock.createTopic("RDF1");
-        mock.createTopic("RDF2");
-        mock.createTopic("RDF_Patch");
-    }
-
-    @AfterAll public static void afterClass2() {
-        FKS.resetPollThreads();
-    }
-
-    Properties consumerProps() {
-        Properties consumerProps = new Properties();
-        consumerProps.put("bootstrap.servers", mock.getServer());
-        return consumerProps;
+        mock.setup();
+        mock.resetTopic("RDF0");
+        mock.resetTopic("RDF1");
+        mock.resetTopic("RDF2");
+        mock.resetTopic("RDF_Patch");
     }
 
     Properties producerProps() {
         Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", mock.getServer());
+        producerProps.put("bootstrap.servers", mock.getBootstrapServers());
+        producerProps.putAll(mock.getClientProperties());
         return producerProps;
     }
 
@@ -109,7 +101,7 @@ public class DockerTestConfigFK {
         Log.info("TestIntegrationFK","Stopping testcontainer for Kafka");
         FKS.resetPollThreads();
         LogCtl.setLevel(NetworkClient.class, "error");
-        mock.stop();
+        mock.teardown();
         adjustLogs("info");
     }
 
@@ -117,7 +109,7 @@ public class DockerTestConfigFK {
 
     @Test public void fk01_fuseki_data() {
         String TOPIC = "RDF0";
-        Graph graph = configuration(DIR+"/config-connector.ttl", mock.getServer());
+        Graph graph = configuration(DIR+"/config-connector.ttl", mock.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -141,7 +133,7 @@ public class DockerTestConfigFK {
     @Test public void fk02_fuseki_two_connectors() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-2.ttl", mock.getServer());
+        Graph graph = configuration(DIR+"/config-connector-2.ttl", mock.getBootstrapServers());
         //RDFWriter.source(graph).lang(Lang.TTL).output(System.out);
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
@@ -173,7 +165,7 @@ public class DockerTestConfigFK {
     @Test public void fk03_fuseki_data_update() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-3.ttl", mock.getServer());
+        Graph graph = configuration(DIR+"/config-connector-3.ttl", mock.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -196,7 +188,7 @@ public class DockerTestConfigFK {
     // RDF Patch
     @Test public void fk04_fuseki_patch() {
         String TOPIC = "RDF_Patch";
-        Graph graph = configuration(DIR+"/config-connector-patch.ttl", mock.getServer());
+        Graph graph = configuration(DIR+"/config-connector-patch.ttl", mock.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -221,7 +213,7 @@ public class DockerTestConfigFK {
     @Test public void fk05_fuseki_env_config() {
         System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
         System.clearProperty("TEST_KAFKA_TOPIC");
-        Graph graph = configuration(DIR+"/config-connector-env.ttl", mock.getServer());
+        Graph graph = configuration(DIR+"/config-connector-env.ttl", mock.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
