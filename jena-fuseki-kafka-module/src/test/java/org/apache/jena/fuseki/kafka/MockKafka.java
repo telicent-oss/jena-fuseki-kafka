@@ -18,52 +18,64 @@ package org.apache.jena.fuseki.kafka;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
+import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.utility.DockerImageName;
 
-public class MockKafka {
+/**
+ * A mock Kafka cluster
+ *
+ * @deprecated Use {@link BasicKafkaTestCluster} or one of the other extensions of
+ * {@link io.telicent.smart.cache.sources.kafka.KafkaTestCluster} instead as they provide more control over the Kafka
+ * cluster.
+ */
+@Deprecated(since = "1.4.0", forRemoval = true)
+public class MockKafka extends BasicKafkaTestCluster {
 
-    private final KafkaContainer kafkaContainer;
-    private final String bootstrap;
-    private final AdminClient admin;
-
-    public MockKafka() {
-        kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.3.3"));
-        kafkaContainer.start();
-        bootstrap = kafkaContainer.getBootstrapServers();
-        admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getKafkaBrokers()));
+    /**
+     * Gets the Kafka Server
+     *
+     * @return Server
+     * @deprecated Use {@link #getBootstrapServers()} instead
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
+    public String getServer() {
+        return this.getBootstrapServers();
     }
 
-    private String getKafkaBrokers() {
-        Integer mappedPort = kafkaContainer.getFirstMappedPort();
-        return String.format("%s:%d", "localhost", mappedPort);
-      }
-
-    public String getServer() { return bootstrap; }
-
+    /**
+     * Creates a topic
+     *
+     * @param topic Topic Name
+     * @deprecated Use {@link #resetTopic(String)} instead
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
     public void createTopic(String topic) {
         NewTopic newTopic = new NewTopic(topic, 1, (short) 1);
 
-        admin.createTopics(List.of(newTopic));
+        this.adminClient.createTopics(List.of(newTopic));
     }
 
-    public void deleteTopic(String topic) {
-        admin.deleteTopics(List.of(topic));
-    }
-
+    /**
+     * Stops the cluster
+     *
+     * @deprecated Use {@link #teardown()} instead
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
     public void stop() {
-        kafkaContainer.stop();
+        this.teardown();
     }
 
+    /**
+     * Lists topics
+     *
+     * @return Use {@link #getAdminClient()} to access the Admin Client and use that to list topics directly
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
     public Collection<String> listTopics() {
         try {
-            return admin.listTopics().names().get();
+            return this.adminClient.listTopics().names().get();
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
             throw new RuntimeException(e);

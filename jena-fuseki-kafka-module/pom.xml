@@ -27,7 +27,7 @@
   <parent>
     <groupId>io.telicent.jena</groupId>
     <artifactId>jena-kafka</artifactId>
-    <version>1.4.1-SNAPSHOT</version>
+    <version>1.5.0-SNAPHSOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -57,20 +57,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.platform</groupId>
-      <artifactId>junit-platform-suite</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.vintage</groupId>
-      <artifactId>junit-vintage-engine</artifactId>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>${dependency.testng}</version>
       <scope>test</scope>
     </dependency>
 
@@ -78,6 +67,30 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.telicent.smart-caches</groupId>
+      <artifactId>event-source-kafka</artifactId>
+      <version>${dependency.smart-caches}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.telicent.smart-caches</groupId>
+      <artifactId>event-source-kafka</artifactId>
+      <version>${dependency.smart-caches}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.telicent.smart-caches</groupId>
+      <artifactId>event-source-kafka</artifactId>
+      <version>${dependency.smart-caches}</version>
+      <classifier>certs-helper</classifier>
+      <scope>test</scope>
+      <type>zip</type>
     </dependency>
 
     <dependency>
@@ -138,6 +151,9 @@
       <id>docker</id>
       <activation>
         <activeByDefault>true</activeByDefault>
+        <os>
+          <family>!Windows</family>
+        </os>
       </activation>
 
       <build>
@@ -151,6 +167,58 @@
                 <include>**/DockerTest*.java</include>
               </includes>
             </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>${plugin.dependency}</version>
+            <executions>
+              <execution>
+                <id>unpack-certs-helper</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>unpack-dependencies</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.basedir}</outputDirectory>
+                  <includeTypes>zip</includeTypes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>encrypted-kafka-tests</id>
+      <activation>
+        <os>
+          <family>!Windows</family>
+        </os>
+      </activation>
+
+      <build>
+        <plugins>
+          <!-- Only regenerate SSL certificates on POSIX OSes since we do it via a Bash script -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${plugin.exec}</version>
+            <executions>
+              <execution>
+                <id>generate-test-ssl-certs</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>process-test-resources</phase>
+                <configuration>
+                  <executable>${project.basedir}/test-certs/generateCerts.sh</executable>
+                  <skip>${skipTests}</skip>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

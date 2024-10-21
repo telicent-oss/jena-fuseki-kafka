@@ -16,15 +16,11 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import io.telicent.smart.cache.sources.kafka.MutualTlsKafkaTestCluster;
 
+public class DockerTestMutualTlsKafka extends DockerTestFK {
 
-@Suite
-@SelectClasses({
-    TestConnectorDescriptor.class
-    , DockerTestFK.class
-    , DockerTestConfigFK.class
-})
-
-public class TS_JenaFusekiKafka {}
+    public DockerTestMutualTlsKafka() {
+        this.kafka = new MutualTlsKafkaTestCluster();
+    }
+}

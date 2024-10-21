@@ -16,6 +16,8 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
@@ -35,18 +37,19 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
-import org.junit.jupiter.api.*;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-@TestMethodOrder(MethodOrderer.MethodName.class)
 // These tests must run in order.
 public class DockerTestFK {
     // Logging
@@ -57,8 +60,10 @@ public class DockerTestFK {
     }
     private static final String TOPIC ="TEST";
     private static final String DSG ="/ds";
-    private static MockKafka mock;
-    private static String DIR = "src/test/files";
+    /**
+     * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
+     */
+    protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
 
     // Logs to silence,
     private static String [] XLOGS = {
@@ -77,68 +82,72 @@ public class DockerTestFK {
         }
     }
 
-    @BeforeAll public static void beforeClass() {
+    @BeforeClass
+    public void beforeClass() {
         adjustLogs("Warning");
         Log.info("TestFK","Starting testcontainer for Kafka");
-        mock = new MockKafka();
-        Properties consumerProps = new Properties();
-        consumerProps.put("bootstrap.servers", mock.getServer());
-        Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", mock.getServer());
+        kafka.setup();
     }
 
-    @AfterEach
+    @AfterMethod
     public void after() {
         FKS.resetPollThreads();
     }
 
     Properties consumerProps() {
         Properties consumerProps = new Properties();
-        consumerProps.put("bootstrap.servers", mock.getServer());
+        consumerProps.put("bootstrap.servers", kafka.getBootstrapServers());
+        consumerProps.putAll(kafka.getClientProperties());
         return consumerProps;
     }
 
     Properties producerProps() {
         Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", mock.getServer());
+        producerProps.put("bootstrap.servers", kafka.getBootstrapServers());
+        producerProps.putAll(kafka.getClientProperties());
         return producerProps;
     }
 
-    @AfterAll public static void afterClass() {
+    @AfterClass
+    public void afterClass() {
         Log.info("TestFK","Stopping testcontainer for Kafka");
         LogCtl.setLevel(NetworkClient.class, "error");
-        mock.stop();
+        kafka.teardown();
         adjustLogs("info");
     }
 
-    @Test public void fk01_topic() {
-        mock.createTopic(TOPIC);
-        Collection<String> topics = mock.listTopics();
-        assertTrue(topics.contains(TOPIC));
+    @Test(priority = 1)
+    public void fk01_topic() throws ExecutionException, InterruptedException {
+        kafka.resetTopic(TOPIC);
+        Collection<String> topics = kafka.getAdminClient().listTopics().names().get();
+        Assert.assertTrue(topics.contains(TOPIC));
     }
 
-    @Test public void fk02_send() {
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl",DIR+"/update.ru"));
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data-nq"));
+    @Test(priority = 2)
+    public void fk02_send() {
+        String DIR = "src/test/files";
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR +"/data.ttl", DIR +"/update.ru"));
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR +"/data-nq"));
     }
 
-    @Test public void fk03_receive() {
+    @Test(priority = 3)
+    public void fk03_receive() {
         Properties cProps = consumerProps();
         DataState dataState = DataState.createEphemeral(TOPIC);
         AtomicInteger count = new AtomicInteger(0);
         BiConsumer<ConsumerRecord<String, String>, Long> handler = ( crec, offset) -> count.incrementAndGet();
         FKLib.receive(dataState, cProps, TOPIC, handler);
-        assertEquals(3, count.get());
+        Assert.assertEquals(count.get(), 3);
     }
 
-    @Test public void fk04_fuseki() {
+    @Test(priority = 4) public void fk04_fuseki() {
         // Assumes the topic exists and has data.
         DataState dataState = DataState.createEphemeral(TOPIC);
         FusekiServer server = startFuseki(dataState, consumerProps());
         String URL = "http://localhost:"+server.getHttpPort()+DSG;
         RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
         int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-        assertEquals(2, count);
+        Assert.assertEquals(count, 2);
     }
 
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {

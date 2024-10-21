@@ -21,11 +21,11 @@ import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
 public class TestConnectorDescriptor {
     private static String DIR = "src/test/files";
