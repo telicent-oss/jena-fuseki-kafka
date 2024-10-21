@@ -1,6 +1,6 @@
 # Kafka Connector for Apache Jena Fuseki
 
-## 1.4.0
+## 1.5.0
 
 - Added new `fk:configFile` property to Connector Assembler support to allow injecting an external Kafka configuration 
   file into Fuseki, this allows for advanced configuration e.g. complex Kafka AuthN modes
@@ -9,7 +9,7 @@
 - Refactored some tests to use TestNG to make it easier to inject different Kafka clusters into those test via 
   inheritance
 
-## 1.3.6
+## 1.4.0
 
 - `FMod_FusekiKafka` makes `startKafkaConnectors()` a protected method to allow derived modules flexibility in deciding
   when to start the Kafka Connectors as there are trade off involved, see Javadoc on that method for discussion
