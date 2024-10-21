@@ -6,8 +6,9 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.TopicPartition;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -20,8 +21,6 @@ import static org.apache.jena.fuseki.kafka.FKBatchProcessor.MIN_BATCH_CHECK_THRE
 import static org.apache.jena.kafka.SysJenaKafka.KAFKA_FETCH_POLL_SIZE;
 import static org.apache.jena.kafka.SysJenaKafka.KAFKA_FETCH_BYTE_SIZE;
 import static org.apache.jena.kafka.common.DataState.createEphemeral;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -38,7 +37,7 @@ public class TestBatchProcessor {
     private final static int ORIGINAL_MIN_CHECK = MIN_BATCH_CHECK_THRESHOLD;
 
 
-    @AfterEach
+    @AfterMethod
     public void cleanup() {
         reset(consumerMock, mockProcessor);
         KAFKA_FETCH_POLL_SIZE = ORIGINAL_POLL_SIZE;
@@ -58,7 +57,7 @@ public class TestBatchProcessor {
         boolean result = processor.receiver(consumerMock, createEphemeral(TOPIC), Duration.ofMillis(1));
 
         //then
-        assertFalse(result);
+        Assert.assertFalse(result);
         verify(consumerMock, times(1)).poll(any());
         verifyNoInteractions(mockProcessor);
     }
@@ -81,7 +80,7 @@ public class TestBatchProcessor {
         boolean result = processor.receiver(consumerMock, createEphemeral(TOPIC), Duration.ofMillis(1));
 
         //then
-        assertTrue(result);
+        Assert.assertTrue(result);
         verify(mockProcessor).startBatch(anyInt(),anyLong());
         verify(mockProcessor).process(any());
         verify(mockProcessor).finishBatch(anyInt(),anyLong(),anyLong());
@@ -106,7 +105,7 @@ public class TestBatchProcessor {
         boolean result = processor.receiver(consumerMock, createEphemeral(TOPIC), Duration.ofMillis(1));
 
         //then
-        assertTrue(result);
+        Assert.assertTrue(result);
         verify(mockProcessor).startBatch(anyInt(),anyLong());
         verify(mockProcessor, times(6)).process(any());// 1 message of 6 records
         verify(mockProcessor).finishBatch(anyInt(),anyLong(),anyLong());
@@ -132,7 +131,7 @@ public class TestBatchProcessor {
         boolean result = processor.receiver(consumerMock, createEphemeral(TOPIC), Duration.ofMillis(1));
 
         // then
-        assertTrue(result);
+        Assert.assertTrue(result);
         verify(mockProcessor).startBatch(anyInt(),anyLong());
         verify(mockProcessor, times(20)).process(any());// 5 messages of 4 records
         verify(mockProcessor).finishBatch(anyInt(),anyLong(),anyLong());
@@ -158,7 +157,7 @@ public class TestBatchProcessor {
         boolean result = processor.receiver(consumerMock, dataState, Duration.ofMillis(1));
 
         // then
-        assertTrue(result);
+        Assert.assertTrue(result);
         verify(mockProcessor).startBatch(anyInt(),anyLong());
         verify(mockProcessor, times(8)).process(any()); // 2 messages of 4 records
         verify(mockProcessor).finishBatch(anyInt(),anyLong(),anyLong());

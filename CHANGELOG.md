@@ -6,6 +6,8 @@
   file into Fuseki, this allows for advanced configuration e.g. complex Kafka AuthN modes
 - Added dependency on Smart Caches Core 0.24.0 (currently for tests only)
 - Added integration tests that verify connectivity with Secured Kafka clusters works correctly
+- Refactored some tests to use TestNG to make it easier to inject different Kafka clusters into those test via 
+  inheritance
 
 ## 1.3.6
 

@@ -16,8 +16,10 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Properties;
 
@@ -40,29 +42,33 @@ import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.system.G;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.kafka.clients.FetchSessionHandler;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
-import org.junit.BeforeClass;
-import org.junit.jupiter.api.*;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.introspect.TypeResolutionContext;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
-@TestMethodOrder(MethodOrderer.MethodName.class)
-// These tests must run in order.
 public class DockerTestConfigFK {
     static {
         JenaSystem.init();
         FusekiLogging.setLogging();
     }
 
-    private static KafkaTestCluster<?> mock = new BasicKafkaTestCluster();
-    private static String DIR = "src/test/files";
+    /**
+     * Intentionally protected so derived test classes can override the default implementation used
+     */
+    protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
+    private static final String DIR = "src/test/files";
 
     // Logs to silence,
-    private static String [] XLOGS = {
+    private static final String [] XLOGS = {
         AdminClientConfig.class.getName() ,
         // NetworkClient is noisy with warnings about can't connect.
         NetworkClient.class.getName() ,
@@ -78,38 +84,45 @@ public class DockerTestConfigFK {
         }
     }
 
-    @BeforeAll
-    public static void beforeClass() {
+    @BeforeClass
+    public void beforeClass() {
         adjustLogs("Warning");
         Log.info("TestIntegrationFK","Starting testcontainer for Kafka");
 
-        mock.setup();
-        mock.resetTopic("RDF0");
-        mock.resetTopic("RDF1");
-        mock.resetTopic("RDF2");
-        mock.resetTopic("RDF_Patch");
+        kafka.setup();
+        kafka.resetTopic("RDF0");
+        kafka.resetTopic("RDF1");
+        kafka.resetTopic("RDF2");
+        kafka.resetTopic("RDF_Patch");
     }
 
     Properties producerProps() {
         Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", mock.getBootstrapServers());
-        producerProps.putAll(mock.getClientProperties());
+        producerProps.put("bootstrap.servers", kafka.getBootstrapServers());
+        producerProps.putAll(kafka.getClientProperties());
         return producerProps;
     }
 
-    @AfterAll public static void afterClass() {
+    @AfterMethod
+    public void after() {
+        FKS.resetPollThreads();
+    }
+
+    @AfterClass
+    public void afterClass() {
         Log.info("TestIntegrationFK","Stopping testcontainer for Kafka");
         FKS.resetPollThreads();
         LogCtl.setLevel(NetworkClient.class, "error");
-        mock.teardown();
+        kafka.teardown();
         adjustLogs("info");
     }
 
-    private static String STATE_DIR = "target/state";
+    private static final String STATE_DIR = "target/state";
 
-    @Test public void fk01_fuseki_data() {
+    @Test(priority = 1)
+    public void fk01_fuseki_data() {
         String TOPIC = "RDF0";
-        Graph graph = configuration(DIR+"/config-connector.ttl", mock.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector.ttl", kafka.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -125,15 +138,15 @@ public class DockerTestConfigFK {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
             RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
             int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            assertEquals(1, count);
+            Assert.assertEquals(count, 1);
         } finally { server.stop(); }
     }
 
     // Two connectors
-    @Test public void fk02_fuseki_two_connectors() {
+    @Test(priority = 2) public void fk02_fuseki_two_connectors() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-2.ttl", mock.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-2.ttl", kafka.getBootstrapServers());
         //RDFWriter.source(graph).lang(Lang.TTL).output(System.out);
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
@@ -154,18 +167,18 @@ public class DockerTestConfigFK {
         try {
             String URL1 = "http://localhost:"+server.getHttpPort()+"/ds1";
             int count1 = count(URL1);
-            assertEquals(1, count1);
+            Assert.assertEquals(count1, 1);
             String URL2 = "http://localhost:"+server.getHttpPort()+"/ds2";
             int count2 = count(URL2);
-            assertEquals(2, count2);
+            Assert.assertEquals(count2, 2);
         } finally { server.stop(); }
     }
 
     // Two connectors, one dataset
-    @Test public void fk03_fuseki_data_update() {
+    @Test(priority = 3) public void fk03_fuseki_data_update() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-3.ttl", mock.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-3.ttl", kafka.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -181,14 +194,14 @@ public class DockerTestConfigFK {
         try {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds0";
             int count = count(URL);
-            assertEquals(2, count);
+            Assert.assertEquals(count, 2);
         } finally { server.stop(); }
     }
 
     // RDF Patch
-    @Test public void fk04_fuseki_patch() {
+    @Test(priority = 4) public void fk04_fuseki_patch() {
         String TOPIC = "RDF_Patch";
-        Graph graph = configuration(DIR+"/config-connector-patch.ttl", mock.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-patch.ttl", kafka.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -205,15 +218,15 @@ public class DockerTestConfigFK {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
             RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
             int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            assertEquals(4, count);
+            Assert.assertEquals(count, 4);
         } finally { server.stop(); }
     }
 
     // Env Variable use
-    @Test public void fk05_fuseki_env_config() {
+    @Test(priority = 5) public void fk05_fuseki_env_config() {
         System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
         System.clearProperty("TEST_KAFKA_TOPIC");
-        Graph graph = configuration(DIR+"/config-connector-env.ttl", mock.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-env.ttl", kafka.getBootstrapServers());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -228,19 +241,18 @@ public class DockerTestConfigFK {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
             RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
             int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            assertEquals(1, count);
+            Assert.assertEquals(count, 1);
         } finally { server.stop(); }
         System.clearProperty("TEST_BOOTSTRAP_SERVER");
     }
 
     private static int count(String URL) {
         RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-        return count;
+        return ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
     }
 
     // Read a configuration and update it for the mock server.
-    private Graph configuration(String filename, String bootstrapServers) {
+    protected Graph configuration(String filename, String bootstrapServers) {
         // Fix up!
         Graph graph = RDFParser.source(filename).toGraph();
         List<Triple> triplesBootstrapServers = G.find(graph,
@@ -259,6 +271,29 @@ public class DockerTestConfigFK {
             String fn = t.getObject().getLiteralLexicalForm();
             graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(STATE_DIR+"/"+fn));
         });
+
+        // If extra client properties are needed inject via an external properties file
+        Properties props = this.kafka.getClientProperties();
+        if (!props.isEmpty()) {
+            try {
+                // Write Kafka properties out to a temporary file
+                File propsFile = Files.createTempFile("kafka", ".properties").toFile();
+                try (FileOutputStream output = new FileOutputStream(propsFile)) {
+                    props.store(output, null);
+                }
+
+                // For each Kafka connector in the configuration inject the fk:configFile triple pointing to our
+                // temporary properties file for our Secure Cluster
+                List<Triple> connectors =
+                        G.find(graph, null, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode()).toList();
+                connectors.forEach(t -> {
+                    graph.add(t.getSubject(), KafkaConnectorAssembler.pKafkaPropertyFile,
+                          NodeFactory.createURI(propsFile.toURI().toString()));
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         return graph;
     }

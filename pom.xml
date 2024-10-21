@@ -96,6 +96,7 @@
     <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
     <dependency.mockito>5.14.2</dependency.mockito>
     <dependency.testcontainers>1.20.2</dependency.testcontainers>
+    <dependency.testng>7.10.2</dependency.testng>
 
   </properties>
 
