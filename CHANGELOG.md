@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.5.1
+
+- Added support for `<env:VAR>` URIs for `fk:configFile` property
+- Allowed for `<env:{VAR:}>`, i.e. blank default, to be used so that a config file can be created that loads in extra
+  Kafka configuration only when that environment variable is set
+
 ## 1.5.0
 
 - Added new `fk:configFile` property to Connector Assembler support to allow injecting an external Kafka configuration 

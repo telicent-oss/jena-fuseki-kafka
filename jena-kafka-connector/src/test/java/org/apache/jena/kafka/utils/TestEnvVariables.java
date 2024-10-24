@@ -85,6 +85,17 @@ public class TestEnvVariables {
     }
 
     @Test
+    public void testEnvValueWithEmptyDefault() {
+        // given
+        String envVarName = "TEST_ENV_VAR_DEFAULT";
+        String defaultValue = "";
+        // when
+        String result = EnvVariables.checkForEnvironmentVariableValue("testConfig", "env:{" + envVarName + ":" + defaultValue + "}");
+        // then
+        assertEquals(defaultValue, result);
+    }
+
+    @Test
     public void testEnvValueWithDefaultAndEnvSet() {
         // given
         String envVarName = "TEST_ENV_VAR";
