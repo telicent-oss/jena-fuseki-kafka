@@ -127,6 +127,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     private static void verifyTestProperties(KConnectorDesc desc) {
+        Assert.assertTrue("Should be some extra properties present", desc.getKafkaConsumerProps().size() > 5);
         Assert.assertEquals("bar", desc.getKafkaConsumerProps().get("foo"));
         Assert.assertEquals("other", desc.getKafkaConsumerProps().get("an"));
     }
@@ -199,7 +200,11 @@ public class TestKafkaConnectorAssembler {
         }
     }
 
-    @ValueSource(strings = { "https://example.org/kafka.properties", "file:/no/such/kafka.properties" })
+    @ValueSource(strings = {
+            "https://example.org/kafka.properties",
+            "file:/no/such/kafka.properties",
+            "env:NO_SUCH_VAR"
+    })
     @ParameterizedTest
     public void givenExtraExternalConfigBadUri_whenAssemblingConnector_thenNotLoaded(String source) {
         // Given
@@ -235,5 +240,29 @@ public class TestKafkaConnectorAssembler {
 
         // Then
         Assert.assertNull(assembled);
+    }
+
+    @ValueSource(strings = {
+            "env:{NO_SUCH_ENV_VAR:}",
+            "env:{NO_SUCH_ENV_VAR: }"
+    })
+    @ParameterizedTest
+    public void givenExtraExternalConfigEmptyPath_whenAssemblingConnector_thenLoaded_andNoExtraConfig(String source) {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource resource = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, resource);
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
+                   config.createResource(source));
+
+        // When
+        Object assembled = assembler.open(resource);
+
+        // Then
+        Assert.assertNotNull(assembled);
+
+        // And
+        KConnectorDesc desc = verifyMinimalConfig(assembled);
+        Assert.assertEquals(desc.getKafkaConsumerProps().size(), 5);
     }
 }

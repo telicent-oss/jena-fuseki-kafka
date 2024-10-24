@@ -21,21 +21,27 @@ import org.apache.jena.shared.JenaException;
 import java.util.Optional;
 
 /**
- * Utility class for extracting configuration from environment variables or System Properties.
- * Expected string formats: value, env:value, env:{value}, env:{value:default}
+ * Utility class for extracting configuration from environment variables or System Properties. Expected string formats:
+ * value, env:value, env:{value}, env:{value:default}
  */
 public class EnvVariables {
 
     /**
      * Marking private to avoid accidental usage.
      */
-    private EnvVariables(){}
+    private EnvVariables() {
+    }
 
-    private static final String ENV_PREFIX = "env:";
+    /**
+     * The string/URI prefix used to indicate that a configuration value is a placeholder that will be populated from
+     * environment variables or system properties
+     */
+    public static final String ENV_PREFIX = "env:";
 
     /**
      * Checks for environment variables (or System properties) embedded in given value string.
-     * @param configName the name of the config being set
+     *
+     * @param configName     the name of the config being set
      * @param embeddedString the string with potential env variable expression embedded in it
      * @return value, or if provided the relevant environment variable value (or system property)
      */
@@ -52,7 +58,8 @@ public class EnvVariables {
 
     /**
      * Resolves the environment variable expression.
-     * @param configName the name of the config being set
+     *
+     * @param configName       the name of the config being set
      * @param envVarExpression the expression to resolve
      * @return the resolved value
      */
@@ -74,6 +81,7 @@ public class EnvVariables {
 
     /**
      * Gets the value of an environment variable or throws an exception if not set.
+     *
      * @param envVarName the name of the environment variable
      * @param configName the name of the config being set
      * @return the value of the environment variable
@@ -87,7 +95,8 @@ public class EnvVariables {
 
     /**
      * Gets the value of an environment variable or returns a default value if not set.
-     * @param envVarName the name of the environment variable
+     *
+     * @param envVarName   the name of the environment variable
      * @param defaultValue the default value to return if the environment variable is not set
      * @return the value of the environment variable or the default value
      */
@@ -97,6 +106,7 @@ public class EnvVariables {
 
     /**
      * Looks up the value of an environment variable.
+     *
      * @param name the name of the environment variable
      * @return the value of the environment variable or null if not set
      */

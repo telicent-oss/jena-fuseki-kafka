@@ -39,6 +39,7 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.kafka.utils.EnvVariables;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.impl.Util;
@@ -246,16 +247,26 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 if (propertyFile.isURI()) {
                     if (propertyFile.getURI().startsWith("file:")) {
                         loadKafkaPropertiesFile(node, props, new File(URI.create(propertyFile.getURI())));
+                    } else if (propertyFile.getURI().startsWith(EnvVariables.ENV_PREFIX)) {
+                        resolveKafkaPropertiesFile(propertyFile.getURI(), node, props);
                     } else {
                         throw onError(node, pKafkaPropertyFile, "Properties file MUST be specified as a file URI or a literal", errorException);
                     }
                 } else if (propertyFile.isLiteral()) {
-                    String propertyFileName = checkForEnvironmentVariableValue(pKafkaPropertyFile.getURI(), propertyFile.getLiteralLexicalForm());
-                    loadKafkaPropertiesFile(node, props, new File(propertyFileName));
+                    resolveKafkaPropertiesFile(propertyFile.getLiteralLexicalForm(), node, props);
                 }
              });
 
         return props;
+    }
+
+    private static void resolveKafkaPropertiesFile(String propertyFile, Node node, Properties props) {
+        String propertyFileName = checkForEnvironmentVariableValue(pKafkaPropertyFile.getURI(), propertyFile);
+        if (StringUtils.isNotBlank(propertyFileName)) {
+            loadKafkaPropertiesFile(node, props, new File(propertyFileName));
+        } else {
+            LOGGER.warn("Ignored fk:configFile expression '{}' as it resolved to an empty value", propertyFile);
+        }
     }
 
     private static void loadKafkaPropertiesFile(Node node, Properties props, File file) {
