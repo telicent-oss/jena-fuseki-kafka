@@ -173,7 +173,7 @@ Note that if this triple is present but gives an empty value then it is ignored,
 define a RDF configuration where you can conditionally inject a Kafka properties file via an environment variable where
 necessary.
 
-##### Multiple Kafka Properties Files
+##### Multiple Kafka Properties Files
 
 If multiple `fk:configFile` triples are present then all the referenced properties files are loaded, however the order
 of loading is not defined.  Therefore we recommend that you only split your Kafka configuration over multiple properties
