@@ -82,8 +82,11 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     #    fk:replayTopic      true;
     #    fk:syncTopic        true;
 
-## Additional Kafka client properties.
-##   fk:config ( "key" "value") ;
+   ## Additional Kafka client properties.
+   ## fk:config ( "key" "value") ;
+
+   ## Additional Kafka client properties from an external properties file
+   ## fk:configFile "/path/to/kafka.properties" ;
     .
 ```
 
@@ -111,7 +114,87 @@ used when configuring variables. It has two formats, with a default value (if th
 or not. 
 
 #### With default - `"env:{ENV_VARIABLE:default}"`
+
+Note that it is possible for the default to be the empty string e.g. `env:{ENV_VARIABLE:}`, **however** most
+configuration is required so supplying an empty value is generally not permitted.
+
 #### Without default - `"env:{ENV_VARIABLE}"`
+
+When the without default form is used, if the relevant environment variable is not set then an error is thrown which
+will typically prevent the connector from being created, and the server into which the module is embedded running.
+
+### Additional Kafka Configuration
+
+If extra Kafka configuration properties are required to connect to your Kafka cluster, e.g. you require Kafka
+Authentication, then you can supply this in one of two ways:
+
+1. Inline in the RDF configuration via the `fk:config` property
+2. Externally via a properties file referenced from the RDF configuration via the `fk:configFile` property
+
+#### Inline Kafka Configuration
+
+For each Kafka property you wish to set you need to declare a triple which has a RDF collection as its object, this
+collection **MUST** have two items in it where the first is considered the property key and the second the property
+value e.g.
+
+```
+<#connector> fk:config ( "security.protocol" "SSL") .
+```
+
+Would set the Kafka `security.protocol` property to the value `SSL` in the configuration properties passed to the
+underlying Kafka consumer.
+
+Multiple properties require multiple triples e.g.
+
+```
+<#connector> fk:config ( "security.protocol" "SSL") ,
+                       ( "ssl.truststore.location" "/path/to/truststore" ).
+```
+
+#### External Kafka Configuration
+
+For some clusters setups, e.g. Kafka mTLS authentication, then it may be necessary to supply many configuration
+properties, some of which contain sensitive values that you don't want visible in your RDF configuration.  In this case
+you can create a separate Java properties file that defines the additional Kafka properties you need and pass this via
+the `fk:configFile` property e.g.
+
+```
+<#connector> fk:configFile "/path/to/kafka.properties" .
+```
+The object of this triple may be one of the following:
+
+- A string literal with a file path
+- A `file:` URI e.g. `<file:/path/to/kafka.properties>`
+- A string literal using [Environment Variables](#environment-variable-configuration) e.g.
+  `"env:{KAFKA_CONFIG_FILE_PATH:}"` .
+- A `env:` URI e.g. `<env:{KAFKA_CONFIG_FILE_PATH:}>`
+
+Note that if this triple is present but gives an empty value then it is ignored, this can be useful if you want to
+define a RDF configuration where you can conditionally inject a Kafka properties file via an environment variable where
+necessary.
+
+##### Multiple Kafka Properties Files
+
+If multiple `fk:configFile` triples are present then all the referenced properties files are loaded, however the order
+of loading is not defined.  Therefore we recommend that you only split your Kafka configuration over multiple properties
+files if they are not going to override each others configuration.
+
+#### Configuring for Kafka Authentication
+
+Using the mechanisms outlined above it is possible to configure the connectors to talk to secure Kafka clusters, the
+exact set of Kafka configuration properties required will depend upon your Kafka cluster and the authentication mode
+being used.  Therefore we would refer you to the [Kafka Security](https://kafka.apache.org/documentation/#security)
+documentation for full details.
+
+If you are using a managed Kafka cluster, e.g. Confluent Cloud, Amazon MKS etc., you may also find your vendor has
+extensive documentation on how to enable and use Kafka security with their offerings, this will again mostly come down
+to supplying the appropriate Kafka configuration properties using the mechanisms we have already outlined.
+
+You might also find our own [Kafka Connectivity
+Options](https://github.com/telicent-oss/smart-caches-core/blob/main/docs/cli/index.md#kafka-connectivity-options)
+documentation useful.  Note that while the options and environment variables discussed there **DO NOT** apply to this
+repository since that is for CLIs and this is a library, the examples of Kafka properties for different Kafka
+Authentication modes are applicable.
 
 ## Build
 
