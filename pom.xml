@@ -73,13 +73,13 @@
     <plugin.gpg>3.2.7</plugin.gpg>
     <plugin.install>3.1.3</plugin.install>
     <plugin.jar>3.4.2</plugin.jar>
-    <plugin.javadoc>3.10.1</plugin.javadoc>
+    <plugin.javadoc>3.11.1</plugin.javadoc>
     <plugin.nexus>1.7.0</plugin.nexus>
     <plugin.resources>3.3.1</plugin.resources>
     <plugin.shade>3.6.0</plugin.shade>
     <plugin.site>3.21.0</plugin.site>
     <plugin.source>3.3.1</plugin.source>
-    <plugin.surefire>3.5.1</plugin.surefire>
+    <plugin.surefire>3.5.2</plugin.surefire>
 
     <!-- Internal dependencies -->
     <dependency.jena>5.2.0</dependency.jena>
@@ -87,7 +87,7 @@
 
     <!-- External dependencies -->
     <dependency.commons-io>2.17.0</dependency.commons-io>
-    <dependency.kafka>3.8.0</dependency.kafka>
+    <dependency.kafka>3.8.1</dependency.kafka>
     <dependency.log4j2>2.24.1</dependency.log4j2>
     <dependency.slf4j>2.0.7</dependency.slf4j>
 
