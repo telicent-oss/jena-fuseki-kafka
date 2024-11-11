@@ -87,7 +87,7 @@
 
     <!-- External dependencies -->
     <dependency.commons-io>2.17.0</dependency.commons-io>
-    <dependency.kafka>3.8.1</dependency.kafka>
+    <dependency.kafka>3.9.0</dependency.kafka>
     <dependency.log4j2>2.24.1</dependency.log4j2>
     <dependency.slf4j>2.0.7</dependency.slf4j>
 
