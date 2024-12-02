@@ -65,7 +65,7 @@
     <!-- Maven Plugin versions -->
     <plugin.clean>3.4.0</plugin.clean>
     <plugin.compiler>3.13.0</plugin.compiler>
-    <plugin.cyclonedx>2.9.0</plugin.cyclonedx>
+    <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
     <plugin.dependency>3.8.1</plugin.dependency>
     <plugin.deploy>3.1.3</plugin.deploy>
     <plugin.enforcer>3.5.0</plugin.enforcer>
@@ -83,7 +83,7 @@
 
     <!-- Internal dependencies -->
     <dependency.jena>5.2.0</dependency.jena>
-    <dependency.smart-caches>0.24.1</dependency.smart-caches>
+    <dependency.smart-caches>0.24.2</dependency.smart-caches>
 
     <!-- External dependencies -->
     <dependency.commons-io>2.18.0</dependency.commons-io>
