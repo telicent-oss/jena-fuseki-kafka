@@ -21,6 +21,7 @@ import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -49,6 +50,12 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * Functions for Fuseki-Kafka server setup.
  */
 public class FKS {
+
+    /**
+     * Map for communicating the restoration of kafka offsets.
+     */
+    static ConcurrentHashMap<String, Long> restoreOffsetMap = new ConcurrentHashMap<>();
+
     /**
      * Add a connector to a server.
      * Called from FusekiModule.serverBeforeStarting.
@@ -339,10 +346,47 @@ public class FKS {
     private static void topicPoll(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState) {
         for ( ;; ) {
             try {
-                boolean somethingReceived = oneTopicPoll(requestProcessor, consumer, dataState, FKConst.pollingWaitDuration);
+                // This will be empty 99.99% of the time
+                if (restoreOffsetMap.isEmpty()) {
+                    oneTopicPoll(requestProcessor, consumer, dataState, FKConst.pollingWaitDuration);
+                } else {
+                    Long newOffset = restoreOffsetMap.get(dataState.getDatasetName());
+                    if (newOffset == null) {
+                        oneTopicPoll(requestProcessor, consumer, dataState, FKConst.pollingWaitDuration);
+                    } else {
+                        resetConsumerToNewOffset(requestProcessor, consumer, dataState, newOffset);
+                        restoreOffsetMap.remove(dataState.getDatasetName());
+                    }
+                }
             } catch (Throwable th) {
                 FmtLog.debug(LOG, th, "[%s] Unexpected Exception %s", dataState.getTopic(), dataState);
             }
+        }
+    }
+
+    /**
+     * Update Kafka Consumer to use new offset, provided it's different from
+     * existing offset and not before the earliest available.
+     * Note: we iterate over the possible partitions, however, there will only ever be one at present.
+     * @param requestProcessor Processes the kafka messages
+     * @param consumer Consumes kafka messages from topic
+     * @param dataState Contains the state of the kafka processing
+     */
+    static void resetConsumerToNewOffset(FKBatchProcessor requestProcessor, Consumer<String, RequestFK> consumer, DataState dataState, long newOffset) {
+        FmtLog.info(LOG, "[%s] Restoring %s back to offset - %d", dataState.getTopic(), dataState.getDatasetName(), newOffset);
+        if (dataState.getLastOffset() != newOffset) {
+            List<PartitionInfo> partitionInfoList = consumer.partitionsFor(dataState.getTopic());
+            for (PartitionInfo partitionInfo : partitionInfoList) {
+                TopicPartition topicPartition = new TopicPartition(dataState.getTopic(), partitionInfo.partition());
+                Map<TopicPartition, Long> offsetMap = consumer.beginningOffsets(List.of(topicPartition));
+                long beginningOffset = offsetMap.get(topicPartition);
+                if (newOffset < beginningOffset) {
+                    FmtLog.info(LOG, "[%s] Can only restore %s to first available offset - %d", dataState.getTopic(), dataState.getDatasetName(), beginningOffset);
+                    newOffset = beginningOffset;
+                }
+                consumer.seek(topicPartition, newOffset);
+            }
+            oneTopicPoll(requestProcessor, consumer, dataState, FKConst.pollingWaitDuration);
         }
     }
 
@@ -369,5 +413,14 @@ public class FKS {
         FKProcessor requestProcessor = new FKProcessorFusekiDispatch(requestURI, servletContext);
         FKBatchProcessor batchProcessor = FKBatchProcessor.createBatchProcessor(requestProcessor);
         return batchProcessor;
+    }
+
+    /**
+     * Updates map for dataset with offset to restore from
+     * @param datasetName relevant dataset
+     * @param offset desired offset
+     */
+    public static void restoreOffsetForDataset(String datasetName, Long offset) {
+        restoreOffsetMap.put(datasetName, offset);
     }
 }
