@@ -18,6 +18,7 @@ package org.apache.jena.fuseki.kafka;
 
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
+import org.awaitility.Awaitility;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
@@ -47,6 +48,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -59,14 +61,15 @@ public class DockerTestFK {
         FusekiLogging.setLogging();
     }
     private static final String TOPIC ="TEST";
-    private static final String DSG ="/ds";
+    private static final String DSG_NAME ="/ds";
+    private static final DatasetGraph DSG = DatasetGraphFactory.createTxnMem();
     /**
      * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
      */
     protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
 
     // Logs to silence,
-    private static String [] XLOGS = {
+    private static final String [] XLOGS = {
         AdminClientConfig.class.getName() ,
         // NetworkClient is noisy with warnings about can't connect.
         NetworkClient.class.getName() ,
@@ -144,22 +147,85 @@ public class DockerTestFK {
         // Assumes the topic exists and has data.
         DataState dataState = DataState.createEphemeral(TOPIC);
         FusekiServer server = startFuseki(dataState, consumerProps());
-        String URL = "http://localhost:"+server.getHttpPort()+DSG;
+        String URL = "http://localhost:"+server.getHttpPort()+ DSG_NAME;
         RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
         int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
         Assert.assertEquals(count, 2);
     }
 
+    @Test(priority = 5) public void fk05_restore() {
+        // Assumes the topic exists and has data.
+        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+        DataState dataState = DataState.createEphemeral(TOPIC);
+        FusekiServer server = startFuseki(dataState, consumerProps());
+        String URL = "http://localhost:"+server.getHttpPort()+ DSG_NAME;
+        DSG.clear();
+        RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 0);
+        FKS.restoreOffsetForDataset("", 0L);
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .until(FKS.restoreOffsetMap::isEmpty);
+        rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 2);
+    }
+
+    @Test(priority = 6) public void fk06_restore_ignore() {
+        // Assumes the topic exists and has data.
+        FKS.restoreOffsetForDataset("ignore", 1L);
+        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+        DataState dataState = DataState.createEphemeral(TOPIC);
+        FusekiServer server = startFuseki(dataState, consumerProps());
+        String URL = "http://localhost:"+server.getHttpPort()+ DSG_NAME;
+        DSG.clear();
+        RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 0);
+        FKS.restoreOffsetMap.clear();
+        FKS.restoreOffsetForDataset("", 2L);
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .until(FKS.restoreOffsetMap::isEmpty);
+        rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 0);
+    }
+
+
+    @Test(priority = 7) public void fk07_restore_beginning() {
+        // Assumes the topic exists and has data.
+        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+        DataState dataState = DataState.createEphemeral(TOPIC);
+        FusekiServer server = startFuseki(dataState, consumerProps());
+        String URL = "http://localhost:"+server.getHttpPort()+ DSG_NAME;
+        DSG.clear();
+        RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 0);
+        FKS.restoreOffsetForDataset("", -5L);
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .until(FKS.restoreOffsetMap::isEmpty);
+        rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
+        count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        Assert.assertEquals(count, 2);
+    }
+
+
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {
-        DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
         // Automatic
         //FusekiModules.add(new FMod_FusekiKafka());
         FusekiServer server = FusekiServer.create()
                 .port(0)
                 //.verbose(true)
-                .add(DSG,  dsg)
+                .add(DSG_NAME,  DSG)
                 .build();
-        KConnectorDesc conn = new KConnectorDesc(TOPIC, null, DSG, null, null,
+        KConnectorDesc conn = new KConnectorDesc(TOPIC, null, DSG_NAME, null, null,
                                                            false, true,
                                                            consumerProps);
         // Manual call to setup the server.
