@@ -22,7 +22,7 @@
   <groupId>io.telicent.jena</groupId>
   <artifactId>jena-kafka</artifactId>
   <packaging>pom</packaging>
-  <version>1.5.2-SNAPSHOT</version>
+  <version>1.5.3-SNAPSHOT</version>
 
   <name>Apache Jena Fuseki-Kafka Connector</name>
   <description>Fuseki Module : Kafka Connector</description>
@@ -60,7 +60,7 @@
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
     <java.version>17</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2024-10-24T10:53:19Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-12-11T14:11:05Z</project.build.outputTimestamp>
 
     <!-- Maven Plugin versions -->
     <plugin.clean>3.4.0</plugin.clean>

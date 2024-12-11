@@ -1,5 +1,8 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.5.2
+- Adding backup/restore functionality.
+
 ## 1.5.1
 
 - Added support for `<env:VAR>` URIs for `fk:configFile` property
