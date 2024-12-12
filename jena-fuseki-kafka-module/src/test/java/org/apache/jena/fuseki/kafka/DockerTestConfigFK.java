@@ -20,11 +20,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
@@ -50,10 +54,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class DockerTestConfigFK {
     static {
@@ -134,6 +135,13 @@ public class DockerTestConfigFK {
                 .build();
         FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
         server.start();
+
+        // Given this is the first test, give Kafka/Server time to wake up.
+        TopicExistenceChecker checker =
+                new TopicExistenceChecker(kafka.getAdminClient(), kafka.getBootstrapServers(),
+                        Set.of(TOPIC), null);
+        Assert.assertTrue(checker.allTopicsExist(Duration.ofMillis(500)));
+
         try {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
             RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
