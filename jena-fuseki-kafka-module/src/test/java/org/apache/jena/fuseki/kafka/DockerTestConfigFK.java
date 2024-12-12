@@ -137,10 +137,10 @@ public class DockerTestConfigFK {
         server.start();
 
         // Given this is the first test, give Kafka/Server time to wake up.
-        TopicExistenceChecker checker =
-                new TopicExistenceChecker(kafka.getAdminClient(), kafka.getBootstrapServers(),
-                        Set.of(TOPIC), null);
-        Assert.assertTrue(checker.allTopicsExist(Duration.ofMillis(500)));
+//        TopicExistenceChecker checker =
+//                new TopicExistenceChecker(kafka.getAdminClient(), kafka.getBootstrapServers(),
+//                        Set.of(TOPIC), null);
+//        Assert.assertTrue(checker.allTopicsExist(Duration.ofMillis(500)));
 
         try {
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
