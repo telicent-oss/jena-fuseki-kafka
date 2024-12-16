@@ -84,17 +84,17 @@
 
     <!-- Internal dependencies -->
     <dependency.jena>5.2.0</dependency.jena>
-    <dependency.smart-caches>0.24.2</dependency.smart-caches>
+    <dependency.smart-caches>0.25.0</dependency.smart-caches>
 
     <!-- External dependencies -->
     <dependency.commons-io>2.18.0</dependency.commons-io>
     <dependency.kafka>3.9.0</dependency.kafka>
-    <dependency.log4j2>2.24.2</dependency.log4j2>
+    <dependency.log4j2>2.24.3</dependency.log4j2>
     <dependency.slf4j>2.0.7</dependency.slf4j>
 
     <!-- Test dependencies -->
-    <dependency.awaitility>4.2.0</dependency.awaitility>
-    <dependency.junit5>5.11.3</dependency.junit5>
+    <dependency.awaitility>4.2.2</dependency.awaitility>
+    <dependency.junit5>5.11.4</dependency.junit5>
     <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
     <dependency.mockito>5.14.2</dependency.mockito>
     <dependency.testcontainers>1.20.4</dependency.testcontainers>
