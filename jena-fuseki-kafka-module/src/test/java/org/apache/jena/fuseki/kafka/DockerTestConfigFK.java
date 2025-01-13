@@ -122,7 +122,7 @@ public class DockerTestConfigFK {
     @Test(priority = 1)
     public void fk01_fuseki_data() {
         String TOPIC = "RDF0";
-        Graph graph = configuration(DIR+"/config-connector.ttl", kafka.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -146,7 +146,7 @@ public class DockerTestConfigFK {
     @Test(priority = 2) public void fk02_fuseki_two_connectors() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-2.ttl", kafka.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-2.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         //RDFWriter.source(graph).lang(Lang.TTL).output(System.out);
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
@@ -178,7 +178,7 @@ public class DockerTestConfigFK {
     @Test(priority = 3) public void fk03_fuseki_data_update() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-3.ttl", kafka.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-3.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -201,7 +201,7 @@ public class DockerTestConfigFK {
     // RDF Patch
     @Test(priority = 4) public void fk04_fuseki_patch() {
         String TOPIC = "RDF_Patch";
-        Graph graph = configuration(DIR+"/config-connector-patch.ttl", kafka.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-patch.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -226,7 +226,7 @@ public class DockerTestConfigFK {
     @Test(priority = 5) public void fk05_fuseki_env_config() {
         System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
         System.clearProperty("TEST_KAFKA_TOPIC");
-        Graph graph = configuration(DIR+"/config-connector-env.ttl", kafka.getBootstrapServers());
+        Graph graph = configuration(DIR+"/config-connector-env.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
@@ -252,7 +252,7 @@ public class DockerTestConfigFK {
     }
 
     // Read a configuration and update it for the mock server.
-    protected Graph configuration(String filename, String bootstrapServers) {
+    protected static Graph configuration(String filename, String bootstrapServers, Properties props) {
         // Fix up!
         Graph graph = RDFParser.source(filename).toGraph();
         List<Triple> triplesBootstrapServers = G.find(graph,
@@ -273,7 +273,6 @@ public class DockerTestConfigFK {
         });
 
         // If extra client properties are needed inject via an external properties file
-        Properties props = this.kafka.getClientProperties();
         if (!props.isEmpty()) {
             try {
                 // Write Kafka properties out to a temporary file

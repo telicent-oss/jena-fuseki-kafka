@@ -274,7 +274,7 @@ public class FKS {
             }
         } catch (TimeoutException ex) {
             ex.printStackTrace(System.err);
-            FmtLog.info(LOG, "[%s] Failed to contact Kafka broker for topic partition %s", topicName, topicName);
+            FmtLog.error(LOG, "[%s] Failed to contact Kafka broker for topic partition %s", topicName, topicName);
             // No server => no topic.
         } finally {
             LogCtl.setLevel(cls, logLevel);

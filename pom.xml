@@ -84,18 +84,21 @@
 
     <!-- Internal dependencies -->
     <dependency.jena>5.2.0</dependency.jena>
-    <dependency.smart-caches>0.25.1</dependency.smart-caches>
+    <dependency.smart-caches>0.25.2</dependency.smart-caches>
 
     <!-- External dependencies -->
     <dependency.commons-io>2.18.0</dependency.commons-io>
+    <dependency.commons-lang>3.17.0</dependency.commons-lang>
     <dependency.kafka>3.9.0</dependency.kafka>
     <dependency.log4j2>2.24.3</dependency.log4j2>
+    <dependency.servlet>6.1.0</dependency.servlet>
     <dependency.slf4j>2.0.7</dependency.slf4j>
 
     <!-- Test dependencies -->
     <dependency.awaitility>4.2.2</dependency.awaitility>
     <dependency.junit5>5.11.4</dependency.junit5>
     <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
+    <dependency.logback>1.5.15</dependency.logback>
     <dependency.mockito>5.15.2</dependency.mockito>
     <dependency.testcontainers>1.20.4</dependency.testcontainers>
     <dependency.testng>7.10.2</dependency.testng>
@@ -118,14 +121,10 @@
         <artifactId>jena-arq</artifactId>
         <version>${dependency.jena}</version>
         <!-- 
-             Exclusions for checkerframework and errorprone can be
+             Exclusions for errorprone can be
              removed for Jena 5.1.0 because Jena does not pass them on.
         -->
         <exclusions>
-          <exclusion>
-            <groupId>org.checkerframework</groupId>
-            <artifactId>checker-qual</artifactId>
-          </exclusion>
           <exclusion>
             <groupId>com.google.errorprone</groupId>
             <artifactId>error_prone_annotations</artifactId>
@@ -139,7 +138,25 @@
 
       <dependency>
         <groupId>org.apache.jena</groupId>
+        <artifactId>jena-base</artifactId>
+        <version>${dependency.jena}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-core</artifactId>
+        <version>${dependency.jena}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
         <artifactId>jena-cmds</artifactId>
+        <version>${dependency.jena}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-fuseki-core</artifactId>
         <version>${dependency.jena}</version>
       </dependency>
 
@@ -156,7 +173,32 @@
         <version>${dependency.jena}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-rdfpatch</artifactId>
+        <version>${dependency.jena}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-tdb2</artifactId>
+        <version>${dependency.jena}</version>
+      </dependency>
+
       <!-- External dependencies -->
+      <!-- JAX-RS related dependencies -->
+      <dependency>
+        <groupId>jakarta.servlet</groupId>
+        <artifactId>jakarta.servlet-api</artifactId>
+        <version>${dependency.servlet}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>${dependency.commons-lang}</version>
+      </dependency>
+
       <dependency>
         <groupId>org.apache.kafka</groupId>
         <artifactId>kafka-clients</artifactId>
@@ -167,17 +209,6 @@
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-slf4j2-impl</artifactId>
         <version>${dependency.log4j2}</version>
-        <exclusions>
-          <!-- Apache Kafka client pulls in org.osgi:org.osgi.core:jar -->
-          <exclusion>
-            <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.errorprone</groupId>
-            <artifactId>error_prone_annotations</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
@@ -187,6 +218,19 @@
       </dependency>
 
       <!-- Test dependencies -->
+      <!-- Adding to avoid incompatibility with older versions and Test Containers -->
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${dependency.commons-io}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.13.2</version>
+        <scope>test</scope>
+      </dependency>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>kafka</artifactId>
@@ -199,7 +243,18 @@
           </exclusion>
         </exclusions>
       </dependency>
-
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>toxiproxy</artifactId>
+        <version>${dependency.testcontainers}</version>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
@@ -244,16 +299,20 @@
         <version>${plugin.jar}</version>
         <configuration>
           <archive>
-            <manifest> 
+            <manifest>
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
             </manifest>
           </archive>
         </configuration>
         <executions>
           <execution>
+            <id>create-test-jar</id>
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <configuration>
+              <classifier>tests</classifier>
+            </configuration>
           </execution>
         </executions>
       </plugin>
