@@ -182,7 +182,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
             DataState dataState = pair.getRight();
             FmtLog.info(LOG, "[%s] Starting connector between %s topic %s and endpoint %s", conn.getTopic(),
                         conn.getBootstrapServers(), conn.getTopic(),
-                        conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint());
+                        conn.isLocalDispatch() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint());
             FKBatchProcessor batchProcessor = makeFKBatchProcessor(conn, server);
             FKS.addConnectorToServer(conn, server, dataState, batchProcessor);
         });

@@ -18,8 +18,27 @@ package org.apache.jena.kafka;
 
 import org.apache.jena.shared.JenaException;
 
+/**
+ * Exception indicating something went wrong with the Jena Fuseki Kafka integration
+ */
 public class JenaKafkaException extends JenaException {
-    public JenaKafkaException(String message)                    { super(message); }
-    public JenaKafkaException(String message, Throwable cause)   { super(message, cause) ; }
+    /**
+     * Creates a new exception
+     *
+     * @param message Message
+     */
+    public JenaKafkaException(String message) {
+        super(message);
+    }
+
+    /**
+     * Creates a new exception
+     *
+     * @param message Message
+     * @param cause   Cause
+     */
+    public JenaKafkaException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
 

@@ -24,7 +24,6 @@ import org.apache.jena.rdf.model.impl.Util;
 import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.graph.NodeConst;
 import org.apache.jena.system.G;
-import org.apache.jena.system.RDFDataException;
 
 /**
  * This class is the beginnings of assembler-like functionality working at the Graph level.
@@ -37,21 +36,10 @@ class Assem2 {
         RuntimeException exception(String errorMsg);
     }
 
-    private static OnError dftErrorException = RDFDataException::new;
-
-//    /**
-//     * Get a required String from a object that is xsd:string.
-//     * <p>
-//     * If absent, multi-valued or not an xsd:string, then throw {@link RDFDataException}.
-//     */
-//    static String getString(Graph graph, Node node, Node property) {
-//        return getString(graph, node, property, dftErrorException);
-//    }
-
     /**
-     * Get a required String from a object that is xsd:string.
+     * Get a required String from an object that is {@code xsd:string}.
      * <p>
-     * If absent, multi-valued or not an xsd:string, then throw a custom runtime
+     * If absent, multivalued or not a {@code xsd:string}, then throw a custom runtime
      * exception.
      */
     public static String getString(Graph graph, Node node, Node property, OnError onError) {
@@ -73,35 +61,9 @@ class Assem2 {
         return onError.exception(eMsg);
     }
 
-
-//    /**
-//     * Get a string from a URI or an xsd:string.
-//     * Otherwise throw {@link RDFDataException}.
-//     */
-//    public static String getAsString(Graph graph, Node node, Node property) {
-//        return getAsString(graph, node, property, dftErrorException);
-//    }
-
     /**
-     * Get a string from a URI or an xsd:string.
-     * Otherwise throw a custom runtime exception.
-     */
-    public static String getAsString(Graph graph, Node node, Node property, OnError onError) {
-        Objects.requireNonNull(graph);
-        Objects.requireNonNull(onError);
-        Node obj = G.getOneSP(graph, node, property);
-        if ( obj == null )
-            return null;
-        if ( obj.isURI() )
-            return obj.getURI() ;
-        if ( Util.isSimpleString(obj) )
-            return obj.getLiteralLexicalForm();
-        throw onError(node, property, "Not a URI or a string", onError);
-    }
-
-    /**
-     * Get a String from an xsd:string or return a default value if no such subject-property.
-     * Error if the object is not a string or multi-valued.
+     * Get a String from a {@code xsd:string} or return a default value if no such subject-property.
+     * Error if the object is not a string or multivalued.
      */
     public static String getStringOrDft(Graph graph, Node node, Node property, String defaultString, OnError onError) {
         Node x = G.getZeroOrOneSP(graph, node, property);
