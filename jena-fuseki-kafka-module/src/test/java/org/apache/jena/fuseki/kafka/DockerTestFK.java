@@ -204,7 +204,7 @@ public class DockerTestFK {
                 .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .add(DSG_NAME,  DSG)
                 .build();
-        KConnectorDesc conn = new KConnectorDesc(TOPIC, null, DSG_NAME, null, null,
+        KConnectorDesc conn = new KConnectorDesc(List.of(TOPIC), null, DSG_NAME, null, null,
                                                            false, true,
                                                            consumerProps);
         // Manual call to setup the server.

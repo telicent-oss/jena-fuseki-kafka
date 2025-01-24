@@ -82,8 +82,8 @@ public class FKS {
 
         // -- Choose start point.
         // If true, ignore topic state and start at current.
-        boolean syncTopic = conn.getSyncTopic();
-        boolean replayTopic = conn.getReplayTopic();
+        boolean syncTopic = conn.isSyncTopic();
+        boolean replayTopic = conn.isReplayTopic();
 
         // Last offset processed
         long stateOffset = dataState.getLastOffset();

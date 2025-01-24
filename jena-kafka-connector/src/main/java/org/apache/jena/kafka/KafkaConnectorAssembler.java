@@ -209,7 +209,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
         // ----
         Properties kafkaConsumerProps = kafkaConsumerProps(graph,  node,  topic, bootstrapServers, groupId);
-        return new KConnectorDesc(topic, bootstrapServers,
+        return new KConnectorDesc(List.of(topic), bootstrapServers,
                                   datasetName, remoteEndpoint, stateFile, syncTopic,
                                   replayTopic, kafkaConsumerProps);
     }
