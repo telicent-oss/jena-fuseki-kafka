@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
@@ -38,7 +39,6 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFParser;
-import org.apache.jena.riot.WebContent;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sys.JenaSystem;
@@ -50,6 +50,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -59,7 +60,7 @@ import org.testng.annotations.Test;
 public class DockerTestConfigFK {
     static {
         JenaSystem.init();
-        FusekiLogging.setLogging();
+        FusekiLogging.markInitialized(true);
     }
 
     /**
@@ -68,9 +69,32 @@ public class DockerTestConfigFK {
     protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
     private static final String DIR = "src/test/files";
 
+<<<<<<< HEAD
     @BeforeClass
     public void beforeClass() {
         Log.info("TestIntegrationFK","Starting testcontainer for Kafka");
+=======
+    // Logs to silence,
+    private static final String[] XLOGS = {
+            AdminClientConfig.class.getName(),
+            // NetworkClient is noisy with warnings about can't connect.
+            NetworkClient.class.getName(),
+            FetchSessionHandler.class.getName(),
+            ConsumerConfig.class.getName(),
+            ProducerConfig.class.getName(),
+            AppInfoParser.class.getName()
+    };
+
+    private static void adjustLogs(String level) {
+        for (String logName : XLOGS) {
+            LogCtl.setLevel(logName, level);
+        }
+    }
+
+    @BeforeClass
+    public void beforeClass() {
+        adjustLogs("Warning");
+        Log.info("TestIntegrationFK", "Starting testcontainer for Kafka");
 
         kafka.setup();
         kafka.resetTopic("RDF0");
@@ -93,7 +117,7 @@ public class DockerTestConfigFK {
 
     @AfterClass
     public void afterClass() {
-        Log.info("TestIntegrationFK","Stopping testcontainer for Kafka");
+        Log.info("TestIntegrationFK", "Stopping testcontainer for Kafka");
         FKS.resetPollThreads();
         kafka.teardown();
     }
@@ -101,157 +125,175 @@ public class DockerTestConfigFK {
     private static final String STATE_DIR = "target/state";
 
     @Test(priority = 1)
-    public void fk01_fuseki_data() {
+    public void givenSingleConnector_whenRunningFusekiKafka_thenDataAsExpected() {
+        // Given
         String TOPIC = "RDF0";
-        Graph graph = configuration(DIR+"/config-connector.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
+        Graph graph =
+                configuration(DIR + "/config-connector.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        // Configuration knows the topic name.
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
+        // When
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR + "/data.ttl"));
         server.start();
         try {
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
-            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 1);
-        } finally { server.stop(); }
+            // Then
+            waitForDataCount("http://localhost:" + server.getHttpPort() + "/ds", 1);
+        } finally {
+            server.stop();
+        }
+    }
+
+    public static void waitForDataCount(String url, int expectedCount) {
+        //@formatter:off
+            Awaitility.await()
+                      .pollDelay(Duration.ZERO)
+                      .pollInterval(Duration.ofSeconds(3))
+                      .atMost(Duration.ofSeconds(10))
+                      .until(() -> count(url), x -> x == expectedCount);
+            //@formatter:on
     }
 
     // Two connectors
-    @Test(priority = 2) public void fk02_fuseki_two_connectors() {
+    @Test(priority = 2)
+    public void givenTwoConnectorsToDifferentDatasets_whenRunningFusekiKafka_thenEachDatasetAsExpected() {
+        // Given
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-2.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
-        //RDFWriter.source(graph).lang(Lang.TTL).output(System.out);
+        Graph graph = configuration(DIR + "/config-connector-2.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        // Configuration knows the topic name.
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
+        // When
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
         // Two triples in topic 2
         // One triple in topic 1
-        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
-        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
-        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR + "/data.ttl", DIR + "/data2.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR + "/data.ttl"));
         // Do after the "send" so the first poll picks them up.
         server.start();
         try {
-            String URL1 = "http://localhost:"+server.getHttpPort()+"/ds1";
-            int count1 = count(URL1);
-            Assert.assertEquals(count1, 1);
-            String URL2 = "http://localhost:"+server.getHttpPort()+"/ds2";
-            int count2 = count(URL2);
-            Assert.assertEquals(count2, 2);
-        } finally { server.stop(); }
+            // Then
+            String URL1 = "http://localhost:" + server.getHttpPort() + "/ds1";
+            waitForDataCount(URL1, 1);
+            String URL2 = "http://localhost:" + server.getHttpPort() + "/ds2";
+            waitForDataCount(URL2, 2);
+        } finally {
+            server.stop();
+        }
     }
 
     // Two connectors, one dataset
-    @Test(priority = 3) public void fk03_fuseki_data_update() {
+    @Test(priority = 3)
+    public void givenTwoConnectorsToSameDataset_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
-        Graph graph = configuration(DIR+"/config-connector-3.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
+        Graph graph = configuration(DIR + "/config-connector-3.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
         // One triple on each topic.
-        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR+"/update.ru"));
-        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR+"/data.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR + "/data2.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR + "/data.ttl"));
         server.start();
         try {
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds0";
-            int count = count(URL);
-            Assert.assertEquals(count, 2);
-        } finally { server.stop(); }
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds0";
+            waitForDataCount(URL, 2);
+        } finally {
+            server.stop();
+        }
     }
 
     // RDF Patch
-    @Test(priority = 4) public void fk04_fuseki_patch() {
+    @Test(priority = 4)
+    public void givenSingleConnector_whenRunningFusekiKafkaWithPatchEvents_thenPatchAppliedAsExpected() {
+        // Given
         String TOPIC = "RDF_Patch";
-        Graph graph = configuration(DIR+"/config-connector-patch.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
+        Graph graph = configuration(DIR + "/config-connector-patch.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        // Configuration knows the topic name.
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
-        FKLib.sendString(producerProps(), TOPIC, WebContent.contentTypeSPARQLUpdate, "CLEAR ALL");
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/patch1.rdfp"));
+        // When
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
+
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR + "/patch1.rdfp"));
         server.start();
         try {
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
-            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 4);
-        } finally { server.stop(); }
+            // Then
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds";
+            waitForDataCount(URL, 4);
+        } finally {
+            server.stop();
+        }
     }
 
     // Env Variable use
-    @Test(priority = 5) public void fk05_fuseki_env_config() {
+    @Test(priority = 5)
+    public void givenEnvironmentVariableConfiguration_whenRunningFusekiKafka_thenDataAsExpected() {
+        // Given
         System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
         System.clearProperty("TEST_KAFKA_TOPIC");
-        Graph graph = configuration(DIR+"/config-connector-env.ttl", kafka.getBootstrapServers(), kafka.getClientProperties());
+        Graph graph = configuration(DIR + "/config-connector-env.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        // Configuration knows the topic name.
-        FusekiServer server = FusekiServer.create()
-                                          .port(0)
-                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                                          .parseConfig(ModelFactory.createModelForGraph(graph))
-                                          .build();
-        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR+"/data.ttl"));
+        // When
+        FusekiServer server =
+                FusekiServer.create().port(0).fusekiModules(FusekiModules.create(new FMod_FusekiKafka())).parseConfig(ModelFactory.createModelForGraph(graph)).build();
+        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl"));
         server.start();
         try {
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
-            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 1);
-        } finally { server.stop(); }
+            // Then
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds";
+            waitForDataCount(URL, 1);
+        } finally {
+            server.stop();
+        }
         System.clearProperty("TEST_BOOTSTRAP_SERVER");
     }
 
     private static int count(String URL) {
-        RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-        return ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
+        RowSet rowSet = QueryExecHTTP.service(URL)
+                                     .query("SELECT (count(*) AS ?C) { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }")
+                                     .select();
+        return ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
     }
 
     // Read a configuration and update it for the mock server.
     protected static Graph configuration(String filename, String bootstrapServers, Properties props) {
         // Fix up!
         Graph graph = RDFParser.source(filename).toGraph();
-        List<Triple> triplesBootstrapServers = G.find(graph,
-                                                      null,
-                                                      KafkaConnectorAssembler.pKafkaBootstrapServers,
-                                                      null).toList();
-        triplesBootstrapServers.forEach(t->{
+        List<Triple> triplesBootstrapServers =
+                G.find(graph, null, KafkaConnectorAssembler.pKafkaBootstrapServers, null).toList();
+        triplesBootstrapServers.forEach(t -> {
             graph.delete(t);
             graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(bootstrapServers));
         });
 
         FileOps.ensureDir("target/state");
         List<Triple> triplesStateFile = G.find(graph, null, KafkaConnectorAssembler.pStateFile, null).toList();
-        triplesStateFile.forEach(t->{
+        triplesStateFile.forEach(t -> {
             graph.delete(t);
             String fn = t.getObject().getLiteralLexicalForm();
-            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(STATE_DIR+"/"+fn));
+            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(STATE_DIR + "/" + fn));
         });
 
         // If extra client properties are needed inject via an external properties file
@@ -266,10 +308,11 @@ public class DockerTestConfigFK {
                 // For each Kafka connector in the configuration inject the fk:configFile triple pointing to our
                 // temporary properties file for our Secure Cluster
                 List<Triple> connectors =
-                        G.find(graph, null, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode()).toList();
+                        G.find(graph, null, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode())
+                         .toList();
                 connectors.forEach(t -> {
                     graph.add(t.getSubject(), KafkaConnectorAssembler.pKafkaPropertyFile,
-                          NodeFactory.createURI(propsFile.toURI().toString()));
+                              NodeFactory.createURI(propsFile.toURI().toString()));
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);

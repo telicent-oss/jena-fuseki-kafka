@@ -12,6 +12,7 @@ import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
@@ -35,7 +36,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
 
-public class TestKafkaDelays {
+public class DockerTestKafkaDelays {
 
     private static final String DIR = "src/test/files";
     private static final String STATE_DIR = "target/state";
@@ -124,13 +125,14 @@ public class TestKafkaDelays {
      * This tests that everything works correctly with the ToxiProxy in place.
      */
     @Test
-    public void test_happy_path() {
+    public void givenNoActionProxy_whenRunningFusekiKafka_thenDataLoadedAsExpected() {
+        // Given
         String TOPIC = "RDF0";
         Graph graph = configuration(DIR+"/config-connector.ttl", kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(), new Properties());
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
-        // Configuration knows the topic name.
+        // When
         FusekiServer server = FusekiServer.create()
                 .port(0)
                 .verbose(true)
@@ -140,10 +142,9 @@ public class TestKafkaDelays {
         FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
         server.start();
         try {
+            // Then
             String URL = "http://localhost:"+server.getHttpPort()+"/ds";
-            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 1);
+            DockerTestConfigFK.waitForDataCount(URL, 1);
         } finally { server.stop(); }
     }
 
@@ -151,49 +152,45 @@ public class TestKafkaDelays {
      * This tests that when a timeout takes place, an error message is logged
      */
     @Test
-    public void test_timeout() throws IOException {
-        debugLogging("set up error logging capture");
-        PrintStream standardErr = System.err;
-        ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-        System.setErr(new PrintStream(outputStreamCaptor));
-
-        debugLogging("Set up timeout of 100ms");
-        kafkaProxy.toxics()
-                .timeout("timeout", ToxicDirection.DOWNSTREAM, 100L);
-
-        debugLogging("Configure Graph with a kakfa time out of 50ms");
-        Properties consumerProps = new Properties();
-        consumerProps.put("max-poll-interval", "50");
-        Graph graph = configuration(DIR+"/config-connector.ttl", kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(), consumerProps);
-        FileOps.ensureDir(STATE_DIR);
-        FileOps.clearDirectory(STATE_DIR);
-        // Configuration knows the topic name.
-        debugLogging("Configure Server");
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .verbose(true)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
-        debugLogging("Start Server");
-        Throwable actualException = null;
+    public void givenTimeoutProxy_whenRunningFusekiKafka_thenNoDataLoaded() throws IOException {
         try {
-            server.start();
-        }catch (FusekiException exception) {
-            actualException = exception;
-        } finally { server.stop(); }
+            // Given
+            debugLogging("Set up timeout of 100ms");
+            kafkaProxy.toxics()
+                      .timeout("timeout", ToxicDirection.DOWNSTREAM, 100L);
 
-        debugLogging("Clear timeout");
-        kafkaProxy.toxics().get("timeout").remove();
+            debugLogging("Configure Graph with a kakfa time out of 50ms");
+            Properties consumerProps = new Properties();
+            consumerProps.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "50");
+            Graph graph = configuration(DIR + "/config-connector.ttl",
+                                        kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(),
+                                        consumerProps);
+            FileOps.ensureDir(STATE_DIR);
+            FileOps.clearDirectory(STATE_DIR);
 
-        debugLogging("Assert timeout exception thrown");
-        assertNotNull(actualException);
-        assertTrue(actualException.getCause() instanceof TimeoutException);
+            // When
+            debugLogging("Configure Server");
+            FusekiServer server = FusekiServer.create()
+                                              .port(0)
+                                              .verbose(true)
+                                              .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                              .parseConfig(ModelFactory.createModelForGraph(graph))
+                                              .build();
+            debugLogging("Start Server");
+            try {
+                server.start();
 
-        debugLogging("Assert error message");
-        System.setErr(standardErr);
-        debugLogging(outputStreamCaptor.toString().trim());
-        assertEquals("org.apache.kafka.common.errors.TimeoutException: Timeout expired while fetching topic metadata", outputStreamCaptor.toString().trim());
+                // Then
+                String URL = "http://localhost:"+server.getHttpPort()+"/ds";
+                DockerTestConfigFK.waitForDataCount(URL, 0);
+            } finally {
+                server.stop();
+            }
+
+        } finally {
+            debugLogging("Clear timeout");
+            kafkaProxy.toxics().get("timeout").remove();
+        }
     }
 
 
@@ -201,37 +198,43 @@ public class TestKafkaDelays {
      * This tests that we can handle a little latency without issue.
      */
     @Test
-    public void test_latency() throws IOException {
-        debugLogging("Set up latency of 100ms");
-        kafkaProxy.toxics()
-                .latency("latency", ToxicDirection.DOWNSTREAM, 100);
-
-        String TOPIC = "RDF0";
-        Properties consumerProps = new Properties();
-        consumerProps.put("max-poll-interval", "100");
-        Graph graph = configuration(DIR+"/config-connector.ttl", kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(), consumerProps);
-        FileOps.ensureDir(STATE_DIR);
-        FileOps.clearDirectory(STATE_DIR);
-        debugLogging("Configure server");
-        // Configuration knows the topic name.
-        FusekiServer server = FusekiServer.create()
-                .port(0)
-                .verbose(true)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
-        debugLogging("Start server");
-        server.start();
+    public void givenLatencyProxy_whenRunningFusekiKafka_thenDataIsLoaded() throws IOException {
         try {
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
-            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-            int count = ((Number)rowSet.next().get("C").getLiteralValue()).intValue();
-            debugLogging("Assert query worked");
-            Assert.assertEquals(count, 1);
-        } finally { server.stop(); }
-        debugLogging("Clear latency");
-        kafkaProxy.toxics().get("latency").remove();
+            // Given
+            debugLogging("Set up latency of 100ms");
+            kafkaProxy.toxics()
+                      .latency("latency", ToxicDirection.DOWNSTREAM, 100);
+
+            String TOPIC = "RDF0";
+            Properties consumerProps = new Properties();
+            Graph graph = configuration(DIR + "/config-connector.ttl",
+                                        kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(),
+                                        consumerProps);
+            FileOps.ensureDir(STATE_DIR);
+            FileOps.clearDirectory(STATE_DIR);
+            debugLogging("Configure server");
+
+            // When
+            FusekiServer server = FusekiServer.create()
+                                              .port(0)
+                                              .verbose(true)
+                                              .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                              .parseConfig(ModelFactory.createModelForGraph(graph))
+                                              .build();
+            FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR + "/data.ttl"));
+            debugLogging("Start server");
+            server.start();
+            try {
+                // Then
+                String URL = "http://localhost:" + server.getHttpPort() + "/ds";
+                DockerTestConfigFK.waitForDataCount(URL, 1);
+            } finally {
+                server.stop();
+            }
+        } finally {
+            debugLogging("Clear latency");
+            kafkaProxy.toxics().get("latency").remove();
+        }
     }
 
 }

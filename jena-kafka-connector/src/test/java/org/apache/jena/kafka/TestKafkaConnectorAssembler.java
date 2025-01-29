@@ -1,7 +1,5 @@
-package org.apache.jena.kafka.utils;
+package org.apache.jena.kafka;
 
-import org.apache.jena.kafka.KConnectorDesc;
-import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
@@ -25,7 +23,7 @@ public class TestKafkaConnectorAssembler {
     private static final String SERVICE_NAME = "/ds";
     private static final String STATE_FILE = "test.state";
 
-    private KafkaConnectorAssembler assembler = new KafkaConnectorAssembler();
+    private final KafkaConnectorAssembler assembler = new KafkaConnectorAssembler();
 
     @Test
     public void givenNoConfig_whenAssemblingConnector_thenNotLoaded() {
@@ -61,9 +59,9 @@ public class TestKafkaConnectorAssembler {
     private static KConnectorDesc verifyMinimalConfig(Object assembled) {
         Assert.assertTrue(assembled instanceof KConnectorDesc);
         KConnectorDesc connector = (KConnectorDesc) assembled;
-        Assert.assertEquals(TOPIC, connector.getTopic());
+        Assert.assertEquals(TOPIC, connector.getTopics().get(0));
         Assert.assertEquals(BOOTSTRAP_SERVERS, connector.getBootstrapServers());
-        Assert.assertEquals(SERVICE_NAME, connector.getLocalDispatchPath());
+        Assert.assertEquals(SERVICE_NAME, connector.getDatasetName());
         Assert.assertEquals(STATE_FILE, connector.getStateFile());
         return connector;
     }
@@ -263,6 +261,6 @@ public class TestKafkaConnectorAssembler {
 
         // And
         KConnectorDesc desc = verifyMinimalConfig(assembled);
-        Assert.assertEquals(desc.getKafkaConsumerProps().size(), 5);
+        Assert.assertEquals(6, desc.getKafkaConsumerProps().size());
     }
 }

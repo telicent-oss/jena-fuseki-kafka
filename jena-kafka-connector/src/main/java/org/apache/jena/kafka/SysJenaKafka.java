@@ -63,12 +63,15 @@ public class SysJenaKafka {
     public static Properties consumerProperties(String server) {
         Properties props = new Properties();
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+        // Set the various fetch related configuration, we increase these from their defaults so that we're more likely
+        // to fetch and process a larger batch of messages in one go
         props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, KAFKA_FETCH_BYTE_SIZE);
-        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, KAFKA_FETCH_BYTE_SIZE);
+        props.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, KAFKA_FETCH_BYTE_SIZE);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, KAFKA_FETCH_POLL_SIZE);
 
-        // Default is 50M
-        props.put("bootstrap.servers", server);
+        // Set the bootstrap server(s)
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, server);
         return props;
     }
 }
