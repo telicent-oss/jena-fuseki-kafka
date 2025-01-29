@@ -16,6 +16,7 @@
 
 package org.apache.jena.kafka;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
@@ -24,6 +25,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 /**
  * Details of a connector to Kafka.
@@ -40,6 +42,7 @@ public class KConnectorDesc {
 
     // Source
     private final List<String> topics;
+    private final String dlqTopic;
     private final String bootstrapServers;
 
     /**
@@ -60,11 +63,13 @@ public class KConnectorDesc {
     private final Properties kafkaConsumerProps;
 
     public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName,
-                          String stateFile, boolean syncTopic, boolean replayTopic, Properties kafkaConsumerProps) {
+                          String stateFile, boolean syncTopic, boolean replayTopic, String dlqTopic,
+                          Properties kafkaConsumerProps) {
         this.topics = Objects.requireNonNull(topics, "topics cannot be null");
         if (this.topics.isEmpty()) {
             throw new IllegalArgumentException("topics cannot be empty");
         }
+        this.dlqTopic = dlqTopic;
         this.bootstrapServers = Objects.requireNonNull(bootstrapServers, "bootstrapServers cannot be null");
         this.datasetName = datasetName;
         this.syncTopic = syncTopic;
@@ -76,6 +81,15 @@ public class KConnectorDesc {
         if (!hasLocalFusekiService) {
             throw new JenaKafkaException("ConnectorFK built with no local dispatch path");
         }
+    }
+
+    /**
+     * Gets the Consumer Group ID
+     *
+     * @return Consumer Group ID
+     */
+    public String getConsumerGroupId() {
+        return this.kafkaConsumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
     }
 
 }

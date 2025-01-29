@@ -24,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -47,7 +48,6 @@ import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.RowSet;
-import org.apache.jena.system.G;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,6 +110,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
      */
     public static Node pKafkaTopic = NodeFactory.createURI(NS + "topic");
     /**
+     * Kafka DLQ topic to which malformed events are forwarded
+     */
+    public static Node pDlqTopic = NodeFactory.createURI(NS + "dlqTopic");
+    /**
      * File used to record topic and last read offset
      */
     public static Node pStateFile = NodeFactory.createURI(NS + "stateFile");
@@ -121,7 +125,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     /**
      * Replay whole topic on startup?
      */
-
     private static Node pReplayTopic = NodeFactory.createURI(NS + "replayTopic");
 
     // Kafka cluster
@@ -131,9 +134,9 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     public static Node pKafkaGroupId = NodeFactory.createURI(NS + "groupId");
 
     // Default values.
-    private static boolean dftSyncTopic = true;
-    private static boolean dftReplayTopic = false;
-    public static String dftKafkaGroupId = "JenaFusekiKafka";
+    private static final boolean DEFAULT_SYNC_TOPIC = true;
+    private static final boolean DEFAULT_REPLAY_TOPIC = false;
+    public static final String DEFAULT_CONSUMER_GROUP_ID = "JenaFusekiKafka";
 
     public static Resource getType() {
         return tKafkaConnector;
@@ -183,15 +186,15 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          */
 
         // Required!
-        String topic = getConfigurationValue(graph, node, pKafkaTopic, errorException);
+        List<String> topics = getConfigurationValues(graph, node, pKafkaTopic, errorException);
 
         String datasetName = datasetName(graph, node);
         datasetName = /*DataAccessPoint.*/canonical(datasetName);
 
         String bootstrapServers = getConfigurationValue(graph, node, pKafkaBootstrapServers, errorException);
 
-        boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, dftSyncTopic, errorException);
-        boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, dftReplayTopic, errorException);
+        boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, DEFAULT_SYNC_TOPIC, errorException);
+        boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, DEFAULT_REPLAY_TOPIC, errorException);
 
         String stateFile = getConfigurationValue(graph, node, pStateFile, errorException);
         // The file name can be a relative file name as a string or a
@@ -201,19 +204,23 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             stateFile = IRILib.IRIToFilename(stateFile);
         }
 
-        String groupIdAssembler = Assem2.getStringOrDft(graph, node, pKafkaGroupId, dftKafkaGroupId, errorException);
-        // We need the group id to be unique so multiple servers will
-        // see all the messages topic partition.
-        String groupId = groupIdAssembler + "-" + UUID.randomUUID();
+        // The Kafka Consumer Group, used both to balance assignments of partitions to a consumer and to track our
+        // offsets in our state file.  If you want to run multiple instances of Fuseki with the Kafka module then each
+        // MUST have a unique Group ID otherwise only one instance will be assigned the partitions.
+        String groupId =
+                getConfigurationValueOrDefault(graph, node, pKafkaGroupId, DEFAULT_CONSUMER_GROUP_ID, errorException);
+
+        // Optional
+        // DLQ topic to which malformed events are forwarded
+        String dlqTopic = getConfigurationValueOrDefault(graph, node, pDlqTopic, null, errorException);
 
         // ----
-        Properties kafkaConsumerProps = kafkaConsumerProps(graph, node, topic, bootstrapServers, groupId);
-        return new KConnectorDesc(List.of(topic), bootstrapServers, datasetName, stateFile, syncTopic, replayTopic,
+        Properties kafkaConsumerProps = kafkaConsumerProps(graph, node, bootstrapServers, groupId);
+        return new KConnectorDesc(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic, dlqTopic,
                                   kafkaConsumerProps);
     }
 
-    private Properties kafkaConsumerProps(Graph graph, Node node, String topic, String bootstrapServers,
-                                          String groupId) {
+    private Properties kafkaConsumerProps(Graph graph, Node node, String bootstrapServers, String groupId) {
         Properties props = SysJenaKafka.consumerProperties(bootstrapServers);
         // "group.id"
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -221,19 +228,20 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         // Optional Kafka configuration as pairs of (key-value) as RDF lists.
         String queryString = StrUtils.strjoinNL("PREFIX ja: <" + JA.getURI() + ">", "SELECT ?k ?v { ?X ?P (?k ?v) }");
 
-        QueryExec.graph(graph)
-                 .query(queryString)
-                 .substitution("X", node)
-                 .substitution("P", pKafkaProperty)
-                 .build()
-                 .select()
-                 .forEachRemaining(row -> {
-                     Node nk = row.get("k");
-                     String key = nk.getLiteralLexicalForm();
-                     Node nv = row.get("v");
-                     String value = nv.getLiteralLexicalForm();
-                     props.setProperty(key, value);
-                 });
+        try (QueryExec exec = QueryExec.graph(graph)
+                                       .query(queryString)
+                                       .substitution("X", node)
+                                       .substitution("P", pKafkaProperty)
+                                       .build()) {
+            exec.select()
+                .forEachRemaining(row -> {
+                    Node nk = row.get("k");
+                    String key = nk.getLiteralLexicalForm();
+                    Node nv = row.get("v");
+                    String value = nv.getLiteralLexicalForm();
+                    props.setProperty(key, value);
+                });
+        }
 
         // External Kafka Properties File
         graph.stream(node, pKafkaPropertyFile, Node.ANY).map(Triple::getObject).forEach(propertyFile -> {
@@ -340,9 +348,24 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         return datasetPath;
     }
 
-    static String getConfigurationValue(Graph graph, Node node, Node configNode, Assem2.OnError errorException) {
-        String configurationValue = Assem2.getString(graph, node, configNode, errorException);
-        configurationValue = checkForEnvironmentVariableValue(configNode.getURI(), configurationValue);
+    static String getConfigurationValue(Graph graph, Node node, Node property, Assem2.OnError errorException) {
+        String configurationValue = Assem2.getString(graph, node, property, errorException);
+        configurationValue = checkForEnvironmentVariableValue(property.getURI(), configurationValue);
         return configurationValue;
+    }
+
+    static String getConfigurationValueOrDefault(Graph graph, Node node, Node property, String defaultValue,
+                                                 Assem2.OnError errorException) {
+        String configurationValue = Assem2.getStringOrDft(graph, node, property, defaultValue, errorException);
+        configurationValue = checkForEnvironmentVariableValue(property.getURI(), configurationValue);
+        return configurationValue;
+    }
+
+    static List<String> getConfigurationValues(Graph graph, Node node, Node property, Assem2.OnError errorException) {
+        List<String> configurationValues = new ArrayList<>(Assem2.getStrings(graph, node, property, errorException));
+        for (int i = 0; i < configurationValues.size(); i++) {
+            configurationValues.set(i, checkForEnvironmentVariableValue(property.getURI(), configurationValues.get(i)));
+        }
+        return configurationValues;
     }
 }

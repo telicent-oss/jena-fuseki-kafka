@@ -23,13 +23,13 @@ PREFIX :        <#>
 # Fuseki-Kafka connector
 PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
 
-<#connector> rdf:type fk:Connector ;
+<#connector0> rdf:type fk:Connector ;
     ## Modified by tests for the testcontainers port.
     fk:bootstrapServers    "localhost:9092";
     fk:topic               "RDF0";
     fk:fusekiServiceName   "/ds";
-    
     fk:syncTopic           true;
+    fk:groupId             "connector-0";
     ##fk:replayTopic       true;
     
     fk:stateFile           "Replay-RDF0.state";

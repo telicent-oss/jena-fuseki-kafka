@@ -19,10 +19,7 @@ package org.apache.jena.fuseki.kafka;
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.StringUtils;
@@ -104,8 +101,10 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         try {
             conn = (KConnectorDesc) Assembler.general.open(connector);
         } catch (JenaException ex) {
-            FmtLog.error(LOG, "Failed to build a connector", ex);
-            return;
+            throw new FusekiKafkaException("Failed to build a connector", ex);
+        }
+        if (conn == null) {
+            throw new FusekiKafkaException("Failed to build a connector, check log for more details");
         }
 
         String datasetName = conn.getDatasetName();
@@ -113,8 +112,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
                                                      .datasetName(datasetName)
                                                      .stateFile(conn.getStateFile() != null ?
                                                                 new File(conn.getStateFile()) : null)
-                                                     .consumerGroup(conn.getKafkaConsumerProps()
-                                                                        .getProperty(ConsumerConfig.GROUP_ID_CONFIG))
+                                                     .consumerGroup(conn.getConsumerGroupId())
                                                      .build();
         for (Map.Entry<String, Object> offset : offsets.offsets()) {
             FmtLog.info(LOG, "Initial offset for topic partition %s = %s (%s)", offset.getKey(), offset.getValue(),
@@ -180,11 +178,22 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         if (connectors == null) {
             return;
         }
+        Set<String> groupIds = new HashSet<>();
         connectors.forEach(pair -> {
             KConnectorDesc conn = pair.getLeft();
             FusekiOffsetStore offsets = pair.getRight();
+
+            // Sanity check - if multiple connectors defined then each MUST have a unique consumer group ID otherwise
+            // the KafkaConsumer instances will get stuck in a group rebalance loop
+            if (!groupIds.add(conn.getConsumerGroupId())) {
+                throw new FusekiKafkaException(
+                        "When multiple connectors are defined each MUST have a unique " + KafkaConnectorAssembler.pKafkaGroupId + " value set, found multiple connectors with Group ID " + conn.getConsumerGroupId());
+            }
+
+            // Start the connector
             FmtLog.info(LOG, "[%s] Starting connector between topic(s) %s on %s and endpoint %s",
-                        StringUtils.join(conn.getTopics(), ", "), conn.getBootstrapServers(), conn.getDatasetName());
+                        StringUtils.join(conn.getTopics(), ", "), StringUtils.join(conn.getTopics(), ", "),
+                        conn.getBootstrapServers(), conn.getDatasetName());
             FKS.addConnectorToServer(conn, server, offsets);
         });
     }

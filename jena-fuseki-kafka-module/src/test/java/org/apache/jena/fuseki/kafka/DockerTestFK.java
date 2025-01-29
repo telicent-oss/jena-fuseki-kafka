@@ -36,12 +36,8 @@ import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.kafka.clients.FetchSessionHandler;
 import org.apache.kafka.clients.NetworkClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -70,27 +66,8 @@ public class DockerTestFK {
      */
     protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
 
-    // Logs to silence,
-    private static final String[] XLOGS = {
-            AdminClientConfig.class.getName(),
-            // NetworkClient is noisy with warnings about can't connect.
-            NetworkClient.class.getName(),
-            FetchSessionHandler.class.getName(),
-            ConsumerConfig.class.getName(),
-            ProducerConfig.class.getName(),
-            AppInfoParser.class.getName()
-    };
-
-    private static void adjustLogs(String level) {
-        for (String logName : XLOGS) {
-            LogCtl.setLevel(logName, level);
-        }
-    }
-
     @BeforeClass
     public void beforeClass() {
-        adjustLogs("Warning");
-
         // Start Kafka Test Cluster
         kafka.setup();
 
@@ -125,7 +102,6 @@ public class DockerTestFK {
         Log.info("TestFK", "Stopping testcontainer for Kafka");
         LogCtl.setLevel(NetworkClient.class, "error");
         kafka.teardown();
-        adjustLogs("info");
     }
 
     @Test(priority = 3)
@@ -281,7 +257,7 @@ public class DockerTestFK {
                                           .add(DSG_NAME, DSG).build();
         KConnectorDesc conn =
                 new KConnectorDesc(List.of(KafkaTestCluster.DEFAULT_TOPIC), this.kafka.getBootstrapServers(), DSG_NAME,
-                                   null, false, true, consumerProps);
+                                   null, false, true, null, consumerProps);
         // Manual call to set up the server.
         FKS.addConnectorToServer(conn, server, offsets);
         server.start();

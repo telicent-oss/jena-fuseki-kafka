@@ -8,6 +8,7 @@ import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
 import io.telicent.smart.cache.sources.Header;
 import io.telicent.smart.cache.sources.TelicentHeaders;
+import io.telicent.smart.cache.sources.kafka.KafkaEvent;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +17,7 @@ import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
 
 import java.util.ArrayList;
@@ -129,7 +131,13 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
      */
     protected final boolean sendToDlq(Event<Bytes, RdfPayload> event, Throwable e) {
         // Log the error
-        FusekiKafka.LOG.error(e.getMessage());
+        if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
+            ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
+            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {}", record.topic(), record.partition(), record.offset(),
+                                  e.getMessage());
+        } else {
+            FusekiKafka.LOG.error("[{}] Malformed Event: {}", topicNames, event);
+        }
 
         // Try to send to DLQ if configured
         if (this.dlq == null) {
@@ -241,6 +249,8 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         // Assuming that succeeds tell the event source that the events were processed, this will cause any offsets to
         // be committed
         source.processed(this.eventsSinceLastCommit.stream().map(e -> (Event) e).toList());
+
+        // TODO Log where we've got to with Kafka offsets when applicable
 
         // Reset our state ready for next batch
         this.eventsSinceLastCommit.clear();

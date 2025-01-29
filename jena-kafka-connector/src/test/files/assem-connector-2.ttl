@@ -9,10 +9,9 @@ PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
     
     fk:config              ("max.poll.records"  "100") ;
 
-    fk:groupId             "JenaFusekiKafka";
+    fk:groupId             "example";
     fk:syncTopic           true;
     fk:replayTopic         false;
-    ## Not supported: fk:remoteEndpoint      "http://host/triplestore";
 
     fk:stateFile           "State.state";
     .

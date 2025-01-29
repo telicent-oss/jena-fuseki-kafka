@@ -1,4 +1,6 @@
-# Test configuration file making use of env variables (which subsequently need set in tests).
+
+## Single connector, two topics
+
 PREFIX fuseki:  <http://jena.apache.org/fuseki#>
 PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
@@ -10,28 +12,30 @@ PREFIX :        <#>
      :service
    ) .
 
+## --------
+
 :service rdf:type fuseki:Service ;
-    fuseki:name "ds" ;
+    fuseki:name "ds0" ;
     fuseki:endpoint [ fuseki:operation fuseki:query ] ;
     fuseki:endpoint [ fuseki:operation fuseki:update ] ;
     fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
-    fuseki:endpoint [ fuseki:operation fuseki:patch ] ;
     fuseki:dataset :dataset ;
     .
 
 :dataset rdf:type ja:MemoryDataset .
 
+## --------
+
 # Fuseki-Kafka connector
 PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
 
-<#connector6> rdf:type fk:Connector ;
-    ## Modified by tests for the testcontainers port.
-    fk:bootstrapServers    "env:TEST_BOOTSTRAP_SERVER";
-    fk:topic               "env:{TEST_KAFKA_TOPIC:RDF0}";
-    fk:fusekiServiceName   "/ds";
-    fk:groupId             "env:{TEST_GROUP_ID:connector-6}";
+<#connector5> rdf:type fk:Connector ;
+    fk:bootstrapServers    "localhost:9092";
+    fk:topic               "RDF1";
+    fk:topic               "RDF2";
+    fk:fusekiServiceName   "/ds0";
     fk:syncTopic           true;
+    fk:groupId             "connector-5" ;
     ##fk:replayTopic       true;
-    
-    fk:stateFile           "Replay-RDF0.state";
+    fk:stateFile           "Replay-RDF.state";
     .

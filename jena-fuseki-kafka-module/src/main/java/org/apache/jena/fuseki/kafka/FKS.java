@@ -25,10 +25,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicy;
+import io.telicent.smart.cache.sources.kafka.serializers.RdfPayloadSerializer;
+import io.telicent.smart.cache.sources.kafka.sinks.KafkaSink;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
@@ -42,6 +45,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 
 import io.telicent.smart.cache.sources.kafka.KafkaRdfPayloadSource;
+import org.apache.kafka.common.serialization.BytesSerializer;
 import org.apache.kafka.common.utils.Bytes;
 
 /**
@@ -85,7 +89,7 @@ public class FKS {
                                                          KafkaReadPolicies.fromExternalOffsets(offsets, 0) :
                                                          KafkaReadPolicies.fromLatest());
         FmtLog.info(LOG, "Selected read policy for topics %s (replay: %s, sync: %s) is %s", topicNames,
-                    conn.isReplayTopic(), conn.isSyncTopic(), readPolicy.getClass().getCanonicalName());
+                    conn.isReplayTopic(), conn.isSyncTopic(), readPolicy.getClass().getSimpleName());
 
         // -- Kafka Event Source
         KafkaRdfPayloadSource<Bytes> source = KafkaRdfPayloadSource.<Bytes>createRdfPayload()
@@ -94,9 +98,7 @@ public class FKS {
                                                                    .externalOffsetStore(offsets)
                                                                    .readPolicy(readPolicy)
                                                                    .autoCommit(false)
-                                                                   .consumerGroup(conn.getKafkaConsumerProps()
-                                                                                      .getProperty(
-                                                                                              ConsumerConfig.GROUP_ID_CONFIG))
+                                                                   .consumerGroup(conn.getConsumerGroupId())
                                                                    .consumerConfig(conn.getKafkaConsumerProps())
                                                                    .keyDeserializer(BytesDeserializer.class)
                                                                    .build();
@@ -167,6 +169,18 @@ public class FKS {
                                        DatasetGraph destination) {
 
         //@formatter:off
+        Sink<Event<Bytes, RdfPayload>> dlq = null;
+        if (StringUtils.isNotBlank(connector.getDlqTopic())) {
+            dlq = KafkaSink.<Bytes, RdfPayload>create()
+                            .topic(connector.getDlqTopic())
+                            .bootstrapServers(connector.getBootstrapServers())
+                            .producerConfig(connector.getKafkaConsumerProps())
+                            .keySerializer(BytesSerializer.class)
+                            .valueSerializer(RdfPayloadSerializer.class)
+                            // NB - We want any failures in the DLQ to surface immediately
+                            .noAsync()
+                            .build();
+        }
         ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
                 ProjectorDriver.<Bytes, RdfPayload, Event<Bytes, RdfPayload>>create()
                                .pollTimeout(FKConst.pollingWaitDuration)
@@ -178,6 +192,7 @@ public class FKS {
                                                          .source(source)
                                                          .dataset(destination)
                                                          .connector(connector)
+                                                         .dlq(dlq)
                                                          .build())
                                .destination(FusekiSink.builder()
                                                       .dataset(destination)
@@ -204,6 +219,7 @@ public class FKS {
      * @param offset      desired offset
      */
     public static void restoreOffsetForDataset(String datasetName, Long offset) {
+        // TODO This needs to actually do something useful
         restoreOffsetMap.put(datasetName, offset);
     }
 }
