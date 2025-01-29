@@ -89,7 +89,8 @@ public class TestFusekiProjector {
         verify(dsg, times(expectedCommits)).commit();
     }
 
-    private static void projectToFusekiSink(EventSource<Bytes, RdfPayload> source, FusekiProjector projector, DatasetGraph dsg) {
+    private static void projectToFusekiSink(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,
+                                            DatasetGraph dsg) {
         // When
         try (FusekiSink sink = FusekiSink.builder().dataset(dsg).build();) {
             while (!source.isExhausted()) {
@@ -120,7 +121,7 @@ public class TestFusekiProjector {
     }
 
     private static KConnectorDesc createTestConnector() {
-        return new KConnectorDesc(List.of("test"), "localhost:9092", "/ds", null, true, false, new Properties());
+        return new KConnectorDesc(List.of("test"), "localhost:9092", "/ds", null, true, false, null, new Properties());
     }
 
     private static void verifyProjection(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,

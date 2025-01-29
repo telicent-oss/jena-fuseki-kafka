@@ -119,8 +119,7 @@ public class FKLib {
         String ct = ctForFile(fn);
         String body = IO.readWholeFileAsUTF8(fn);
         List<Header> headers = (ct != null) ? List.of(header(HttpNames.hContentType, ct)) : List.of();
-        RecordMetadata res = sendBody(producer, partition, topic, headers, body);
-        return res;
+        return sendBody(producer, partition, topic, headers, body);
     }
 
     private static RecordMetadata sendBody(Producer<String, String> producer, Integer partition, String topic,
@@ -128,8 +127,7 @@ public class FKLib {
         try {
             ProducerRecord<String, String> pRec = new ProducerRecord<>(topic, partition, null, null, body, headers);
             Future<RecordMetadata> f = producer.send(pRec);
-            RecordMetadata res = f.get();
-            return res;
+            return f.get();
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }

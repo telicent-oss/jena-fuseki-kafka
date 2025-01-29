@@ -24,7 +24,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
+import io.telicent.smart.cache.sources.Event;
+import io.telicent.smart.cache.sources.TelicentHeaders;
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.atlas.logging.Log;
@@ -49,7 +52,9 @@ import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.apache.kafka.common.utils.Bytes;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -69,38 +74,18 @@ public class DockerTestConfigFK {
     protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
     private static final String DIR = "src/test/files";
 
-<<<<<<< HEAD
     @BeforeClass
     public void beforeClass() {
-        Log.info("TestIntegrationFK","Starting testcontainer for Kafka");
-=======
-    // Logs to silence,
-    private static final String[] XLOGS = {
-            AdminClientConfig.class.getName(),
-            // NetworkClient is noisy with warnings about can't connect.
-            NetworkClient.class.getName(),
-            FetchSessionHandler.class.getName(),
-            ConsumerConfig.class.getName(),
-            ProducerConfig.class.getName(),
-            AppInfoParser.class.getName()
-    };
-
-    private static void adjustLogs(String level) {
-        for (String logName : XLOGS) {
-            LogCtl.setLevel(logName, level);
-        }
+        kafka.setup();
+        resetTopics();
     }
 
-    @BeforeClass
-    public void beforeClass() {
-        adjustLogs("Warning");
-        Log.info("TestIntegrationFK", "Starting testcontainer for Kafka");
-
-        kafka.setup();
+    private void resetTopics() {
         kafka.resetTopic("RDF0");
         kafka.resetTopic("RDF1");
         kafka.resetTopic("RDF2");
         kafka.resetTopic("RDF_Patch");
+        kafka.resetTopic("bad-rdf");
     }
 
     Properties producerProps() {
@@ -111,13 +96,14 @@ public class DockerTestConfigFK {
     }
 
     @AfterMethod
-    public void after() {
+    public void after() throws InterruptedException {
         FKS.resetPollThreads();
+        resetTopics();
+        Thread.sleep(500);
     }
 
     @AfterClass
     public void afterClass() {
-        Log.info("TestIntegrationFK", "Stopping testcontainer for Kafka");
         FKS.resetPollThreads();
         kafka.teardown();
     }
@@ -152,8 +138,8 @@ public class DockerTestConfigFK {
         //@formatter:off
             Awaitility.await()
                       .pollDelay(Duration.ZERO)
-                      .pollInterval(Duration.ofSeconds(3))
-                      .atMost(Duration.ofSeconds(10))
+                      .pollInterval(Duration.ofSeconds(4))
+                      .atMost(Duration.ofSeconds(15))
                       .until(() -> count(url), x -> x == expectedCount);
             //@formatter:on
     }
@@ -217,8 +203,32 @@ public class DockerTestConfigFK {
         }
     }
 
-    // RDF Patch
     @Test(priority = 4)
+    public void givenOneConnectorsTwoTopics_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
+        String TOPIC1 = "RDF1";
+        String TOPIC2 = "RDF2";
+        Graph graph = configuration(DIR + "/config-connector-4.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
+        FileOps.ensureDir(STATE_DIR);
+        FileOps.clearDirectory(STATE_DIR);
+
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
+        // One triple on each topic.
+        FKLib.sendFiles(producerProps(), TOPIC2, List.of(DIR + "/data2.ttl"));
+        FKLib.sendFiles(producerProps(), TOPIC1, List.of(DIR + "/data.ttl"));
+        server.start();
+        try {
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds0";
+            waitForDataCount(URL, 2);
+        } finally {
+            server.stop();
+        }
+    }
+
+    // RDF Patch
+    @Test(priority = 5)
     public void givenSingleConnector_whenRunningFusekiKafkaWithPatchEvents_thenPatchAppliedAsExpected() {
         // Given
         String TOPIC = "RDF_Patch";
@@ -244,8 +254,49 @@ public class DockerTestConfigFK {
         }
     }
 
+    @Test(priority = 6)
+    public void givenConnectorWithDlq_whenRunningFusekiKafkaWithMalformedEvents_thenGoodDataApplied_andBadEventsGoToDlq() {
+        // Given
+        Graph graph = configuration(DIR + "/config-connector-dlq.ttl", kafka.getBootstrapServers(),
+                                    kafka.getClientProperties());
+        FileOps.ensureDir(STATE_DIR);
+        FileOps.clearDirectory(STATE_DIR);
+
+        // When
+        FusekiServer server = FusekiServer.create().port(0)
+                                          //.verbose(true)
+                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
+
+        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl", DIR + "/malformed.ttl", DIR + "/data2.ttl"));
+        server.start();
+        try {
+            // Then
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds";
+            waitForDataCount(URL, 2);
+        } finally {
+            server.stop();
+        }
+
+        // And
+        KafkaEventSource<Bytes, Bytes> source = KafkaEventSource.<Bytes, Bytes>create()
+                                                                .topic("bad-rdf")
+                                                                .bootstrapServers(this.kafka.getBootstrapServers())
+                                                                .consumerGroup("bad-rdf-check-1")
+                                                                .consumerConfig(this.kafka.getClientProperties())
+                                                                .keyDeserializer(BytesDeserializer.class)
+                                                                .valueDeserializer(BytesDeserializer.class)
+                                                                .build();
+        try {
+            Event<Bytes, Bytes> badEvent = source.poll(Duration.ofSeconds(10));
+            Assert.assertNotNull(badEvent);
+            Assert.assertNotNull(badEvent.lastHeader(TelicentHeaders.DEAD_LETTER_REASON));
+        } finally {
+            source.close();
+        }
+    }
+
     // Env Variable use
-    @Test(priority = 5)
+    @Test(priority = 7)
     public void givenEnvironmentVariableConfiguration_whenRunningFusekiKafka_thenDataAsExpected() {
         // Given
         System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");

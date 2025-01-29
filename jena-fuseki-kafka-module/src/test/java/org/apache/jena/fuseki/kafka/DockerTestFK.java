@@ -69,7 +69,7 @@ public class DockerTestFK {
 
     @BeforeClass
     public void beforeClass() {
-        Log.info("TestFK","Starting testcontainer for Kafka");
+        // Start Kafka Test Cluster
         kafka.setup();
 
         // Inject test data to Kafka
@@ -258,7 +258,7 @@ public class DockerTestFK {
                                           .add(DSG_NAME, DSG).build();
         KConnectorDesc conn =
                 new KConnectorDesc(List.of(KafkaTestCluster.DEFAULT_TOPIC), this.kafka.getBootstrapServers(), DSG_NAME,
-                                   null, false, true, consumerProps);
+                                   null, false, true, null, consumerProps);
         // Manual call to set up the server.
         FKS.addConnectorToServer(conn, server, offsets);
         server.start();

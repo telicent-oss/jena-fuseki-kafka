@@ -68,3 +68,6 @@ trivy/
 
 # Test Certs
 test-certs/
+
+# Fuseki Kafka State Files
+*.state

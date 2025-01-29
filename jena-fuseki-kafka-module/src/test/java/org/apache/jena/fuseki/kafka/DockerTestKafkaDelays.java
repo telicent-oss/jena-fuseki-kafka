@@ -7,9 +7,14 @@ import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.exec.RowSet;
 import org.apache.jena.sparql.exec.http.QueryExecHTTP;
+import org.apache.jena.system.G;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -17,6 +22,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
+import org.testcontainers.shaded.org.checkerframework.checker.units.qual.K;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -29,6 +35,7 @@ import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.jena.fuseki.kafka.DockerTestConfigFK.configuration;
 import static org.testng.Assert.assertNotNull;
@@ -56,12 +63,14 @@ public class DockerTestKafkaDelays {
         debugLogging("Kafka container started: " + kafkaContainer.getBootstrapServers());
 
         debugLogging("Starting Toxiproxy container...");
-        toxiproxyContainer = new ToxiproxyContainer(DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0")).withNetwork(network);
+        toxiproxyContainer =
+                new ToxiproxyContainer(DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0")).withNetwork(network);
         toxiproxyContainer.start();
         debugLogging("Toxiproxy container started.");
 
         kafkaProxy = toxiproxyContainer.getProxy(kafkaContainer, 9093);
-        debugLogging("Kafka proxy configured: IP " + kafkaProxy.getContainerIpAddress() + ", Port " + kafkaProxy.getProxyPort());
+        debugLogging(
+                "Kafka proxy configured: IP " + kafkaProxy.getContainerIpAddress() + ", Port " + kafkaProxy.getProxyPort());
 
         debugLogging("Waiting for Kafka broker to be ready...");
         waitForKafkaBroker();
@@ -89,6 +98,7 @@ public class DockerTestKafkaDelays {
             debugLogging("Kafka container stopped.");
         }
     }
+
     private Properties getAdminConfig() {
         Properties props = new Properties();
         props.put("bootstrap.servers", kafkaContainer.getBootstrapServers());
@@ -121,6 +131,18 @@ public class DockerTestKafkaDelays {
         return producerProps;
     }
 
+    private static final AtomicInteger COUNTER = new AtomicInteger(0);
+
+    private void addUniqueConsumerGroupId(Graph config) {
+        Node n = G.getOne(config, Node.ANY, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode())
+                  .getSubject();
+        config.stream(Node.ANY, KafkaConnectorAssembler.pKafkaGroupId, Node.ANY)
+              .toList()
+              .forEach(config::delete);
+        config.add(n, KafkaConnectorAssembler.pKafkaGroupId,
+                   NodeFactory.createLiteralString("delay-connector-" + COUNTER.incrementAndGet()));
+    }
+
     /**
      * This tests that everything works correctly with the ToxiProxy in place.
      */
@@ -128,24 +150,29 @@ public class DockerTestKafkaDelays {
     public void givenNoActionProxy_whenRunningFusekiKafka_thenDataLoadedAsExpected() {
         // Given
         String TOPIC = "RDF0";
-        Graph graph = configuration(DIR+"/config-connector.ttl", kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(), new Properties());
+        Graph graph = configuration(DIR + "/config-connector.ttl",
+                                    kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(),
+                                    new Properties());
+        addUniqueConsumerGroupId(graph);
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
 
         // When
         FusekiServer server = FusekiServer.create()
-                .port(0)
-                .verbose(true)
-                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                .parseConfig(ModelFactory.createModelForGraph(graph))
-                .build();
-        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
+                                          .port(0)
+                                          .verbose(true)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfig(ModelFactory.createModelForGraph(graph))
+                                          .build();
+        FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR + "/data.ttl"));
         server.start();
         try {
             // Then
-            String URL = "http://localhost:"+server.getHttpPort()+"/ds";
+            String URL = "http://localhost:" + server.getHttpPort() + "/ds";
             DockerTestConfigFK.waitForDataCount(URL, 1);
-        } finally { server.stop(); }
+        } finally {
+            server.stop();
+        }
     }
 
     /**
@@ -165,6 +192,7 @@ public class DockerTestKafkaDelays {
             Graph graph = configuration(DIR + "/config-connector.ttl",
                                         kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(),
                                         consumerProps);
+            addUniqueConsumerGroupId(graph);
             FileOps.ensureDir(STATE_DIR);
             FileOps.clearDirectory(STATE_DIR);
 
@@ -181,7 +209,7 @@ public class DockerTestKafkaDelays {
                 server.start();
 
                 // Then
-                String URL = "http://localhost:"+server.getHttpPort()+"/ds";
+                String URL = "http://localhost:" + server.getHttpPort() + "/ds";
                 DockerTestConfigFK.waitForDataCount(URL, 0);
             } finally {
                 server.stop();
@@ -210,6 +238,7 @@ public class DockerTestKafkaDelays {
             Graph graph = configuration(DIR + "/config-connector.ttl",
                                         kafkaProxy.getContainerIpAddress() + ":" + kafkaProxy.getProxyPort(),
                                         consumerProps);
+            addUniqueConsumerGroupId(graph);
             FileOps.ensureDir(STATE_DIR);
             FileOps.clearDirectory(STATE_DIR);
             debugLogging("Configure server");
