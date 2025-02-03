@@ -21,12 +21,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 
 /**
  * Registry of active connectors.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FKRegistry {
 
     private static final FKRegistry singleton = new FKRegistry();
@@ -40,9 +43,6 @@ public class FKRegistry {
 
     // Topic to connector record.
     private final Map<String, KConnectorDesc> topicToConnector = new ConcurrentHashMap<>();
-
-    private FKRegistry() {
-    }
 
     /**
      * Return the {@link KConnectorDesc} for a topic.

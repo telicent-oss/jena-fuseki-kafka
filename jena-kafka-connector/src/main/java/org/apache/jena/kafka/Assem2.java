@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -31,6 +33,7 @@ import org.apache.jena.system.G;
 /**
  * This class is the beginnings of assembler-like functionality working at the Graph level. Very WIP experimentation.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 class Assem2 {
 
     /**
@@ -57,11 +60,6 @@ class Assem2 {
 
     public static RuntimeException onError(Node node, Node property, String errorMsg, OnError onError) {
         String eMsg = NodeFmtLib.displayStr(node) + " " + NodeFmtLib.displayStr(property) + " : " + errorMsg;
-        return onError.exception(eMsg);
-    }
-
-    public static RuntimeException onError(Node node, String errorMsg, OnError onError) {
-        String eMsg = NodeFmtLib.displayStr(node) + " : " + errorMsg;
         return onError.exception(eMsg);
     }
 

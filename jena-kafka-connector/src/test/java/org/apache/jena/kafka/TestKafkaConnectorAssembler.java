@@ -4,9 +4,11 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
@@ -14,6 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 public class TestKafkaConnectorAssembler {
 
@@ -22,6 +25,10 @@ public class TestKafkaConnectorAssembler {
     private static final String BOOTSTRAP_SERVERS = "localhost:9092";
     private static final String SERVICE_NAME = "/ds";
     private static final String STATE_FILE = "test.state";
+    /**
+     * The default Kafka properties size if no extra properties are provided
+     */
+    private static final int DEFAULT_CONFIG_SIZE = 6;
 
     private final KafkaConnectorAssembler assembler = new KafkaConnectorAssembler();
 
@@ -36,7 +43,26 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNull(assembled);
+        Assertions.assertNull(assembled);
+    }
+
+    @ValueSource(strings = {
+            "bad-assem-no-dataset-name.ttl",
+            "bad-assem-multiple-dataset-names.ttl",
+            "bad-assem-uri-dataset-name.ttl",
+            "bad-assem-multi-value-string-property.ttl",
+            "bad-assem-multi-value-boolean-property.ttl",
+            "bad-assem-mistyped-string-property.ttl",
+            "bad-assem-mistyped-boolean-property.ttl",
+            "bad-assem-mistyped-mandatory-string-property.ttl"
+    })
+    @ParameterizedTest
+    public void givenMalformedConfig_whenAssemblingConnector_thenNotLoaded(String filename) {
+        // Given and When
+        KConnectorDesc desc = TestConnectorDescriptor.connectorByType(filename);
+
+        // Then
+        Assertions.assertNull(desc);
     }
 
     @Test
@@ -50,19 +76,19 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNotNull(assembled);
+        Assertions.assertNotNull(assembled);
 
         // And
         verifyMinimalConfig(assembled);
     }
 
     private static KConnectorDesc verifyMinimalConfig(Object assembled) {
-        Assert.assertTrue(assembled instanceof KConnectorDesc);
+        Assertions.assertInstanceOf(KConnectorDesc.class, assembled);
         KConnectorDesc connector = (KConnectorDesc) assembled;
-        Assert.assertEquals(TOPIC, connector.getTopics().get(0));
-        Assert.assertEquals(BOOTSTRAP_SERVERS, connector.getBootstrapServers());
-        Assert.assertEquals(SERVICE_NAME, connector.getDatasetName());
-        Assert.assertEquals(STATE_FILE, connector.getStateFile());
+        Assertions.assertEquals(TOPIC, connector.getTopics().get(0));
+        Assertions.assertEquals(BOOTSTRAP_SERVERS, connector.getBootstrapServers());
+        Assertions.assertEquals(SERVICE_NAME, connector.getDatasetName());
+        Assertions.assertEquals(STATE_FILE, connector.getStateFile());
         return connector;
     }
 
@@ -94,7 +120,7 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNotNull(assembled);
+        Assertions.assertNotNull(assembled);
 
         // And
         KConnectorDesc desc = verifyMinimalConfig(assembled);
@@ -117,7 +143,7 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNotNull(assembled);
+        Assertions.assertNotNull(assembled);
 
         // And
         KConnectorDesc desc = verifyMinimalConfig(assembled);
@@ -125,9 +151,9 @@ public class TestKafkaConnectorAssembler {
     }
 
     private static void verifyTestProperties(KConnectorDesc desc) {
-        Assert.assertTrue("Should be some extra properties present", desc.getKafkaConsumerProps().size() > 5);
-        Assert.assertEquals("bar", desc.getKafkaConsumerProps().get("foo"));
-        Assert.assertEquals("other", desc.getKafkaConsumerProps().get("an"));
+        Assertions.assertTrue(desc.getKafkaConsumerProps().size() > 5, "Should be some extra properties present");
+        Assertions.assertEquals("bar", desc.getKafkaConsumerProps().get("foo"));
+        Assertions.assertEquals("other", desc.getKafkaConsumerProps().get("an"));
     }
 
     private static File prepareExternalPropertiesFile(Properties props) throws IOException {
@@ -154,7 +180,7 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNotNull(assembled);
+        Assertions.assertNotNull(assembled);
 
         // And
         KConnectorDesc desc = verifyMinimalConfig(assembled);
@@ -188,7 +214,7 @@ public class TestKafkaConnectorAssembler {
             Object assembled = assembler.open(resource);
 
             // Then
-            Assert.assertNotNull(assembled);
+            Assertions.assertNotNull(assembled);
 
             // And
             KConnectorDesc desc = verifyMinimalConfig(assembled);
@@ -216,7 +242,7 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNull(assembled);
+        Assertions.assertNull(assembled);
     }
 
     @ValueSource(strings = {
@@ -237,7 +263,7 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNull(assembled);
+        Assertions.assertNull(assembled);
     }
 
     @ValueSource(strings = {
@@ -257,10 +283,86 @@ public class TestKafkaConnectorAssembler {
         Object assembled = assembler.open(resource);
 
         // Then
-        Assert.assertNotNull(assembled);
+        Assertions.assertNotNull(assembled);
 
         // And
         KConnectorDesc desc = verifyMinimalConfig(assembled);
-        Assert.assertEquals(6, desc.getKafkaConsumerProps().size());
+        Assertions.assertEquals(DEFAULT_CONFIG_SIZE, desc.getKafkaConsumerProps().size());
+    }
+
+    @Test
+    public void givenExtraExternalConfigBadBlankNode_whenAssemblingConnector_thenNotLoaded() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource resource = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, resource);
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
+                   config.createResource());
+
+        // When
+        Object assembled = assembler.open(resource);
+
+        // Then
+        Assertions.assertNull(assembled);
+    }
+
+    @Test
+    public void givenExtraExternalConfigEmptyFile_whenAssemblingConnector_thenLoaded_andNoExtraConfig() throws
+            IOException {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource resource = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, resource);
+        String source = Files.createTempFile("kafka",".properties").toFile().getAbsolutePath();
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
+                   config.createLiteral(source));
+
+        // When
+        Object assembled = assembler.open(resource);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+
+        // And
+        KConnectorDesc desc = verifyMinimalConfig(assembled);
+        Assertions.assertEquals(DEFAULT_CONFIG_SIZE, desc.getKafkaConsumerProps().size());
+    }
+
+    @Test
+    public void givenExtraExternalConfigNonReadableFile_whenAssemblingConnector_thenNotLoaded() throws IOException {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource resource = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, resource);
+        File propertiesFile = Files.createTempFile("kafka",".properties").toFile();
+        propertiesFile.setReadable(false);
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
+                   config.createLiteral(propertiesFile.getAbsolutePath()));
+
+        // When
+        Object assembled = assembler.open(resource);
+
+        // Then
+        Assertions.assertNull(assembled);
+    }
+
+    public static Stream<Arguments> datasetNames() {
+        //@formatter:off
+        return Stream.of(Arguments.of((String)null, (String)null),
+                         Arguments.of("", "/"),
+                         Arguments.of("/", "/"),
+                         Arguments.of("ds", "/ds"),
+                         Arguments.of("ds/", "/ds"));
+        //@formatter:on
+    }
+
+    @ParameterizedTest
+    @MethodSource("datasetNames")
+    public void givenDatasetName_whenCanonicalising_thenExpectedResult(String name, String expected) {
+        // Given and When
+        String canonical = KafkaConnectorAssembler.canonical(name);
+
+        // Then
+        Assertions.assertEquals(expected, canonical);
     }
 }

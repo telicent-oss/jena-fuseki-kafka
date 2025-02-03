@@ -9,8 +9,10 @@ import io.telicent.smart.cache.sources.EventSource;
 import io.telicent.smart.cache.sources.Header;
 import io.telicent.smart.cache.sources.TelicentHeaders;
 import io.telicent.smart.cache.sources.kafka.KafkaEvent;
+import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
@@ -18,10 +20,13 @@ import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.Bytes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -108,17 +113,24 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
             // Decide whether to commit transaction now, or wait to commit later
             commitTransactionIfNeeded(event);
         } catch (JenaKafkaException e) {
+            // In this scenario something has gone wrong while we were processing the event so our current transaction
+            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
+            // and potentially replay the uncommitted events to ensure their data is not lost.
             if (!sendToDlq(event, e)) {
                 abort();
                 throw e;
             }
             abortAndReplay(sink);
         } catch (RdfPayloadException e) {
+            // Note that in this scenario we hadn't started processing the event, we merely failed to deserialise it so
+            // we don't have any risk of uncommitted changes that need replaying.  The transaction up to this point was
+            // good so commit it now just in case we're about to encounter a whole block of malformed events.
+            commit();
+
+            // Then try and send to the DLQ before proceeding
             if (!sendToDlq(event, e)) {
-                abort();
                 throw new JenaKafkaException("Malformed Kafka event", e);
             }
-            abortAndReplay(sink);
         }
     }
 
@@ -133,7 +145,8 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         // Log the error
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
             ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
-            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {}", record.topic(), record.partition(), record.offset(),
+            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {}", record.topic(), record.partition(),
+                                  record.offset(),
                                   e.getMessage());
         } else {
             FusekiKafka.LOG.error("[{}] Malformed Event: {}", topicNames, event);
@@ -171,6 +184,9 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         this.commit();
     }
 
+    /**
+     * Aborts the ongoing transaction (if any)
+     */
     protected final void abort() {
         // Abort the ongoing transaction as failure to process an event has left us in an indeterminate state
         if (this.dataset.isInTransaction()) {
@@ -179,6 +195,11 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         }
     }
 
+    /**
+     * Commits the ongoing transaction if we've reached an appropriate point to do so
+     *
+     * @param event Current event
+     */
     protected void commitTransactionIfNeeded(Event<Bytes, RdfPayload> event) {
         // Make a decision about whether to commit
         if (event.value().isPatch() && !this.dataset.isInTransaction()) {
@@ -210,11 +231,14 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         }
     }
 
+    /**
+     * Starts a new transaction if we aren't already in one
+     */
     protected final void startTransactionIfNeeded() {
         // Start a new write transaction if we aren't currently in one
         if (!this.dataset.isInTransaction()) {
             this.dataset.begin(TxnType.WRITE);
-            FusekiKafka.LOG.info("[{}] Started new write transaction for incoming Kafka Events", this.topicNames);
+            FusekiKafka.LOG.debug("[{}] Started new write transaction for incoming Kafka Events", this.topicNames);
         }
     }
 
@@ -235,12 +259,13 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     }
 
     /**
-     * Commits the current transaction
+     * Commits the current transaction and updates our internal state used by {@link #commitTransactionIfNeeded(Event)}
+     * to decide if this method should be called.
      */
     @SuppressWarnings("rawtypes")
     protected final void commit() {
         // Commit changes to the dataset
-        FusekiKafka.LOG.info("[{}] Committing write transaction for {} Kafka events", this.topicNames,
+        FusekiKafka.LOG.debug("[{}] Committing write transaction for {} Kafka events", this.topicNames,
                              this.eventsSinceLastCommit.size());
         if (this.dataset.isInTransaction()) {
             this.dataset.commit();
@@ -250,7 +275,23 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         // be committed
         source.processed(this.eventsSinceLastCommit.stream().map(e -> (Event) e).toList());
 
-        // TODO Log where we've got to with Kafka offsets when applicable
+        // Log where we've got to with Kafka offsets when applicable
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = KafkaEventSource.determineCommitOffsetsFromEvents(
+                this.eventsSinceLastCommit.stream().map(e -> (Event) e).toList());
+        if (MapUtils.isNotEmpty(committedOffsets)) {
+            StringBuilder offsetLogMessage = new StringBuilder();
+            offsetLogMessage.append("[").append(this.topicNames).append("] Processed up to offsets: ");
+            for (Map.Entry<TopicPartition, OffsetAndMetadata> offset : committedOffsets.entrySet()) {
+                offsetLogMessage.append(offset.getKey().topic())
+                                .append('-')
+                                .append(offset.getKey().partition())
+                                .append('=')
+                                .append(offset.getValue().offset())
+                                .append(", ");
+            }
+            offsetLogMessage.delete(offsetLogMessage.length() - 2, offsetLogMessage.length());
+            FusekiKafka.LOG.info("{}", offsetLogMessage);
+        }
 
         // Reset our state ready for next batch
         this.eventsSinceLastCommit.clear();

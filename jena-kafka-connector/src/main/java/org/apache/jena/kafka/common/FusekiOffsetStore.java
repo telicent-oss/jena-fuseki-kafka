@@ -130,16 +130,40 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
     @Override
     protected void flushInternal() {
         if (this.stateFile != null) {
-            Map<String, Object> stateMap = new LinkedHashMap<>();
-            stateMap.put(FIELD_DATASET, this.datasetName);
-            stateMap.put(FIELD_OFFSETS, this.offsets);
-
-            try {
-                this.mapper.writeValue(this.stateFile, stateMap);
-            } catch (IOException e) {
-                throw new JenaKafkaException("Error writing state file", e);
-            }
+            writeStateFile(this.stateFile);
         }
+    }
+
+    /**
+     * Writes the offsets, and associated sanity checking metadata to the given state file
+     *
+     * @param file State file
+     */
+    private void writeStateFile(File file) {
+        Map<String, Object> stateMap = new LinkedHashMap<>();
+        stateMap.put(FIELD_DATASET, this.datasetName);
+        stateMap.put(FIELD_OFFSETS, this.offsets);
+
+        try {
+            this.mapper.writeValue(file, stateMap);
+        } catch (IOException e) {
+            throw new JenaKafkaException("Error writing state file " + file.getAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * Writes a copy of the current state of the offset store to the given file
+     *
+     * @param file File
+     * @throws IllegalArgumentException Thrown if the given file is the same as the file this offset store was
+     *                                  configured with
+     * @throws JenaKafkaException       Thrown if unable to write out the state file
+     */
+    public void copyTo(File file) {
+        if (Objects.equals(file, this.stateFile)) {
+            throw new IllegalArgumentException("Can't copy to the state file this offset store owns!");
+        }
+        this.writeStateFile(file);
     }
 
     @Override

@@ -2,7 +2,9 @@ package org.apache.jena.kafka.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
+import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
+import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -163,5 +165,33 @@ public class TestFusekiOffsetStore {
         // When
         FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
         Assertions.assertThrows(JenaKafkaException.class, () -> store.flush());
+    }
+
+    @Test
+    public void givenOffsetStore_whenCopyingToSameFile_thenIllegalArgument() throws IOException {
+        // Given
+        File stateFile = Files.createTempFile("state", ".json").toFile();
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // When and Then
+        Assertions.assertThrows(IllegalArgumentException.class, () -> store.copyTo(stateFile));
+    }
+
+    @Test
+    public void givenOffsetStore_whenCopyingToDifferentFile_thenSuccess_andOffsetsAreSame() throws IOException {
+        // Given
+        File stateFile = Files.createTempFile("state", ".json").toFile();
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+        store.saveOffset("test", 1234L);
+
+        // When
+        File copy = Files.createTempFile("copy", ".json").toFile();
+        Assertions.assertEquals(0, copy.length());
+        store.copyTo(copy);
+
+        // Then
+        Assertions.assertNotEquals(0, copy.length());
+        FusekiOffsetStore copied = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(copy).build();
+        Assertions.assertEquals(1234L, (Long)copied.loadOffset("test"));
     }
 }
