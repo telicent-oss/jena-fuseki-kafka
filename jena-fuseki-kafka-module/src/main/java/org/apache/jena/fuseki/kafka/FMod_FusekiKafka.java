@@ -29,7 +29,6 @@ import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
@@ -41,7 +40,6 @@ import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 /**
  * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add data), SPARQL Update or RDF patch.
@@ -93,10 +91,10 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
             FmtLog.warn(LOG, "No Kafka connector(s) found in provided server configuration!");
             return;
         }
-        connectors.forEach(connector -> oneConnector(builder, connector));
+        connectors.forEach(this::oneConnector);
     }
 
-    /*package*/ void oneConnector(Builder builder, Resource connector) {
+    /*package*/ void oneConnector(Resource connector) {
         KConnectorDesc conn;
         try {
             conn = (KConnectorDesc) Assembler.general.open(connector);
@@ -110,13 +108,16 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         String datasetName = conn.getDatasetName();
         FusekiOffsetStore offsets = FusekiOffsetStore.builder()
                                                      .datasetName(datasetName)
-                                                     .stateFile(conn.getStateFile() != null ?
-                                                                new File(conn.getStateFile()) : null)
+                                                     .stateFile(new File(conn.getStateFile()))
                                                      .consumerGroup(conn.getConsumerGroupId())
                                                      .build();
         for (Map.Entry<String, Object> offset : offsets.offsets()) {
-            FmtLog.info(LOG, "Initial offset for topic partition %s = %s (%s)", offset.getKey(), offset.getValue(),
-                        datasetName);
+            if (StringUtils.endsWith(offset.getKey(), conn.getConsumerGroupId())) {
+                String[] partition = offset.getKey().split("-", 3);
+                FmtLog.info(LOG, "[%s] Initial offset for topic partition %s-%s = %s (%s)",
+                            StringUtils.join(conn.getTopics(), ", "), partition[0], partition[1], offset.getValue(),
+                            datasetName);
+            }
         }
         recordConnector(conn, offsets);
     }

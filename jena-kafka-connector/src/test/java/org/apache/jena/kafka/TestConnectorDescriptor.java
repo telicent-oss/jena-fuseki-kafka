@@ -19,13 +19,14 @@ package org.apache.jena.kafka;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Properties;
 
 public class TestConnectorDescriptor {
-    private static String DIR = "src/test/files";
+    public static String DIR = "src/test/files";
 
     static {
         JenaSystem.init();
@@ -64,8 +65,34 @@ public class TestConnectorDescriptor {
         Assertions.assertEquals("State.state", conn.getStateFile());
     }
 
-    private KConnectorDesc connectorByType(String filename) {
+    public static KConnectorDesc connectorByType(String filename) {
         return (KConnectorDesc) AssemblerUtils.build(DIR + "/" + filename, KafkaConnectorAssembler.getType());
+    }
+
+    @Test
+    public void givenNoTopics_whenConstructingConnector_thenIllegalArgument() {
+        // Given, When and Then
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new KConnectorDesc(List.of(), null, null, null, true, false, null, null));
+    }
+
+    @Test
+    public void givenNoDataset_whenConstructingConnector_thenJenaKafkaError() {
+        // Given, When and Then
+        Assertions.assertThrows(JenaKafkaException.class, () -> new KConnectorDesc(List.of("test"), "test", null, null, true, false, null, null));
+    }
+
+    @Test
+    public void givenKafkaProperties_whenQueryingConsumerGroup_thenCorrectValueReturned() {
+        // Given
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "example");
+        KConnectorDesc conn = new KConnectorDesc(List.of("test"), "test", "/ds", null, true, false, null, properties);
+
+        // When
+        String groupId = conn.getConsumerGroupId();
+
+        // Then
+        Assertions.assertEquals("example", groupId);
     }
 
 }

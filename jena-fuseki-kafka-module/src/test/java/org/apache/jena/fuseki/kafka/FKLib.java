@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package org.apache.jena.fuseki.kafka.lib;
+package org.apache.jena.fuseki.kafka;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -22,6 +22,8 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.atlas.logging.FmtLog;
@@ -40,11 +42,17 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FKLib {
 
     private static final Logger LOG = FusekiKafka.LOG;
 
-    // -- send file
+    /**
+     * Given a filename detect the content type
+     *
+     * @param fn Filename
+     * @return Detected content type, possibly null if unrecognised
+     */
     public static String ctForFile(String fn) {
         String ct = null;
         String ext = FileUtils.getFilenameExt(fn);
@@ -73,13 +81,6 @@ public class FKLib {
     public static void sendFiles(Properties props, String topic, List<String> files) {
         try (Producer<String, String> producer = producer(props)) {
             sendFiles(producer, null, topic, files);
-        }
-    }
-
-    public static void sendString(Properties props, String topic, String contentType, String content) {
-        try (StringSerializer serString1 = new StringSerializer(); StringSerializer serString2 = new StringSerializer(); Producer<String, String> producer = producer(
-                props)) {
-            sendString(producer, null, topic, contentType, content);
         }
     }
 

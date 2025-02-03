@@ -27,6 +27,11 @@ public class TestConfig {
     }
 
     @Test
+    public void givenConfigurationWithNoStateFile_whenStartingFusekiKafka_thenFails() {
+        verifyBadConfiguration("src/test/files/bad-config-no-state-file.ttl", false, "Failed to build a connector");
+    }
+
+    @Test
     public void givenConfigurationWithNoConnectors_whenStartingFusekiKafka_thenSuccess_andNoConnectorsRegistered() {
         // Given
         String configFile = "src/test/files/no-connectors.ttl";

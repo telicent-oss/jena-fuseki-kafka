@@ -25,17 +25,13 @@ import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.utils.Bytes;
-import org.awaitility.Awaitility;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
-import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
-import org.apache.jena.sparql.exec.RowSet;
-import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -48,7 +44,6 @@ import org.testng.annotations.Test;
 import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // These tests must run in order.
@@ -62,6 +57,7 @@ public class DockerTestFK {
 
     private static final String DSG_NAME = "/ds";
     private static final DatasetGraph DSG = DatasetGraphFactory.createTxnMem();
+    private static final AtomicInteger counter = new AtomicInteger(0);
     /**
      * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
      */
@@ -86,7 +82,7 @@ public class DockerTestFK {
     Properties consumerProps() {
         Properties consumerProps = new Properties();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test-" + counter.incrementAndGet());
         consumerProps.putAll(kafka.getClientProperties());
         return consumerProps;
     }
@@ -105,7 +101,7 @@ public class DockerTestFK {
         kafka.teardown();
     }
 
-    @Test(priority = 3)
+    @Test(priority = 1)
     public void givenBlankOffsets_whenConsumingFromTopic_thenExpectedMessagesFound() {
         // GIven
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -143,7 +139,7 @@ public class DockerTestFK {
         return FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
     }
 
-    @Test(priority = 4)
+    @Test(priority = 2)
     public void givenBlankOffsets_whenRunningFusekiKafka_thenDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -152,99 +148,78 @@ public class DockerTestFK {
         FusekiServer server = startFuseki(offsets, consumerProps());
         try {
             // Then
-            //@formatter:off
-            // NB - For secure clusters it takes longer to poll the data because of secure connection establishment
-            //      overheads so allow some time for the data to be polled from Kafka and applied to the dataset
-            Awaitility.await()
-                      .pollInterval(Duration.ofSeconds(3))
-                      .atMost(Duration.ofSeconds(10))
-                      .until(() -> {
-                            String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
-                            RowSet rowSet = QueryExecHTTP.service(URL).query("SELECT (count(*) AS ?C) {?s ?p ?o}").select();
-                            int count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-                            return count;
-                        }, x -> x == 2);
-            //@formatter:on
+            String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
+            DockerTestConfigFK.waitForDataCount(URL, 2);
         } finally {
             server.stop();
         }
     }
 
-    // TODO Need to restore these tests once we've restored the ability to restore offsets
-
-    @Test(priority = 5, enabled = false)
-    public void fk05_restore() {
-        // Assumes the topic exists and has data.
-        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+    @Test(priority = 3)
+    public void givenOffsetsRestored_whenRunningFusekiKafka_thenDataIsLoaded() {
+        // Given
         FusekiOffsetStore offsets = createNonPersistentState();
+        DSG.clear();
         FusekiServer server = startFuseki(offsets, consumerProps());
         try {
             String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
+            DockerTestConfigFK.waitForDataCount(URL, 2);
             DSG.clear();
-            RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            int count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 0);
-            FKS.restoreOffsetForDataset("", 0L);
-            Awaitility.await()
-                      .atMost(30, TimeUnit.SECONDS)
-                      .pollInterval(5, TimeUnit.SECONDS)
-                      .until(FKS.restoreOffsetMap::isEmpty);
-            rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 2);
+            DockerTestConfigFK.waitForDataCount(URL, 0);
+
+            // When
+            FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), 0L);
+            FKS.restoreOffsetForDataset(DSG_NAME, newOffsets);
+
+            // Then
+            DockerTestConfigFK.waitForDataCount(URL, 2);
         } finally {
             server.stop();
         }
     }
 
-    @Test(priority = 6, enabled = false)
-    public void fk06_restore_ignore() {
-        // Assumes the topic exists and has data.
-        FKS.restoreOffsetForDataset("ignore", 1L);
-        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+    @Test(priority = 4)
+    public void givenOffsetsToRestoreForMultipleDatasets_whenRunningFusekiKafka_thenDataIsLoadedAsExpected() {
+        // Given
+        FusekiOffsetStore ignored = FusekiOffsetStore.builder().datasetName("ignore").build();
+        ignored.saveOffset(KafkaEventSource.externalOffsetStoreKey("test", 0, "test"), 1L);
+        FKS.restoreOffsetForDataset("ignore", ignored);
         FusekiOffsetStore offsets = createNonPersistentState();
         FusekiServer server = startFuseki(offsets, consumerProps());
         try {
+            // When
             String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
             DSG.clear();
-            RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            int count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 0);
-            FKS.restoreOffsetMap.clear();
-            FKS.restoreOffsetForDataset("", 2L);
-            Awaitility.await()
-                      .atMost(30, TimeUnit.SECONDS)
-                      .pollInterval(5, TimeUnit.SECONDS)
-                      .until(FKS.restoreOffsetMap::isEmpty);
-            rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 0);
+            DockerTestConfigFK.waitForDataCount(URL, 0);
+            FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), 2L);
+            FKS.restoreOffsetForDataset("", newOffsets);
+
+            // Then
+            DockerTestConfigFK.waitForDataCount(URL, 0);
         } finally {
             server.stop();
         }
     }
 
 
-    @Test(priority = 7, enabled = false)
-    public void fk07_restore_beginning() {
-        // Assumes the topic exists and has data.
-        String countQuery = "SELECT (count(*) AS ?C) {?s ?p ?o}";
+    @Test(priority = 5)
+    public void givenNegativeOffsetsToRestore_whenRunningFusekiKafka_thenNoDataIsLoaded() {
+        // Given
         FusekiOffsetStore offsets = createNonPersistentState();
         FusekiServer server = startFuseki(offsets, consumerProps());
         try {
+            // When
             String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
             DSG.clear();
-            RowSet rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            int count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 0);
-            FKS.restoreOffsetForDataset("", -5L);
-            Awaitility.await()
-                      .atMost(30, TimeUnit.SECONDS)
-                      .pollInterval(5, TimeUnit.SECONDS)
-                      .until(FKS.restoreOffsetMap::isEmpty);
-            rowSet = QueryExecHTTP.service(URL).query(countQuery).select();
-            count = ((Number) rowSet.next().get("C").getLiteralValue()).intValue();
-            Assert.assertEquals(count, 2);
+            DockerTestConfigFK.waitForDataCount(URL, 0);
+            FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), -5L);
+            FKS.restoreOffsetForDataset("", newOffsets);
+
+            // Then
+            DockerTestConfigFK.waitForDataCount(URL, 0);
         } finally {
             server.stop();
         }

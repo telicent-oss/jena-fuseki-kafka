@@ -27,7 +27,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
@@ -251,15 +250,21 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 } else if (propertyFile.getURI().startsWith(EnvVariables.ENV_PREFIX)) {
                     resolveKafkaPropertiesFile(propertyFile.getURI(), node, props);
                 } else {
-                    throw onError(node, pKafkaPropertyFile,
-                                  "Properties file MUST be specified as a file URI or a literal", errorException);
+                    badPropertiesFileValue(node);
                 }
             } else if (propertyFile.isLiteral()) {
                 resolveKafkaPropertiesFile(propertyFile.getLiteralLexicalForm(), node, props);
+            } else {
+                badPropertiesFileValue(node);
             }
         });
 
         return props;
+    }
+
+    private static void badPropertiesFileValue(Node node) {
+        throw onError(node, pKafkaPropertyFile,
+                      "Properties file MUST be specified as a file URI or a literal", errorException);
     }
 
     private static void resolveKafkaPropertiesFile(String propertyFile, Node node, Properties props) {
@@ -294,38 +299,40 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             StrUtils.strjoinNL("PREFIX ja:     <" + JA.getURI() + ">", "PREFIX fk:     <" + NS + ">", "");
 
     private String datasetName(Graph graph, Node node) {
-        String queryString = StrUtils.strjoinNL(PREFIXES, "SELECT ?n { ", "   OPTIONAL { ?X ?fusekiServiceName ?N1 }",
-                                                "   OPTIONAL { ?X ?fusekiDatasetName ?N2 }" // Old name.
-                , "   BIND(COALESCE( ?N1, ?N2, '' ) AS ?n)", "}");
-        RowSet rowSet = QueryExec.graph(graph)
-                                 .query(queryString)
-                                 .substitution("X", node)
-                                 .substitution("fusekiServiceName", pFusekiServiceName)
-                                 .substitution("fusekiDatasetName", pFusekiDatasetName)
-                                 .build()
-                                 .select();
+        String queryString = """
+                SELECT ?n {
+                  OPTIONAL { ?X ?fusekiServiceName ?N1 }
+                  OPTIONAL { ?X ?fusekiDatasetName ?N2 } # Old name.
+                  BIND(COALESCE( ?N1, ?N2, '' ) AS ?n)
+                }
+                """;
+        try (QueryExec exec = QueryExec.graph(graph).query(queryString)
+                                       .substitution("X", node)
+                                       .substitution("fusekiServiceName", pFusekiServiceName)
+                                       .substitution("fusekiDatasetName", pFusekiDatasetName)
+                                       .build()) {
+            RowSet rowSet = exec
+                    .select();
 
-        if (!rowSet.hasNext()) {
-            throw new JenaKafkaException("Can't find the datasetName: " + NodeFmtLib.displayStr(node));
-        }
-        Binding row = rowSet.next();
-        if (rowSet.hasNext()) {
-            throw new JenaKafkaException("Multiple datasetNames: " + NodeFmtLib.displayStr(node));
-        }
+            // NB - Because we've done a BIND expression in the query over the OPTIONAL we're guaranteed to always
+            //      produce at least one row
+            Binding row = rowSet.next();
+            if (rowSet.hasNext()) {
+                throw new JenaKafkaException("Multiple datasetNames: " + NodeFmtLib.displayStr(node));
+            }
 
-        Node n = row.get("n");
-        if (n == null) {
-            throw new JenaKafkaException("Can't find the datasetName: " + NodeFmtLib.displayStr(node));
+            // NB - It's also guaranteed that the BIND expression always returns a non-null value since it's using
+            //      COALESCE() which given the parameters is guaranteed to return a non-null value
+            Node n = row.get("n");
+            if (!Util.isSimpleString(n)) {
+                throw new JenaKafkaException("Dataset name is not a string: " + NodeFmtLib.displayStr(node));
+            }
+            String name = n.getLiteralLexicalForm();
+            if (StringUtils.isBlank(name)) {
+                throw new JenaKafkaException("Dataset name is blank: " + NodeFmtLib.displayStr(node));
+            }
+            return name;
         }
-
-        if (!Util.isSimpleString(n)) {
-            throw new JenaKafkaException("Dataset name is not a string: " + NodeFmtLib.displayStr(node));
-        }
-        String name = n.getLiteralLexicalForm();
-        if (StringUtils.isBlank(name)) {
-            throw new JenaKafkaException("Dataset name is blank: " + NodeFmtLib.displayStr(node));
-        }
-        return name;
     }
 
     // Copy of DataAccessPoint.canonical.
@@ -362,9 +369,11 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     }
 
     static List<String> getConfigurationValues(Graph graph, Node node, Node property, Assem2.OnError errorException) {
-        List<String> configurationValues = new ArrayList<>(Assem2.getStrings(graph, node, property, errorException));
+        List<String> configurationValues =
+                new ArrayList<>(Assem2.getStrings(graph, node, property, errorException));
         for (int i = 0; i < configurationValues.size(); i++) {
-            configurationValues.set(i, checkForEnvironmentVariableValue(property.getURI(), configurationValues.get(i)));
+            configurationValues.set(i, checkForEnvironmentVariableValue(property.getURI(),
+                                                                        configurationValues.get(i)));
         }
         return configurationValues;
     }

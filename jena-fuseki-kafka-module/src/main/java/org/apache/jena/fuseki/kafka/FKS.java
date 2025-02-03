@@ -28,10 +28,13 @@ import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.sources.Event;
+import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicy;
 import io.telicent.smart.cache.sources.kafka.serializers.RdfPayloadSerializer;
 import io.telicent.smart.cache.sources.kafka.sinks.KafkaSink;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
@@ -42,6 +45,7 @@ import org.apache.jena.kafka.common.FusekiProjector;
 import org.apache.jena.kafka.common.FusekiSink;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 
 import io.telicent.smart.cache.sources.kafka.KafkaRdfPayloadSource;
@@ -51,12 +55,8 @@ import org.apache.kafka.common.utils.Bytes;
 /**
  * Functions for Fuseki-Kafka server setup.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FKS {
-
-    /**
-     * Map for communicating the restoration of kafka offsets.
-     */
-    static ConcurrentHashMap<String, Long> restoreOffsetMap = new ConcurrentHashMap<>();
 
     /**
      * Add a connector to a server and starts the polling.
@@ -73,7 +73,7 @@ public class FKS {
         // To replicate a database with a mix of add and deletes, we need to see all the Kafka messages in-order,
         // which forces us to have only one partition.
         // However, for additive only databases we can have as many partitions as we want as the set semantics of RDF
-        // means the graph will be eventually consistent
+        // means the graph will be eventually consistent.
         // Smart Cache Core Libraries handle all the seeking logic based on the configured sync and replay flags, and
         // the offsets store (Fuseki Kafka's persistent state store)
         //
@@ -81,15 +81,15 @@ public class FKS {
         // understands the implications of their choice and has chosen appropriately for their use case.
 
         // -- Choose start point.
-        // If replay is true ignore topic state and start at current.
+        // If replay is true ignore topic state and start at beginning.
         // If sync is true continue from previous offsets.
         // If neither is true continue from latest offsets
         KafkaReadPolicy<Bytes, RdfPayload> readPolicy = conn.isReplayTopic() ? KafkaReadPolicies.fromBeginning() :
                                                         (conn.isSyncTopic() ?
                                                          KafkaReadPolicies.fromExternalOffsets(offsets, 0) :
                                                          KafkaReadPolicies.fromLatest());
-        FmtLog.info(LOG, "Selected read policy for topics %s (replay: %s, sync: %s) is %s", topicNames,
-                    conn.isReplayTopic(), conn.isSyncTopic(), readPolicy.getClass().getSimpleName());
+        FmtLog.info(LOG, "[%s] Selected read policy (replay: %s, sync: %s) is %s", topicNames, conn.isReplayTopic(),
+                    conn.isSyncTopic(), readPolicy.getClass().getSimpleName());
 
         // -- Kafka Event Source
         KafkaRdfPayloadSource<Bytes> source = KafkaRdfPayloadSource.<Bytes>createRdfPayload()
@@ -102,11 +102,8 @@ public class FKS {
                                                                    .consumerConfig(conn.getKafkaConsumerProps())
                                                                    .keyDeserializer(BytesDeserializer.class)
                                                                    .build();
-
-        if (conn.getDatasetName() != null) {
-            FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic(s) = %s : Dataset = %s", topicNames, topicNames,
-                        conn.getDatasetName());
-        }
+        FmtLog.info(LOG, "[%s] Start FusekiKafka : Topic(s) = %s : Dataset = %s", topicNames, topicNames,
+                    conn.getDatasetName());
 
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
@@ -141,14 +138,16 @@ public class FKS {
         return Executors.newCachedThreadPool();
     }
 
-    private static final List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> DRIVERS = new ArrayList<>();
+    private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
+            new HashMap<>();
 
     /**
      * The background threads
      */
     static void resetPollThreads() {
         // Explicitly cancel the projector drivers
-        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS) {
+        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.values().stream().flatMap(
+                Collection::stream).toList()) {
             driver.cancel();
         }
         DRIVERS.clear();
@@ -202,7 +201,7 @@ public class FKS {
 
         // Submit for execution, and register for cancellation
         EXECUTOR.submit(driver);
-        DRIVERS.add(driver);
+        DRIVERS.computeIfAbsent(connector.getDatasetName(), x -> new ArrayList<>()).add(driver);
 
         // Wait briefly for the projector driver thread to spin up
         try {
@@ -213,13 +212,30 @@ public class FKS {
     }
 
     /**
-     * Updates map for dataset with offset to restore from
+     * Forces all currently active event sources
      *
      * @param datasetName relevant dataset
-     * @param offset      desired offset
+     * @param newOffsets  desired offsets to reset to
      */
-    public static void restoreOffsetForDataset(String datasetName, Long offset) {
-        // TODO This needs to actually do something useful
-        restoreOffsetMap.put(datasetName, offset);
+    public static void restoreOffsetForDataset(String datasetName, FusekiOffsetStore newOffsets) {
+        if (DRIVERS.containsKey(datasetName)) {
+            for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.get(datasetName)) {
+                if (driver.getSource() instanceof KafkaEventSource<Bytes, RdfPayload> kafkaSource) {
+                    // Convert from offset store format into the map format KafkaEventSource expects
+                    Map<TopicPartition, Long> kafkaOffsets = new HashMap<>();
+                    for (Map.Entry<String, Object> offset : newOffsets.offsets()) {
+                        TopicPartition partition = decodeExternalOffsetKey(offset.getKey());
+                        kafkaOffsets.compute(partition, (k, v) -> (v == null) ? (Long) offset.getValue() :
+                                                                  Math.max(v, (Long) offset.getValue()));
+                    }
+                    kafkaSource.resetOffsets(kafkaOffsets);
+                }
+            }
+        }
+    }
+
+    private static TopicPartition decodeExternalOffsetKey(String key) {
+        String[] parts = key.split("-", 3);
+        return new TopicPartition(parts[0], Integer.parseInt(parts[1]));
     }
 }

@@ -6,6 +6,7 @@ import io.telicent.smart.cache.projectors.SinkException;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
+import io.telicent.smart.cache.sources.kafka.KafkaEvent;
 import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
 import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.jena.kafka.JenaKafkaException;
@@ -16,12 +17,14 @@ import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.JenaTransactionException;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -247,6 +250,30 @@ public class TestFusekiProjector {
         verifyProjection(source, projector, dsg, 3, 1, 1);
     }
 
+    private List<Event<Bytes, RdfPayload>> createKafkaTestEvents(int size) {
+        List<Event<Bytes, RdfPayload>> events = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            ConsumerRecord<Bytes, RdfPayload> record = new ConsumerRecord<>("test", 0, i, Bytes.wrap(new byte[0]),
+                                                                            RdfPayload.of(
+                                                                                    TestFusekiSink.createSimpleDatasetPayload()));
+            events.add(new KafkaEvent<>(record, null));
+        }
+        return events;
+    }
+
+    @Test
+    public void givenBatchingProjector_whenProjectingKafkaEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        List<Event<Bytes, RdfPayload>> kafkaEvents = createKafkaTestEvents(3);
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(kafkaEvents);
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 3);
+
+        // When and Then
+        verifyProjection(source, projector, dsg, 3, 1, 1);
+    }
+
     @Test
     public void givenProjector_whenProjectingPatchThatCommitsTheTransaction_thenNoAdditionalCommits() {
         // Given
@@ -332,6 +359,23 @@ public class TestFusekiProjector {
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
                 List.of(new SimpleEvent<>(Collections.emptyList(), null,
                                           RdfPayload.of("text/unrecognized", new byte[100]))));
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1);
+
+        // When and Then
+        Assertions.assertThrows(JenaKafkaException.class,
+                                () -> verifyFusekiSinkProjection(source, projector, dsg, 0, 0, 0));
+        verifyNoTransactions(dsg);
+    }
+
+    @Test
+    public void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
+                List.of(new KafkaEvent<>(new ConsumerRecord<>("test", 0, 0, Bytes.wrap(new byte[0]),
+                                                              RdfPayload.of("text/unrecognized", new byte[100])),
+                                         null)));
         DatasetGraph dsg = mockDatasetGraph();
         FusekiProjector projector = buildProjector(connector, source, dsg, 1);
 

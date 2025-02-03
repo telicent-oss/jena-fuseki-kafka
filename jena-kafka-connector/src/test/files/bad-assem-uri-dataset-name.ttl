@@ -1,0 +1,14 @@
+PREFIX fuseki:  <http://jena.apache.org/fuseki#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
+
+# Malformed - dataset name specified as a URI
+
+<#connector> rdf:type fk:Connector ;
+    fk:bootstrapServers    "localhost:9092";
+    fk:topic               "RDF0";
+    fk:datasetName         </ds1>;
+    fk:syncTopic           true;
+    
+    fk:stateFile           "Replay-RDF0.state";
+    .
