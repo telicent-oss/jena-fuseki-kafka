@@ -71,7 +71,9 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
      */
     public static int DEFAULT_BATCH_SIZE = 1000;
 
+    @Getter
     private final KConnectorDesc connector;
+    @Getter
     private final DatasetGraph dataset;
     private final EventSource<Bytes, RdfPayload> source;
     @Getter
@@ -168,6 +170,16 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         return false;
     }
 
+    /**
+     * Aborts the transaction and replays preceding events
+     * <p>
+     * This is called when processing fails during application of an event since we can't guarantee that the event was
+     * applied cleanly.  Thus, we need to abort the whole transaction and then replay the prior uncommitted events that
+     * did apply cleanly to ensure we don't lose any data.
+     * </p>
+     *
+     * @param sink The destination sink
+     */
     protected final void abortAndReplay(Sink<Event<Bytes, RdfPayload>> sink) {
         abort();
 
@@ -199,6 +211,9 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
 
     /**
      * Commits the ongoing transaction if we've reached an appropriate point to do so
+     * <p>
+     * See class level Javadoc - {@link FusekiProjector} - for discussion on the batching behaviour.
+     * </p>
      *
      * @param event Current event
      */
@@ -256,7 +271,7 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
      * @param event Event
      */
     protected final void materialiseValue(Event<Bytes, RdfPayload> event) {
-        // Try to materialize the payload value, this either succeeds if the payload is value or throws an exception
+        // Try to materialize the payload value, this either succeeds if the payload is valid or throws an exception
         // if the payload is malformed, we handle malformed payloads in our catch block
         if (event.value().isDataset()) {
             event.value().getDataset();

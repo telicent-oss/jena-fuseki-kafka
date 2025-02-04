@@ -235,7 +235,7 @@ public class DockerTestFK {
                 new KConnectorDesc(List.of(KafkaTestCluster.DEFAULT_TOPIC), this.kafka.getBootstrapServers(), DSG_NAME,
                                    null, false, true, null, consumerProps);
         // Manual call to set up the server.
-        FKS.addConnectorToServer(conn, server, offsets);
+        FKS.addConnectorToServer(conn, server, offsets, null);
         server.start();
         return server;
     }

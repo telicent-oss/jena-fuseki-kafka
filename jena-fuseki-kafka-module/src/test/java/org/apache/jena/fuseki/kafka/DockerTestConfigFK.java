@@ -39,6 +39,7 @@ import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
+import org.apache.jena.kafka.utils.EnvVariables;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.sparql.exec.RowSet;
@@ -124,6 +125,7 @@ public class DockerTestConfigFK {
     private Graph loadConfiguration(String x) {
         Graph graph =
                 configuration(DIR + x, kafka.getBootstrapServers(), kafka.getClientProperties());
+
         FileOps.ensureDir(STATE_DIR);
         FileOps.clearDirectory(STATE_DIR);
         return graph;
@@ -244,11 +246,11 @@ public class DockerTestConfigFK {
     }
 
     private static FusekiServer createFusekiServer(Graph graph) {
-        FusekiServer server = FusekiServer.create().port(0)
-                                          //.verbose(true)
-                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
-                                          .parseConfig(ModelFactory.createModelForGraph(graph)).build();
-        return server;
+        return FusekiServer.create()
+                           .port(0)
+                           .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                           .parseConfig(ModelFactory.createModelForGraph(graph))
+                           .build();
     }
 
     @Test(priority = 10)
@@ -259,7 +261,8 @@ public class DockerTestConfigFK {
         // When
         FusekiServer server = createFusekiServer(graph);
 
-        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl", DIR + "/malformed.ttl", DIR + "/data2.ttl"));
+        FKLib.sendFiles(producerProps(), "RDF0",
+                        List.of(DIR + "/data.ttl", DIR + "/malformed.ttl", DIR + "/data2.ttl"));
         server.start();
         try {
             // Then
@@ -281,7 +284,8 @@ public class DockerTestConfigFK {
         // When
         FusekiServer server = createFusekiServer(graph);
 
-        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl", DIR + "/malformed.rdfp", DIR + "/data2.ttl"));
+        FKLib.sendFiles(producerProps(), "RDF0",
+                        List.of(DIR + "/data.ttl", DIR + "/malformed.rdfp", DIR + "/data2.ttl"));
         server.start();
         try {
             // Then
@@ -316,23 +320,29 @@ public class DockerTestConfigFK {
     // Env Variable use
     @Test(priority = 20)
     public void givenEnvironmentVariableConfiguration_whenRunningFusekiKafka_thenDataAsExpected() {
-        // Given
-        System.setProperty("TEST_BOOTSTRAP_SERVER", "localhost:9092");
-        System.clearProperty("TEST_KAFKA_TOPIC");
-        Graph graph = loadConfiguration("/config-connector-env.ttl");
-
-        // When
-        FusekiServer server = createFusekiServer(graph);
-        FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl"));
-        server.start();
         try {
-            // Then
-            String URL = "http://localhost:" + server.getHttpPort() + "/ds";
-            waitForDataCount(URL, 1);
+            // Given
+            System.setProperty("TEST_BOOTSTRAP_SERVER", this.kafka.getBootstrapServers());
+            System.clearProperty("TEST_KAFKA_TOPIC");
+            System.setProperty("TEST_CONSUMER_GROUP", "connector-6-" + System.currentTimeMillis());
+            Graph graph = loadConfiguration("/config-connector-env.ttl");
+
+            // When
+            FusekiServer server = createFusekiServer(graph);
+            FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR + "/data.ttl"));
+            server.start();
+            try {
+                // Then
+                String URL = "http://localhost:" + server.getHttpPort() + "/ds";
+                waitForDataCount(URL, 1);
+            } finally {
+                server.stop();
+            }
         } finally {
-            server.stop();
+            System.clearProperty("TEST_BOOTSTRAP_SERVER");
+            System.clearProperty("TEST_KAFKA_TOPIC");
+            System.clearProperty("TEST_CONSUMER_GROUP");
         }
-        System.clearProperty("TEST_BOOTSTRAP_SERVER");
     }
 
     @Test(priority = 30)
@@ -360,7 +370,8 @@ public class DockerTestConfigFK {
     }
 
     private static String generateUniqueConsumerId(Graph graph) {
-        Triple groupIds = graph.stream(Node.ANY, KafkaConnectorAssembler.pKafkaGroupId, Node.ANY).findFirst().orElse(null);
+        Triple groupIds =
+                graph.stream(Node.ANY, KafkaConnectorAssembler.pKafkaGroupId, Node.ANY).findFirst().orElse(null);
         graph.delete(groupIds);
         String uniqueId = "connector-" + System.currentTimeMillis();
         graph.add(groupIds.getSubject(), groupIds.getPredicate(), NodeFactory.createLiteralString(uniqueId));
@@ -378,20 +389,35 @@ public class DockerTestConfigFK {
     protected static Graph configuration(String filename, String bootstrapServers, Properties props) {
         // Fix up!
         Graph graph = RDFParser.source(filename).toGraph();
+
+        // Replace the placeholder bootstrap servers with the real bootstrap servers
         List<Triple> triplesBootstrapServers =
-                G.find(graph, null, KafkaConnectorAssembler.pKafkaBootstrapServers, null).toList();
+                G.find(graph, Node.ANY, KafkaConnectorAssembler.pKafkaBootstrapServers, Node.ANY).toList();
         triplesBootstrapServers.forEach(t -> {
-            graph.delete(t);
-            graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(bootstrapServers));
+            if (!t.getObject().getLiteralLexicalForm().startsWith(EnvVariables.ENV_PREFIX)) {
+                graph.delete(t);
+                graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(bootstrapServers));
+            }
         });
 
-        FileOps.ensureDir("target/state");
-        List<Triple> triplesStateFile = G.find(graph, null, KafkaConnectorAssembler.pStateFile, null).toList();
+        // Rewrites state file paths to point into our target/state directory for tests
+        FileOps.ensureDir(STATE_DIR);
+        List<Triple> triplesStateFile = G.find(graph, Node.ANY, KafkaConnectorAssembler.pStateFile, Node.ANY).toList();
         triplesStateFile.forEach(t -> {
             graph.delete(t);
             String fn = t.getObject().getLiteralLexicalForm();
             graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(STATE_DIR + "/" + fn));
         });
+
+        // Make the Consumer Group IDs unique within tests just to ensure no collisions between tests otherwise
+        // that can lead to Consumer Group Rebalance deadlocks
+        for (Triple t : graph.stream(Node.ANY, KafkaConnectorAssembler.pKafkaGroupId, Node.ANY).toList()) {
+            if (!t.getObject().getLiteralLexicalForm().startsWith(EnvVariables.ENV_PREFIX)) {
+                graph.delete(t);
+                graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(
+                        t.getObject().getLiteralLexicalForm() + "-" + System.currentTimeMillis()));
+            }
+        }
 
         // If extra client properties are needed inject via an external properties file
         if (!props.isEmpty()) {
@@ -405,7 +431,7 @@ public class DockerTestConfigFK {
                 // For each Kafka connector in the configuration inject the fk:configFile triple pointing to our
                 // temporary properties file for our Secure Cluster
                 List<Triple> connectors =
-                        G.find(graph, null, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode())
+                        G.find(graph, Node.ANY, RDF.type.asNode(), KafkaConnectorAssembler.tKafkaConnector.asNode())
                          .toList();
                 connectors.forEach(t -> {
                     graph.add(t.getSubject(), KafkaConnectorAssembler.pKafkaPropertyFile,
