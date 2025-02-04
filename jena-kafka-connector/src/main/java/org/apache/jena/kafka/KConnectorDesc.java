@@ -92,4 +92,18 @@ public class KConnectorDesc {
         return this.kafkaConsumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
     }
 
+    /**
+     * Gets the maximum poll records as configured for the connector
+     *
+     * @return Maximum poll records
+     */
+    public int getMaxPollRecords() {
+        String rawValue = this.kafkaConsumerProps.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        if (StringUtils.isBlank(rawValue)) {
+            return SysJenaKafka.KAFKA_FETCH_POLL_SIZE;
+        } else {
+            return Integer.parseInt(rawValue);
+        }
+    }
+
 }

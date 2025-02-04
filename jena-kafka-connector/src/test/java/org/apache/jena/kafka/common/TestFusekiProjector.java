@@ -41,7 +41,7 @@ public class TestFusekiProjector {
      *
      * @return Mock dataset graph
      */
-    private static DatasetGraph mockDatasetGraph() {
+    public static DatasetGraph mockDatasetGraph() {
         DatasetGraph dsg = Mockito.mock(DatasetGraph.class);
         AtomicBoolean inTransaction = new AtomicBoolean(false);
         when(dsg.isInTransaction()).thenAnswer(x -> inTransaction.get());
@@ -107,12 +107,12 @@ public class TestFusekiProjector {
                                  RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload()));
     }
 
-    private static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
+    public static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
                                                   DatasetGraph dsg, int batchSize) {
         return FusekiProjector.builder().connector(connector).source(source).dataset(dsg).batchSize(batchSize).build();
     }
 
-    private static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
+    public static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
                                                   DatasetGraph dsg, int batchSize, Sink<Event<Bytes, RdfPayload>> dlq) {
         return FusekiProjector.builder()
                               .connector(connector)
@@ -127,7 +127,7 @@ public class TestFusekiProjector {
         return new KConnectorDesc(List.of("test"), "localhost:9092", "/ds", null, true, false, null, new Properties());
     }
 
-    private static void verifyProjection(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,
+    public static void verifyProjection(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,
                                          DatasetGraph dsg, long expectedEvents, int expectedBeginTransactions,
                                          int expectedCommitTransactions) {
         try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {

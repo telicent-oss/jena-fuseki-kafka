@@ -97,8 +97,9 @@ public class FKS {
                                                                    .topics(conn.getTopics())
                                                                    .externalOffsetStore(offsets)
                                                                    .readPolicy(readPolicy)
-                                                                   .autoCommit(false)
+                                                                   .commitOnProcessed()
                                                                    .consumerGroup(conn.getConsumerGroupId())
+                                                                   .maxPollRecords(conn.getMaxPollRecords())
                                                                    .consumerConfig(conn.getKafkaConsumerProps())
                                                                    .keyDeserializer(BytesDeserializer.class)
                                                                    .build();
@@ -191,6 +192,7 @@ public class FKS {
                                                          .source(source)
                                                          .dataset(destination)
                                                          .connector(connector)
+                                                         .batchSize(connector.getMaxPollRecords())
                                                          .dlq(dlq)
                                                          .build())
                                .destination(FusekiSink.builder()
