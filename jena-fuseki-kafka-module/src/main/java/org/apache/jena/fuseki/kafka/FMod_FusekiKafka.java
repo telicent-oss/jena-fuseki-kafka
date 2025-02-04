@@ -21,7 +21,11 @@ import static org.apache.jena.kafka.FusekiKafka.LOG;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
+import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.projectors.Sink;
+import io.telicent.smart.cache.sources.Event;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.atlas.lib.Pair;
@@ -37,9 +41,11 @@ import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.JenaException;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
 import org.apache.jena.sys.JenaSystem;
+import org.apache.kafka.common.utils.Bytes;
 
 /**
  * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add data), SPARQL Update or RDF patch.
@@ -195,8 +201,25 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
             FmtLog.info(LOG, "[%s] Starting connector between topic(s) %s on %s and endpoint %s",
                         StringUtils.join(conn.getTopics(), ", "), StringUtils.join(conn.getTopics(), ", "),
                         conn.getBootstrapServers(), conn.getDatasetName());
-            FKS.addConnectorToServer(conn, server, offsets);
+            FKS.addConnectorToServer(conn, server, offsets, getSinkBuilder());
         });
+    }
+
+    /**
+     * Gets the sink builder function, by default this returns {@code null} which causes
+     * {@link FKS#addConnectorToServer(KConnectorDesc, FusekiServer, FusekiOffsetStore, Function)} to use
+     * {@link FKS#defaultSinkBuilder()}.
+     * <p>
+     * If you are extending this module this provides an extension point that allows more control over how events are
+     * actually applied to the target dataset.  The default {@link org.apache.jena.kafka.common.FusekiSink} just applies
+     * the event directly to the target dataset.  If you need to take additional actions to apply events then you
+     * should extend this class and override this method to provide your desired sink builder function.
+     * </p>
+     *
+     * @return Sink builder function, {@code null} by default
+     */
+    protected Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> getSinkBuilder() {
+        return null;
     }
 
     @Override

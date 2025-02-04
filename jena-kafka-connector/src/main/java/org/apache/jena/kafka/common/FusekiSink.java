@@ -9,7 +9,18 @@ import org.apache.jena.kafka.utils.RDFChangesApplyExternalTransaction;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.common.utils.Bytes;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+/**
+ * A sink that applies incoming events to the target {@link DatasetGraph}.
+ * <p>
+ * This is intended for use in conjunction with the {@link FusekiProjector}.
+ * </p>
+ * <p>
+ * If your use case requires applying a Kafka event to have additional side effects beyond just updating the
+ * {@link DatasetGraph} then you should extend this class and override the {@link #applyDatasetEvent(Event)} and/or
+ * {@link #applyRdfPatchEvent(Event)} as appropriate.
+ * </p>
+ */
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @ToString
 public class FusekiSink implements Sink<Event<Bytes, RdfPayload>> {
@@ -18,7 +29,7 @@ public class FusekiSink implements Sink<Event<Bytes, RdfPayload>> {
     private final DatasetGraph dataset;
 
     @Override
-    public void send(Event<Bytes, RdfPayload> event) {
+    public final void send(Event<Bytes, RdfPayload> event) {
         // Apply the payload to the dataset
         try {
             if (event.value().isDataset()) {

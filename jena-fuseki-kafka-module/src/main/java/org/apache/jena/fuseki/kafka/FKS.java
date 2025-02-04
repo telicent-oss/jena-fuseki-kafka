@@ -19,10 +19,8 @@ package org.apache.jena.fuseki.kafka;
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.function.Function;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.projectors.Sink;
@@ -64,8 +62,21 @@ public class FKS {
      * This is mainly called from {@link FMod_FusekiKafka#startKafkaConnectors(FusekiServer)}.  Public static visibility
      * is primarily to allow testing, or for developers to configure and control Kafka connectors in other ways.
      * </p>
+     *
+     * @param conn        The Kafka connector descriptor
+     * @param server      The Fuseki server the connector is being added to
+     * @param offsets     The Fuseki Kafka offsets store
+     * @param sinkBuilder Optional builder function that customises the sink that is used to actually apply changes to
+     *                    the target dataset.  By default, this will build a {@link FusekiSink} if not otherwise
+     *                    specified.  This <strong>SHOULD</strong> only be configured if you need to customise how
+     *                    incoming RDF payloads are applied to the target dataset.
      */
-    public static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, FusekiOffsetStore offsets) {
+    public static void addConnectorToServer(KConnectorDesc conn, FusekiServer server, FusekiOffsetStore offsets,
+                                            Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder) {
+        Objects.requireNonNull(conn);
+        Objects.requireNonNull(server);
+        Objects.requireNonNull(offsets);
+
         String topicNames = StringUtils.join(conn.getTopics(), ", ");
 
         // NOTES
@@ -108,12 +119,15 @@ public class FKS {
 
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
-        startTopicPoll(conn, source, dsg);
+        startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
     }
 
     /**
      * Helper to find the database ({@link DatasetGraph}) associated with a URL path. Returns an {@code Optional} for
      * the {@link DatasetGraph} to indicate if it was found or not.
+     *
+     * @param server  Fuseki Server instance
+     * @param uriPath Dataset path
      */
     public static Optional<DatasetGraph> findDataset(FusekiServer server, String uriPath) {
         DataService dataService = findDataService(server, uriPath);
@@ -166,7 +180,8 @@ public class FKS {
     }
 
     private static void startTopicPoll(KConnectorDesc connector, KafkaRdfPayloadSource<Bytes> source,
-                                       DatasetGraph destination) {
+                                       DatasetGraph destination,
+                                       Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder) {
 
         //@formatter:off
         Sink<Event<Bytes, RdfPayload>> dlq = null;
@@ -185,7 +200,6 @@ public class FKS {
                 ProjectorDriver.<Bytes, RdfPayload, Event<Bytes, RdfPayload>>create()
                                .pollTimeout(FKConst.pollingWaitDuration)
                                .unlimited()
-                               .maxStalls(6)
                                .reportBatchSize(10_000)
                                .source(source)
                                .projector(FusekiProjector.builder()
@@ -195,22 +209,45 @@ public class FKS {
                                                          .batchSize(connector.getMaxPollRecords())
                                                          .dlq(dlq)
                                                          .build())
-                               .destination(FusekiSink.builder()
-                                                      .dataset(destination)
-                                                      .build())
+                               .destination(sinkBuilder.apply(destination))
                                .build();
         //@formatter:on
 
         // Submit for execution, and register for cancellation
-        EXECUTOR.submit(driver);
+        Future<?> future = EXECUTOR.submit(driver);
         DRIVERS.computeIfAbsent(connector.getDatasetName(), x -> new ArrayList<>()).add(driver);
 
         // Wait briefly for the projector driver thread to spin up
         try {
-            Thread.sleep(1000);
+            future.get(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             // Ignored
+        } catch (ExecutionException e) {
+            // If the projector driver fails in the startup phase we should bail out immediately
+            DRIVERS.getOrDefault(connector.getDatasetName(), new ArrayList<>()).remove(driver);
+            throw new FusekiKafkaException("Connector failed to start up", e);
+        } catch (TimeoutException e) {
+            // Ignore, we can safely assume the projector driver thread started up cleanly
         }
+
+        // TODO We should have a proper monitor thread that is periodically checking the projector driver threads to see
+        //      if any of them have failed
+    }
+
+    /**
+     * The default sink builder function used by
+     * {@link #addConnectorToServer(KConnectorDesc, FusekiServer, FusekiOffsetStore, Function)} if a builder function is
+     * not explicitly specified.
+     * <p>
+     * The default sink builder function just builds a {@link FusekiSink}
+     * </p>
+     *
+     * @return Default sink builder function
+     */
+    public static Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> defaultSinkBuilder() {
+        return dsg -> FusekiSink.builder()
+                                .dataset(dsg)
+                                .build();
     }
 
     /**
@@ -224,6 +261,10 @@ public class FKS {
             for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.get(datasetName)) {
                 if (driver.getSource() instanceof KafkaEventSource<Bytes, RdfPayload> kafkaSource) {
                     // Convert from offset store format into the map format KafkaEventSource expects
+                    // Our external offset store keys are of the form <topic>-<partition>-<consumerGroup>
+                    // Since we may be restoring from a state file that may have different group in it, e.g. we might be
+                    // using a restore to spin up a new instance from a previous backup, we want to find the maximum
+                    // offsets in that file as those will represent the most recent Kafka offsets
                     Map<TopicPartition, Long> kafkaOffsets = new HashMap<>();
                     for (Map.Entry<String, Object> offset : newOffsets.offsets()) {
                         TopicPartition partition = decodeExternalOffsetKey(offset.getKey());
