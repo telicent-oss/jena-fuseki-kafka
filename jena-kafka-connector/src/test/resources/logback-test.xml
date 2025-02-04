@@ -15,8 +15,17 @@
         </encoder>
     </appender>
 
-    <!-- Kafka's NetworkClient is very chatty! -->
+    <!--
+     Kafka's NetworkClient is very chatty!
+     Also at DEBUG level things get pretty unusably noisy
+    -->
     <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
+    <logger name="org.apache.kafka" level="INFO" />
+
+    <!-- Jena's Debug level gets very noisy -->
+    <logger name="org.apache.jena" level="INFO" />
+
+    <logger name="org.apache.jena.kafka.FusekiKafka" level="DEBUG" />
 
     <root level="OFF">
         <appender-ref ref="STDERR" />

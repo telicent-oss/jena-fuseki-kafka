@@ -1,5 +1,6 @@
 package org.apache.jena.kafka.common;
 
+import io.telicent.smart.cache.observability.RuntimeInfo;
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
 import io.telicent.smart.cache.projectors.Projector;
@@ -14,6 +15,7 @@ import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
@@ -67,7 +69,7 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     /**
      * Default batch size if not otherwise configured
      */
-    public static int DEFAULT_BATCH_SIZE = 25;
+    public static int DEFAULT_BATCH_SIZE = 1000;
 
     private final KConnectorDesc connector;
     private final DatasetGraph dataset;
@@ -205,15 +207,20 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
         if (event.value().isPatch() && !this.dataset.isInTransaction()) {
             // Just processed an RDF Patch that committed the transaction for us
             // Need to call our own commit() now or our state will be incorrect
+            FusekiKafka.LOG.debug("[{}] Committing due to previous RDF patch event committing", this.topicNames);
             this.commit();
         } else if (this.batchSize == 1) {
             // No batching enabled, always commit immediately
+            FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
             this.commit();
         } else if (this.eventsSinceLastCommit.size() >= this.batchSize) {
             // Reached batch size
             // Check whether further events are available immediately, if not commit now
             if (!this.source.availableImmediately()) {
                 // All in-memory events consumed so commit now
+                FusekiKafka.LOG.debug(
+                        "[{}] Committing due to exceeding batch size ({}) and no buffered events available",
+                        this.topicNames, this.batchSize);
                 commit();
             }
 
@@ -266,7 +273,7 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     protected final void commit() {
         // Commit changes to the dataset
         FusekiKafka.LOG.debug("[{}] Committing write transaction for {} Kafka events", this.topicNames,
-                             this.eventsSinceLastCommit.size());
+                              this.eventsSinceLastCommit.size());
         if (this.dataset.isInTransaction()) {
             this.dataset.commit();
         }
@@ -290,6 +297,19 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
                                 .append(", ");
             }
             offsetLogMessage.delete(offsetLogMessage.length() - 2, offsetLogMessage.length());
+            long sizeInBytes =
+                    this.eventsSinceLastCommit.stream().map(e -> e.value().sizeInBytes()).reduce(0L, Long::sum);
+            offsetLogMessage.append(" (")
+                            .append(String.format("%,d", this.eventsSinceLastCommit.size()))
+                            .append(" events");
+            if (sizeInBytes > 0) {
+                Pair<Double, String> sizeDetails = RuntimeInfo.parseMemory(sizeInBytes);
+                offsetLogMessage.append(", ")
+                                .append(String.format("%.2f", sizeDetails.getLeft()))
+                                .append(' ')
+                                .append(sizeDetails.getRight());
+            }
+            offsetLogMessage.append(")");
             FusekiKafka.LOG.info("{}", offsetLogMessage);
         }
 
