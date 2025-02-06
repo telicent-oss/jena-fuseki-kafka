@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
+import org.apache.jena.sys.JenaSystem;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,9 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 public class TestFusekiOffsetStore {
+    static {
+        JenaSystem.init();
+    }
 
     private static final String DATASET_NAME = "/ds";
     private final ObjectMapper mapper = new ObjectMapper();

@@ -17,6 +17,7 @@ import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.JenaTransactionException;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
@@ -34,6 +35,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class TestFusekiProjector {
+    static {
+        JenaSystem.init();
+    }
 
     /**
      * Creates a mock {@link DatasetGraph} that exhibits the normal Jena transaction behaviour and can be used to verify

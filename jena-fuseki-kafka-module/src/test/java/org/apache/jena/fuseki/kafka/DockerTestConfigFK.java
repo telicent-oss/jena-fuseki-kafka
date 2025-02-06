@@ -373,7 +373,7 @@ public class DockerTestConfigFK {
         Triple groupIds =
                 graph.stream(Node.ANY, KafkaConnectorAssembler.pKafkaGroupId, Node.ANY).findFirst().orElse(null);
         graph.delete(groupIds);
-        String uniqueId = "connector-" + System.currentTimeMillis();
+        String uniqueId = "connector-" + System.nanoTime();
         graph.add(groupIds.getSubject(), groupIds.getPredicate(), NodeFactory.createLiteralString(uniqueId));
         return uniqueId;
     }
@@ -415,7 +415,7 @@ public class DockerTestConfigFK {
             if (!t.getObject().getLiteralLexicalForm().startsWith(EnvVariables.ENV_PREFIX)) {
                 graph.delete(t);
                 graph.add(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralString(
-                        t.getObject().getLiteralLexicalForm() + "-" + System.currentTimeMillis()));
+                        t.getObject().getLiteralLexicalForm() + "-" + System.nanoTime()));
             }
         }
 

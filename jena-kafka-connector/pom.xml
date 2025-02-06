@@ -211,6 +211,8 @@
                                 <include>**/Test*.java</include>
                                 <include>**/DockerTest*.java</include>
                             </includes>
+                            <reuseForks>false</reuseForks>
+                            <forkCount>${test.maxForks}</forkCount>
                         </configuration>
                     </plugin>
                 </plugins>

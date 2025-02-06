@@ -3,7 +3,9 @@ package org.apache.jena.fuseki.kafka;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.fuseki.server.DataService;
+import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sys.JenaSystem;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -14,6 +16,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestFKS {
+
+    static {
+        JenaSystem.init();
+        FusekiLogging.markInitialized(true);
+    }
 
     @Test
     public void givenEmptyDapRegistry_whenFindingDataset_thenNull() {

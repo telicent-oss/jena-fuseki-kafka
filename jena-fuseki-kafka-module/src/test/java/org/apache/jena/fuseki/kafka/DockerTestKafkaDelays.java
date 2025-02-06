@@ -4,11 +4,13 @@ import eu.rekawek.toxiproxy.model.ToxicDirection;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiModules;
+import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.system.G;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -35,6 +37,11 @@ import static org.testng.AssertJUnit.assertTrue;
 
 
 public class DockerTestKafkaDelays {
+
+    static {
+        JenaSystem.init();
+        FusekiLogging.markInitialized(true);
+    }
 
     private static final String DIR = "src/test/files";
     private static final String STATE_DIR = "target/state";
