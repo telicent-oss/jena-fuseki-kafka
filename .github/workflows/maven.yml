@@ -21,6 +21,8 @@ jobs:
     with:
       # Docker based tests in this repository
       USES_DOCKERHUB_IMAGES: true
+      # Parallel tests are not reliable on resource constrained GitHub Actions workers
+      MAVEN_ARGS: -Dtest.maxForks=1
       # Want SNAPSHOTs to be published from main
       PUBLISH_SNAPSHOTS: true
       MAIN_BRANCH: main

@@ -9,6 +9,7 @@ import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.core.Quad;
+import org.apache.jena.sys.JenaSystem;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -19,6 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 public class TestFusekiSink {
+    static {
+        JenaSystem.init();
+    }
 
     @Test
     public void givenNullDataset_whenBuildingSink_thenNPE() {

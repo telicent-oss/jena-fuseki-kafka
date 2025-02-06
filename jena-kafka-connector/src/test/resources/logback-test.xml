@@ -25,8 +25,6 @@
     <!-- Jena's Debug level gets very noisy -->
     <logger name="org.apache.jena" level="INFO" />
 
-    <logger name="org.apache.jena.kafka.FusekiKafka" level="DEBUG" />
-
     <root level="OFF">
         <appender-ref ref="STDERR" />
     </root>
