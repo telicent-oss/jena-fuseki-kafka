@@ -18,7 +18,6 @@ package org.apache.jena.kafka;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

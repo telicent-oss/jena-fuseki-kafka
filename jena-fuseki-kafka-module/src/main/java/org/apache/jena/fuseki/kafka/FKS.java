@@ -42,7 +42,6 @@ import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
 import org.apache.jena.kafka.common.FusekiSink;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 

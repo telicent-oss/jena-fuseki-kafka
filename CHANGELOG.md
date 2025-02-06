@@ -42,7 +42,7 @@ integration tests than the existing one-off code in this repository was.
   into a single dataset
     - Previously this required configuring a connector for each unique topic
 - Kafka Connectors now support reading events from multi-partition topics
-    - Previously they would only read from partition `0` irregardless of how many partitions the topic had
+    - Previously they would only read from partition `0` regardless of how many partitions the topic had
 - Batching behaviour is now handled automatically and aims to maximise transaction batch size based on available events
 
 ### Bug Fixes
