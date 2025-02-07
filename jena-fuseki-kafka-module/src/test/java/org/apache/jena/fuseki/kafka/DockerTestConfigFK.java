@@ -51,10 +51,7 @@ import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class DockerTestConfigFK {
     static {
@@ -65,13 +62,28 @@ public class DockerTestConfigFK {
     /**
      * Intentionally protected so derived test classes can override the default implementation used
      */
-    protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
+    protected KafkaTestCluster kafka = null;
     private static final String DIR = "src/test/files";
 
-    @BeforeClass
-    public void beforeClass() {
+    /**
+     * Creates a new instance of the Kafka Test cluster
+     *
+     * @return Kafka Test cluster
+     */
+    protected KafkaTestCluster createTestCluster() {
+        return new BasicKafkaTestCluster();
+    }
+
+    @BeforeMethod
+    public void setupTest() throws InterruptedException {
+        kafka = createTestCluster();
         kafka.setup();
         resetTopics();
+
+        // As Kafka is a distributed system there's a race condition that can happen when the topics aren't fully
+        // created, and we try to write to them resulting in the events being lost
+        // Inserting a small sleep here avoids that happening.
+        Thread.sleep(500);
     }
 
     private void resetTopics() {
@@ -90,21 +102,23 @@ public class DockerTestConfigFK {
     }
 
     @AfterMethod
-    public void after() throws InterruptedException {
+    public void teardownTest() throws InterruptedException {
         FKS.resetPollThreads();
-        resetTopics();
-        Thread.sleep(500);
+        kafka.teardown();
+        kafka = null;
     }
 
     @AfterClass
-    public void afterClass() {
+    public void teardown() {
         FKS.resetPollThreads();
-        kafka.teardown();
+        if (kafka != null) {
+            kafka.teardown();
+        }
     }
 
     private static final String STATE_DIR = "target/state";
 
-    @Test(priority = 1)
+    @Test
     public void givenSingleConnector_whenRunningFusekiKafka_thenDataAsExpected() {
         // Given
         String TOPIC = "RDF0";
@@ -142,7 +156,7 @@ public class DockerTestConfigFK {
     }
 
     // Two connectors
-    @Test(priority = 2)
+    @Test
     public void givenTwoConnectorsToDifferentDatasets_whenRunningFusekiKafka_thenEachDatasetAsExpected() {
         // Given
         String TOPIC1 = "RDF1";
@@ -169,7 +183,7 @@ public class DockerTestConfigFK {
     }
 
     // Two connectors, one dataset
-    @Test(priority = 3)
+    @Test
     public void givenTwoConnectorsToSameDataset_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
@@ -188,7 +202,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test(priority = 4)
+    @Test
     public void givenOneConnectorsTwoTopics_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
@@ -208,7 +222,7 @@ public class DockerTestConfigFK {
     }
 
     // RDF Patch
-    @Test(priority = 5)
+    @Test
     public void givenSingleConnector_whenRunningFusekiKafkaWithPatchEvents_thenPatchAppliedAsExpected() {
         // Given
         String TOPIC = "RDF_Patch";
@@ -227,7 +241,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test(priority = 6)
+    @Test
     public void givenConnectorNoSyncNoReplay_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         String TOPIC = "RDF0";
@@ -253,7 +267,7 @@ public class DockerTestConfigFK {
                            .build();
     }
 
-    @Test(priority = 10)
+    @Test
     public void givenConnectorWithDlq_whenRunningFusekiKafkaWithMalformedEvents_thenGoodDataApplied_andBadEventsGoToDlq() {
         // Given
         Graph graph = loadConfiguration("/config-connector-dlq.ttl");
@@ -276,7 +290,7 @@ public class DockerTestConfigFK {
         verifyDlqContents();
     }
 
-    @Test(priority = 11)
+    @Test
     public void givenConnectorWithDlq_whenRunningFusekiKafkaWithMalformedEventsThatFailDuringApplication_thenGoodDataApplied_andBadEventsGoToDlq() {
         // Given
         Graph graph = loadConfiguration("/config-connector-dlq.ttl");
@@ -318,7 +332,7 @@ public class DockerTestConfigFK {
     }
 
     // Env Variable use
-    @Test(priority = 20)
+    @Test
     public void givenEnvironmentVariableConfiguration_whenRunningFusekiKafka_thenDataAsExpected() {
         try {
             // Given
@@ -345,7 +359,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test(priority = 30)
+    @Test
     public void givenSingleConnectorWithPreexistingOffsets_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         String TOPIC = "RDF0";

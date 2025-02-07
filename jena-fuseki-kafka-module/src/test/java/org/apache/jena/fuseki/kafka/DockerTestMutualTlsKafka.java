@@ -16,11 +16,13 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.MutualTlsKafkaTestCluster;
 
 public class DockerTestMutualTlsKafka extends DockerTestFK {
 
-    public DockerTestMutualTlsKafka() {
-        this.kafka = new MutualTlsKafkaTestCluster();
+    @Override
+    protected KafkaTestCluster createTestCluster() {
+        return new MutualTlsKafkaTestCluster();
     }
 }

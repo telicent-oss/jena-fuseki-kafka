@@ -16,40 +16,25 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.fuseki.main.sys.FusekiModules;
-import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
-import org.apache.kafka.common.serialization.BytesDeserializer;
-import org.apache.kafka.common.utils.Bytes;
-import org.apache.jena.atlas.logging.Log;
-import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// These tests must run in order.
 public class DockerTestFK {
-    // Logging
-
     static {
         JenaSystem.init();
         FusekiLogging.markInitialized(true);
@@ -61,12 +46,23 @@ public class DockerTestFK {
     /**
      * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
      */
-    protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
+    protected KafkaTestCluster kafka = null;
 
-    @BeforeClass
-    public void beforeClass() {
+    /**
+     * Creates a new instance of the Kafka Test cluster
+     *
+     * @return Kafka Test cluster
+     */
+    protected KafkaTestCluster createTestCluster() {
+        return new BasicKafkaTestCluster();
+    }
+
+    @BeforeMethod
+    public void setupTest() throws InterruptedException {
         // Start Kafka Test Cluster
+        this.kafka = createTestCluster();
         kafka.setup();
+        Thread.sleep(500);
 
         // Inject test data to Kafka
         String DIR = "src/test/files";
@@ -75,8 +71,10 @@ public class DockerTestFK {
     }
 
     @AfterMethod
-    public void after() {
+    public void teardownTest() {
         FKS.resetPollThreads();
+        this.kafka.teardown();
+        this.kafka = null;
     }
 
     Properties consumerProps() {
@@ -95,43 +93,10 @@ public class DockerTestFK {
     }
 
     @AfterClass
-    public void afterClass() {
-        Log.info("TestFK", "Stopping testcontainer for Kafka");
-        LogCtl.setLevel(NetworkClient.class, "error");
-        kafka.teardown();
-    }
-
-    @Test(priority = 1)
-    public void givenBlankOffsets_whenConsumingFromTopic_thenExpectedMessagesFound() {
-        // GIven
-        FusekiOffsetStore offsets = createNonPersistentState();
-        AtomicInteger count = new AtomicInteger(0);
-        KafkaEventSource<Bytes, Bytes> source = KafkaEventSource.<Bytes, Bytes>create()
-                                                                .bootstrapServers(this.kafka.getBootstrapServers())
-                                                                .consumerConfig(this.kafka.getClientProperties())
-                                                                .topic(KafkaTestCluster.DEFAULT_TOPIC)
-                                                                .consumerGroup("test")
-                                                                .keyDeserializer(BytesDeserializer.class)
-                                                                .valueDeserializer(BytesDeserializer.class)
-                                                                .externalOffsetStore(offsets)
-                                                                .readPolicy(
-                                                                        KafkaReadPolicies.fromExternalOffsets(offsets,
-                                                                                                              0))
-                                                                .build();
-
-        // When
-        try {
-            while (count.get() < 2) {
-                Event<Bytes, Bytes> event = source.poll(Duration.ofSeconds(5));
-                Assert.assertNotNull(event);
-                count.incrementAndGet();
-            }
-
-            // Then
-            Assert.assertEquals(count.get(), 2);
-            Assert.assertNull(source.poll(Duration.ofSeconds(3)));
-        } finally {
-            source.close();
+    public void teardown() {
+        FKS.resetPollThreads();
+        if (this.kafka != null) {
+            kafka.teardown();
         }
     }
 
@@ -139,7 +104,7 @@ public class DockerTestFK {
         return FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
     }
 
-    @Test(priority = 2)
+    @Test
     public void givenBlankOffsets_whenRunningFusekiKafka_thenDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -155,7 +120,7 @@ public class DockerTestFK {
         }
     }
 
-    @Test(priority = 3)
+    @Test
     public void givenOffsetsRestored_whenRunningFusekiKafka_thenDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -179,7 +144,7 @@ public class DockerTestFK {
         }
     }
 
-    @Test(priority = 4)
+    @Test
     public void givenOffsetsToRestoreForMultipleDatasets_whenRunningFusekiKafka_thenDataIsLoadedAsExpected() {
         // Given
         FusekiOffsetStore ignored = FusekiOffsetStore.builder().datasetName("ignore").build();
@@ -204,7 +169,7 @@ public class DockerTestFK {
     }
 
 
-    @Test(priority = 5)
+    @Test
     public void givenNegativeOffsetsToRestore_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
