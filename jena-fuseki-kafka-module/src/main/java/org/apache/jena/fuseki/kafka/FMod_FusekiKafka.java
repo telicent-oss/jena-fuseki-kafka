@@ -135,7 +135,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         FKRegistry.get().register(conn.getTopics(), conn);
     }
 
-    private List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors(FusekiServer server) {
+    private List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
         return buildState.get();
     }
 
@@ -181,7 +181,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
      * @param server Fuseki Server
      */
     protected void startKafkaConnectors(FusekiServer server) {
-        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
         if (connectors == null) {
             return;
         }
@@ -224,7 +224,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
 
     @Override
     public void serverStopped(FusekiServer server) {
-        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
         if (connectors == null) {
             return;
         }

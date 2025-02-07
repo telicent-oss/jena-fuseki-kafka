@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.assembler.JA;
@@ -80,32 +81,24 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectorAssembler.class);
 
-    private static String NS = "http://jena.apache.org/fuseki/kafka#";
-
-    public static String getNS() {
-        return NS;
-    }
+    @Getter
+    private static final String NS = "http://jena.apache.org/fuseki/kafka#";
 
     /**
-     * Type of a connector description
+     * RDF Type for Kafka connectors
      */
     public static Resource tKafkaConnector = ResourceFactory.createResource(NS + "Connector");
 
     // Preferred:   "fusekiServiceName"
-    // Alternative: "datasetName"
 
     /**
      * Destination dataset and endpoint for dispatching Kafka events.
      */
     public static Node pFusekiServiceName = NodeFactory.createURI(NS + "fusekiServiceName");
-    /**
-     * @deprecated Use {@link #pFusekiServiceName}
-     */
-    @Deprecated
-    private static Node pFusekiDatasetName = NodeFactory.createURI(NS + "datasetName");       // Old name.
+    /*
 
     /**
-     * Kafka topic to listen to
+     * Kafka topic(s) to listen to
      */
     public static Node pKafkaTopic = NodeFactory.createURI(NS + "topic");
     /**
@@ -113,7 +106,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
      */
     public static Node pDlqTopic = NodeFactory.createURI(NS + "dlqTopic");
     /**
-     * File used to record topic and last read offset
+     * File used to record topic and partitions offsets
      */
     public static Node pStateFile = NodeFactory.createURI(NS + "stateFile");
 
@@ -124,7 +117,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     /**
      * Replay whole topic on startup?
      */
-    private static Node pReplayTopic = NodeFactory.createURI(NS + "replayTopic");
+    private static final Node pReplayTopic = NodeFactory.createURI(NS + "replayTopic");
 
     // Kafka cluster
     public static Node pKafkaProperty = NodeFactory.createURI(NS + "config");
@@ -155,7 +148,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         }
     }
 
-    private static Assem2.OnError errorException = JenaKafkaException::new;
+    private static final Assem2.OnError errorException = JenaKafkaException::new;
 
     private KConnectorDesc createSub(Graph graph, Node node, Node type) {
         /*
@@ -302,14 +295,12 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String queryString = """
                 SELECT ?n {
                   OPTIONAL { ?X ?fusekiServiceName ?N1 }
-                  OPTIONAL { ?X ?fusekiDatasetName ?N2 } # Old name.
                   BIND(COALESCE( ?N1, ?N2, '' ) AS ?n)
                 }
                 """;
         try (QueryExec exec = QueryExec.graph(graph).query(queryString)
                                        .substitution("X", node)
                                        .substitution("fusekiServiceName", pFusekiServiceName)
-                                       .substitution("fusekiDatasetName", pFusekiDatasetName)
                                        .build()) {
             RowSet rowSet = exec
                     .select();

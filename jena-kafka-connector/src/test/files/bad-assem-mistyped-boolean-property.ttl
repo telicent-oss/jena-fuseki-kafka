@@ -7,7 +7,7 @@ PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
 <#connector> rdf:type fk:Connector ;
     fk:bootstrapServers    "localhost:9092";
     fk:topic               "RDF0";
-    fk:datasetName         "/ds1";
+    fk:fusekiServiceName   "/ds1";
     fk:syncTopic           1;
     
     fk:stateFile           "1.state";
