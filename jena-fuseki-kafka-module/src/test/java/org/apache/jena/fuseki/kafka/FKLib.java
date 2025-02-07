@@ -102,19 +102,6 @@ public class FKLib {
         }
     }
 
-    private static void sendString(Producer<String, String> producer, Integer partition, String topic,
-                                   String contentType, String content) {
-        List<Header> headers = (contentType != null) ? List.of(header(HttpNames.hContentType, contentType)) : List.of();
-        RecordMetadata res = sendBody(producer, partition, topic, headers, content);
-        if (res == null) {
-            FmtLog.error(LOG, "[%s] Error: sendString", topic);
-        } else if (!res.hasOffset()) {
-            FmtLog.info(LOG, "[%s] sendString: No offset", topic);
-        } else {
-            FmtLog.info(LOG, "[%s] sendString: Offset = %s", topic, res.offset());
-        }
-    }
-
     private static RecordMetadata sendFile(Producer<String, String> producer, Integer partition, String topic,
                                            String fn) {
         String ct = ctForFile(fn);

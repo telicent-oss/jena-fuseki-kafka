@@ -1,7 +1,5 @@
 package org.apache.jena.kafka.utils;
 
-import org.apache.jena.kafka.JenaKafkaException;
-import org.apache.jena.query.TxnType;
 import org.apache.jena.rdfpatch.changes.RDFChangesApply;
 import org.apache.jena.sparql.core.DatasetGraph;
 
