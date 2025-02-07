@@ -51,8 +51,8 @@ import java.util.stream.Stream;
  * </p>
  * <p>
  * Note that in pathological cases - a slow upstream producer writing to the consumed topic - this could result in
- * single event transactions which can have adverse event on database disk size when using TDB2.  However, this scenario
- * is hopefully fairly unusual and should generally be mitigated by the Kafka poll interval.
+ * single event transactions which can have adverse effect on database disk size when using TDB2.  However, this
+ * scenario is hopefully fairly unusual and should generally be mitigated by the Kafka poll interval.
  * </p>
  * <h3>Error Handling</h3>
  * <p>
@@ -267,12 +267,14 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     /**
      * Materialises the values of the event, a {@link RdfPayloadException} will be thrown if the event has a malformed
      * payload
+     * <p>
+     * {@link RdfPayloadException}'s are handled in our main {@link #project(Event, Sink)} method.
+     * </p>
      *
      * @param event Event
+     * @throws RdfPayloadException Thrown if the event has a malformed payload
      */
     protected final void materialiseValue(Event<Bytes, RdfPayload> event) {
-        // Try to materialize the payload value, this either succeeds if the payload is valid or throws an exception
-        // if the payload is malformed, we handle malformed payloads in our catch block
         if (event.value().isDataset()) {
             event.value().getDataset();
         } else {
