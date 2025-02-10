@@ -1,0 +1,17 @@
+PREFIX fuseki:  <http://jena.apache.org/fuseki#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
+
+<#connector> rdf:type fk:Connector ;
+    fk:bootstrapServers    "localhost:9092";
+    fk:topic               "RDF0";
+    fk:fusekiServiceName   "/ds";
+    
+    fk:config              ("max.poll.records"  "100") ;
+
+    fk:groupId             "example";
+    fk:syncTopic           true;
+    fk:replayTopic         false;
+
+    fk:stateFile           "State.state";
+    .

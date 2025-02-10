@@ -1,0 +1,5 @@
+# Malformed
+# Missing prefix declaration, and terminating period character
+
+no:prefix a "malformed Turtle file"
+

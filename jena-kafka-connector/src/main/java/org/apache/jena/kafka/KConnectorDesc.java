@@ -16,31 +16,41 @@
 
 package org.apache.jena.kafka;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.jena.atlas.logging.Log;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 /**
  * Details of a connector to Kafka.
  * <p>
- * The machinery is in {@link DeserializerActionFK} which reads from kafka, and
- * creates a {@link RequestFK}.
- * <p>
- * For Fuseki, the {@link RequestFK} is handled by {@code FKRequestProcessor} which
- * dispatches the request to the main Fuseki execution path (includes Fuseki logging).
+ * The actual machinery of reading from Kafka comes from <a
+ * href="https://github.com/telicent-oss/smart-caches-core/blob/main/docs/event-sources/kafka.md">Telicent Smart Cache
+ * Core Libraries</a>.
+ * </p>
  */
+@Getter
+@ToString
+@EqualsAndHashCode
 public class KConnectorDesc {
 
     // Source
-    private final String topic;
+    private final List<String> topics;
+    private final String dlqTopic;
     private final String bootstrapServers;
 
-    // Destination - URI path in this Fuseki server
-    private final String fusekiDispatchPath;
-    // URL to replay the request to.
-    private final String remoteEndpoint;
+    /**
+     * -- GETTER -- The destination of events on the Kafka topic
+     *
+     * @return Fuseki dataset service name e.g. {@code /ds}
+     */
+    // Destination - Dataset name within the Fuseki server
+    private final String datasetName;
 
     private final boolean syncTopic;
     private final boolean replayTopic;
@@ -51,85 +61,48 @@ public class KConnectorDesc {
     // Kafka consumer setup.
     private final Properties kafkaConsumerProps;
 
-    public KConnectorDesc(String topic, String bootstrapServers, String fusekiDispatchName, String remoteEndpoint, String stateFile,
-                          boolean syncTopic, boolean replayTopic,
+    public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName,
+                          String stateFile, boolean syncTopic, boolean replayTopic, String dlqTopic,
                           Properties kafkaConsumerProps) {
-        this.topic = Objects.requireNonNull(topic, "topic");
-        this.bootstrapServers = bootstrapServers;
-        this.fusekiDispatchPath = fusekiDispatchName;
-        this.remoteEndpoint = remoteEndpoint;
+        this.topics = Objects.requireNonNull(topics, "topics cannot be null");
+        if (this.topics.isEmpty()) {
+            throw new IllegalArgumentException("topics cannot be empty");
+        }
+        this.dlqTopic = dlqTopic;
+        this.bootstrapServers = Objects.requireNonNull(bootstrapServers, "bootstrapServers cannot be null");
+        this.datasetName = datasetName;
         this.syncTopic = syncTopic;
         this.replayTopic = replayTopic;
         this.stateFile = stateFile;
         this.kafkaConsumerProps = kafkaConsumerProps;
 
-        boolean hasLocalFusekiService = StringUtils.isEmpty(fusekiDispatchName);
-        boolean hasRemoteEndpoint = StringUtils.isEmpty(remoteEndpoint);
-
-        if ( hasRemoteEndpoint && hasLocalFusekiService  )
-            Log.warn(this, "ConnectorFK built with both a local dispatch path and remote endpoint URL");
-        if ( ! hasRemoteEndpoint && ! hasLocalFusekiService )
-            Log.warn(this, "ConnectorFK built with no local dispatch path nor remote endpoint URL");
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public String getBootstrapServers() {
-        return bootstrapServers;
+        boolean hasLocalFusekiService = StringUtils.isNotBlank(datasetName);
+        if (!hasLocalFusekiService) {
+            throw new JenaKafkaException("ConnectorFK built with no local dispatch path");
+        }
     }
 
     /**
-     * The destination of events on the Kafka topic.
-     * <p>
-     * Either they are dispatched to Fuseki, in the same JVM, and the connector
-     * destination is given by {@link #getLocalDispatchPath} or replayed on to a remote
-     * endpoint URL given by {@link #getRemoteEndpoint}.
+     * Gets the Consumer Group ID
      *
-     * @return HTTP path for local dispatch.
+     * @return Consumer Group ID
      */
-    public String getLocalDispatchPath() {
-        return fusekiDispatchPath;
-    }
-
-    public boolean dispatchLocal() {
-        return ! StringUtils.isEmpty(fusekiDispatchPath);
+    public String getConsumerGroupId() {
+        return this.kafkaConsumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
     }
 
     /**
-     * The destination of events on the Kafka topic if remote.
+     * Gets the maximum poll records as configured for the connector
      *
-     * @return HTTP URL for remote dispatch.
+     * @return Maximum poll records
      */
-    public String getRemoteEndpoint() {
-        return remoteEndpoint;
+    public int getMaxPollRecords() {
+        String rawValue = this.kafkaConsumerProps.getProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        if (StringUtils.isBlank(rawValue)) {
+            return SysJenaKafka.KAFKA_FETCH_POLL_SIZE;
+        } else {
+            return Integer.parseInt(rawValue);
+        }
     }
 
-    public boolean getSyncTopic() {
-        return syncTopic;
-    }
-
-    public boolean getReplayTopic() {
-        return replayTopic;
-    }
-
-    public String getStateFile() {
-        return stateFile;
-    }
-
-    public Properties getKafkaConsumerProps() {
-        return kafkaConsumerProps;
-    }
-
-//    public Properties getKafkaProducerProps() {
-//        return kafkaProducerProps;
-//    }
-
-    @Override
-    public String toString() {
-        return "ConnectorFK [topic=" + topic + ", fusekiDispatchName=" + fusekiDispatchPath + ", remoteEndpoint=" + remoteEndpoint + ", syncTopic="
-               + syncTopic + ", replayTopic=" + replayTopic + ", stateFile=" + stateFile
-               + "]";
-    }
 }

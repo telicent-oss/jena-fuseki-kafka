@@ -17,64 +17,69 @@
 package org.apache.jena.fuseki.kafka;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 
 /**
  * Registry of active connectors.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FKRegistry {
 
-    private static final FKRegistry singleton   = new FKRegistry();
+    private static final FKRegistry singleton = new FKRegistry();
 
     /**
      * Return the current server-wide registry of Fuseki-Kafka connectors.
      */
-    public static FKRegistry get() { return singleton; }
+    public static FKRegistry get() {
+        return singleton;
+    }
 
     // Topic to connector record.
-    private Map<String, KConnectorDesc> topicToConnector = new ConcurrentHashMap<>();
-
-    // Dispatch to topic.
-    private Map<String, String> pathToTopic = new ConcurrentHashMap<>();
-
-    private FKRegistry() { }
-
-    /**
-     * Return the Fuseki dispatch (request URI) for a topic.
-     */
-    public String getDispatchURI(String topicName) {
-        KConnectorDesc conn = getConnectorDescriptor(topicName);
-        return conn.getLocalDispatchPath();
-    }
+    private final Map<String, KConnectorDesc> topicToConnector = new ConcurrentHashMap<>();
 
     /**
      * Return the {@link KConnectorDesc} for a topic.
+     *
+     * @return Connector registered for topic, {@code null} if no connector registered for given topic
      */
     public KConnectorDesc getConnectorDescriptor(String topicName) {
         return topicToConnector.get(topicName);
     }
 
+    /**
+     * Gets all the registered connectors
+     *
+     * @return Registered connectors
+     */
     public Collection<KConnectorDesc> getConnectors() {
         return topicToConnector.values();
     }
 
     /**
-     * Register a topic-service binding, with it {@link FKBatchProcessor} (may be null) and {@link KConnectorDesc}.
+     * Register a connector binding {@link KConnectorDesc} for the given topic(s)
      */
-    public void register(String topicName, KConnectorDesc connectorDescriptor) {
-        topicToConnector.put(topicName, connectorDescriptor);
-        if ( connectorDescriptor.getLocalDispatchPath() != null )
-            pathToTopic.put(connectorDescriptor.getLocalDispatchPath(), topicName);
+    public void register(List<String> topics, KConnectorDesc connectorDescriptor) {
+        for (String topicName : topics) {
+            if (topicToConnector.containsKey(topicName)) {
+                throw new JenaKafkaException("Multiple connectors configured for same topic: " + topicName);
+            }
+            topicToConnector.put(topicName, connectorDescriptor);
+        }
     }
 
     /**
-     * Remove all registrations associated with a topic.
+     * Remove all registrations associated with the given topic(s)
      */
-    public void unregister(String topicName) {
-        topicToConnector.remove(topicName);
-        pathToTopic.remove(topicName);
+    public void unregister(List<String> topics) {
+        for (String topicName : topics) {
+            topicToConnector.remove(topicName);
+        }
     }
 }
