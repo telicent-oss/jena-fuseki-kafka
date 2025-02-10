@@ -212,7 +212,6 @@
                 <include>**/Test*.java</include>
                 <include>**/DockerTest*.java</include>
               </includes>
-              <rerunFailingTestsCount>1</rerunFailingTestsCount>
             </configuration>
           </plugin>
 

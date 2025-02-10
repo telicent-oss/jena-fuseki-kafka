@@ -27,6 +27,7 @@ import java.util.Properties;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.TelicentHeaders;
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.FlakyKafkaTest;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.atlas.lib.FileOps;
@@ -83,7 +84,7 @@ public class DockerTestConfigFK {
         // As Kafka is a distributed system there's a race condition that can happen when the topics aren't fully
         // created, and we try to write to them resulting in the events being lost
         // Inserting a small sleep here avoids that happening.
-        Thread.sleep(500);
+        Thread.sleep(750);
     }
 
     private void resetTopics() {
@@ -118,7 +119,7 @@ public class DockerTestConfigFK {
 
     private static final String STATE_DIR = "target/state";
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenSingleConnector_whenRunningFusekiKafka_thenDataAsExpected() {
         // Given
         String TOPIC = "RDF0";
@@ -147,16 +148,16 @@ public class DockerTestConfigFK {
 
     public static void waitForDataCount(String url, int expectedCount) {
         //@formatter:off
-            Awaitility.await()
-                      .pollDelay(Duration.ZERO)
-                      .pollInterval(Duration.ofSeconds(5))
-                      .atMost(Duration.ofSeconds(15))
-                      .until(() -> count(url), x -> x == expectedCount);
-            //@formatter:on
+        Awaitility.await()
+                  .pollDelay(Duration.ZERO)
+                  .pollInterval(Duration.ofSeconds(2))
+                  .atMost(Duration.ofSeconds(15))
+                  .until(() -> count(url), x -> x == expectedCount);
+        //@formatter:on
     }
 
     // Two connectors
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenTwoConnectorsToDifferentDatasets_whenRunningFusekiKafka_thenEachDatasetAsExpected() {
         // Given
         String TOPIC1 = "RDF1";
@@ -183,7 +184,7 @@ public class DockerTestConfigFK {
     }
 
     // Two connectors, one dataset
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenTwoConnectorsToSameDataset_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
@@ -202,7 +203,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenOneConnectorsTwoTopics_whenRunningFusekiKafka_thenDataFromBothTopicsVisible() {
         String TOPIC1 = "RDF1";
         String TOPIC2 = "RDF2";
@@ -222,7 +223,7 @@ public class DockerTestConfigFK {
     }
 
     // RDF Patch
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenSingleConnector_whenRunningFusekiKafkaWithPatchEvents_thenPatchAppliedAsExpected() {
         // Given
         String TOPIC = "RDF_Patch";
@@ -241,7 +242,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenConnectorNoSyncNoReplay_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         String TOPIC = "RDF0";
@@ -267,7 +268,7 @@ public class DockerTestConfigFK {
                            .build();
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenConnectorWithDlq_whenRunningFusekiKafkaWithMalformedEvents_thenGoodDataApplied_andBadEventsGoToDlq() {
         // Given
         Graph graph = loadConfiguration("/config-connector-dlq.ttl");
@@ -290,7 +291,7 @@ public class DockerTestConfigFK {
         verifyDlqContents();
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenConnectorWithDlq_whenRunningFusekiKafkaWithMalformedEventsThatFailDuringApplication_thenGoodDataApplied_andBadEventsGoToDlq() {
         // Given
         Graph graph = loadConfiguration("/config-connector-dlq.ttl");
@@ -332,7 +333,7 @@ public class DockerTestConfigFK {
     }
 
     // Env Variable use
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenEnvironmentVariableConfiguration_whenRunningFusekiKafka_thenDataAsExpected() {
         try {
             // Given
@@ -359,7 +360,7 @@ public class DockerTestConfigFK {
         }
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenSingleConnectorWithPreexistingOffsets_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         String TOPIC = "RDF0";

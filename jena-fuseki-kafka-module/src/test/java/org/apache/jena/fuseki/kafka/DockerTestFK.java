@@ -17,6 +17,7 @@
 package org.apache.jena.fuseki.kafka;
 
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
+import io.telicent.smart.cache.sources.kafka.FlakyKafkaTest;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.fuseki.main.sys.FusekiModules;
@@ -104,7 +105,7 @@ public class DockerTestFK {
         return FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenBlankOffsets_whenRunningFusekiKafka_thenDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -120,7 +121,7 @@ public class DockerTestFK {
         }
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenOffsetsRestored_whenRunningFusekiKafka_thenDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
@@ -144,7 +145,7 @@ public class DockerTestFK {
         }
     }
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenOffsetsToRestoreForMultipleDatasets_whenRunningFusekiKafka_thenDataIsLoadedAsExpected() {
         // Given
         FusekiOffsetStore ignored = FusekiOffsetStore.builder().datasetName("ignore").build();
@@ -169,7 +170,7 @@ public class DockerTestFK {
     }
 
 
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenNegativeOffsetsToRestore_whenRunningFusekiKafka_thenNoDataIsLoaded() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();
