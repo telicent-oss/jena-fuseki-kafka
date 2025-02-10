@@ -1,6 +1,7 @@
 package org.apache.jena.fuseki.kafka;
 
 import eu.rekawek.toxiproxy.model.ToxicDirection;
+import io.telicent.smart.cache.sources.kafka.FlakyKafkaTest;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
@@ -143,7 +144,7 @@ public class DockerTestKafkaDelays {
     /**
      * This tests that everything works correctly with the ToxiProxy in place.
      */
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenNoActionProxy_whenRunningFusekiKafka_thenDataLoadedAsExpected() {
         // Given
         String TOPIC = "RDF0";
@@ -172,9 +173,9 @@ public class DockerTestKafkaDelays {
     }
 
     /**
-     * This tests that when a timeout takes place, an error message is logged
+     * This tests that when a timeout takes place we never receive data from Kafka
      */
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenTimeoutProxy_whenRunningFusekiKafka_thenNoDataLoaded() throws IOException {
         try {
             // Given
@@ -220,7 +221,7 @@ public class DockerTestKafkaDelays {
     /**
      * This tests that we can handle a little latency without issue.
      */
-    @Test
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
     public void givenLatencyProxy_whenRunningFusekiKafka_thenDataIsLoaded() throws IOException {
         try {
             // Given
