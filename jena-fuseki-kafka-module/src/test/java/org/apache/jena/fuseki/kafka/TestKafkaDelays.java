@@ -5,6 +5,7 @@ import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.fuseki.FusekiException;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.exec.RowSet;
@@ -133,6 +134,7 @@ public class TestKafkaDelays {
         FusekiServer server = FusekiServer.create()
                 .port(0)
                 .verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
@@ -170,6 +172,7 @@ public class TestKafkaDelays {
         FusekiServer server = FusekiServer.create()
                 .port(0)
                 .verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         debugLogging("Start Server");
@@ -214,6 +217,7 @@ public class TestKafkaDelays {
         FusekiServer server = FusekiServer.create()
                 .port(0)
                 .verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
