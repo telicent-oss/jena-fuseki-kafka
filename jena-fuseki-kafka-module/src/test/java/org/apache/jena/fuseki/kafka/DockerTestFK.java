@@ -66,7 +66,7 @@ public class DockerTestFK {
     /**
      * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
      */
-    protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
+    protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
 
     // Logs to silence,
     private static final String [] XLOGS = {

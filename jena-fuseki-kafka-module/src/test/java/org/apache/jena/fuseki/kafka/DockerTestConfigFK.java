@@ -64,7 +64,7 @@ public class DockerTestConfigFK {
     /**
      * Intentionally protected so derived test classes can override the default implementation used
      */
-    protected KafkaTestCluster<?> kafka = new BasicKafkaTestCluster();
+    protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
     private static final String DIR = "src/test/files";
 
     // Logs to silence,
