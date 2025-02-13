@@ -30,6 +30,7 @@ import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.kafka.lib.FKLib;
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.NodeFactory;
@@ -67,26 +68,8 @@ public class DockerTestConfigFK {
     protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
     private static final String DIR = "src/test/files";
 
-    // Logs to silence,
-    private static final String [] XLOGS = {
-        AdminClientConfig.class.getName() ,
-        // NetworkClient is noisy with warnings about can't connect.
-        NetworkClient.class.getName() ,
-        FetchSessionHandler.class.getName() ,
-        ConsumerConfig.class.getName() ,
-        ProducerConfig.class.getName() ,
-        AppInfoParser.class.getName()
-    };
-
-    private static void adjustLogs(String level) {
-        for ( String logName : XLOGS ) {
-            LogCtl.setLevel(logName, level);
-        }
-    }
-
     @BeforeClass
     public void beforeClass() {
-        adjustLogs("Warning");
         Log.info("TestIntegrationFK","Starting testcontainer for Kafka");
 
         kafka.setup();
@@ -112,9 +95,7 @@ public class DockerTestConfigFK {
     public void afterClass() {
         Log.info("TestIntegrationFK","Stopping testcontainer for Kafka");
         FKS.resetPollThreads();
-        LogCtl.setLevel(NetworkClient.class, "error");
         kafka.teardown();
-        adjustLogs("info");
     }
 
     private static final String STATE_DIR = "target/state";
@@ -129,7 +110,7 @@ public class DockerTestConfigFK {
         // Configuration knows the topic name.
         FusekiServer server = FusekiServer.create()
                 .port(0)
-                //.verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         FKLib.sendFiles(producerProps(), TOPIC, List.of(DIR+"/data.ttl"));
@@ -154,7 +135,7 @@ public class DockerTestConfigFK {
         // Configuration knows the topic name.
         FusekiServer server = FusekiServer.create()
                 .port(0)
-                //.verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         // Two triples in topic 2
@@ -184,7 +165,7 @@ public class DockerTestConfigFK {
 
         FusekiServer server = FusekiServer.create()
                 .port(0)
-                //.verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         // One triple on each topic.
@@ -208,7 +189,7 @@ public class DockerTestConfigFK {
         // Configuration knows the topic name.
         FusekiServer server = FusekiServer.create()
                 .port(0)
-                //.verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .parseConfig(ModelFactory.createModelForGraph(graph))
                 .build();
         FKLib.sendString(producerProps(), TOPIC, WebContent.contentTypeSPARQLUpdate, "CLEAR ALL");
@@ -233,6 +214,7 @@ public class DockerTestConfigFK {
         // Configuration knows the topic name.
         FusekiServer server = FusekiServer.create()
                                           .port(0)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                                           .parseConfig(ModelFactory.createModelForGraph(graph))
                                           .build();
         FKLib.sendFiles(producerProps(), "RDF0", List.of(DIR+"/data.ttl"));

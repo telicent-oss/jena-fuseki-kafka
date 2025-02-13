@@ -18,6 +18,7 @@ package org.apache.jena.fuseki.kafka;
 
 import io.telicent.smart.cache.sources.kafka.BasicKafkaTestCluster;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
+import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.awaitility.Awaitility;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl;
@@ -68,26 +69,8 @@ public class DockerTestFK {
      */
     protected KafkaTestCluster kafka = new BasicKafkaTestCluster();
 
-    // Logs to silence,
-    private static final String [] XLOGS = {
-        AdminClientConfig.class.getName() ,
-        // NetworkClient is noisy with warnings about can't connect.
-        NetworkClient.class.getName() ,
-        FetchSessionHandler.class.getName() ,
-        ConsumerConfig.class.getName() ,
-        ProducerConfig.class.getName() ,
-        AppInfoParser.class.getName()
-    };
-
-    private static void adjustLogs(String level) {
-        for ( String logName : XLOGS ) {
-            LogCtl.setLevel(logName, level);
-        }
-    }
-
     @BeforeClass
     public void beforeClass() {
-        adjustLogs("Warning");
         Log.info("TestFK","Starting testcontainer for Kafka");
         kafka.setup();
     }
@@ -114,9 +97,7 @@ public class DockerTestFK {
     @AfterClass
     public void afterClass() {
         Log.info("TestFK","Stopping testcontainer for Kafka");
-        LogCtl.setLevel(NetworkClient.class, "error");
         kafka.teardown();
-        adjustLogs("info");
     }
 
     @Test(priority = 1)
@@ -218,11 +199,9 @@ public class DockerTestFK {
 
 
     private static FusekiServer startFuseki(DataState dataState, Properties consumerProps) {
-        // Automatic
-        //FusekiModules.add(new FMod_FusekiKafka());
         FusekiServer server = FusekiServer.create()
                 .port(0)
-                //.verbose(true)
+                .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                 .add(DSG_NAME,  DSG)
                 .build();
         KConnectorDesc conn = new KConnectorDesc(TOPIC, null, DSG_NAME, null, null,
