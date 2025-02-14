@@ -1,6 +1,12 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 1.5.3
+
+- Upgraded Apache Jena to 5.3.0
+- Upgraded various build and test dependencies to latest available
+
 ## 1.5.2
+
 - Adding backup/restore functionality.
 
 ## 1.5.1
