@@ -101,7 +101,7 @@
     <dependency.logback>1.5.15</dependency.logback>
     <dependency.mockito>5.15.2</dependency.mockito>
     <dependency.testcontainers>1.20.4</dependency.testcontainers>
-    <dependency.testng>7.10.2</dependency.testng>
+    <dependency.testng>7.11.0</dependency.testng>
 
   </properties>
 
