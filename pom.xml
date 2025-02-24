@@ -63,8 +63,8 @@
     <project.build.outputTimestamp>2025-02-14T10:37:50Z</project.build.outputTimestamp>
 
     <!-- Maven Plugin versions -->
-    <plugin.clean>3.4.0</plugin.clean>
-    <plugin.compiler>3.13.0</plugin.compiler>
+    <plugin.clean>3.4.1</plugin.clean>
+    <plugin.compiler>3.14.0</plugin.compiler>
     <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
     <plugin.dependency>3.8.1</plugin.dependency>
     <plugin.deploy>3.1.3</plugin.deploy>
@@ -95,13 +95,13 @@
     <dependency.slf4j>2.0.7</dependency.slf4j>
 
     <!-- Test dependencies -->
-    <dependency.awaitility>4.2.2</dependency.awaitility>
-    <dependency.junit5>5.11.4</dependency.junit5>
+    <dependency.awaitility>4.3.0</dependency.awaitility>
+    <dependency.junit5>5.12.0</dependency.junit5>
     <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
     <dependency.logback>1.5.15</dependency.logback>
     <dependency.mockito>5.15.2</dependency.mockito>
-    <dependency.testcontainers>1.20.4</dependency.testcontainers>
-    <dependency.testng>7.10.2</dependency.testng>
+    <dependency.testcontainers>1.20.5</dependency.testcontainers>
+    <dependency.testng>7.11.0</dependency.testng>
 
   </properties>
 
