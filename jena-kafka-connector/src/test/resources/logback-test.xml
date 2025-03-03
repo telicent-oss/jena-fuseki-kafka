@@ -18,12 +18,14 @@
     <!--
      Kafka's NetworkClient is very chatty!
      Also at DEBUG level things get pretty unusably noisy
+
+     Therefore, if you change the ROOT logger level for debugging purposes be sure to uncomment this!
     -->
-    <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
-    <logger name="org.apache.kafka" level="INFO" />
+    <!--<logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
+    <logger name="org.apache.kafka" level="INFO" />-->
 
     <!-- Jena's Debug level gets very noisy -->
-    <logger name="org.apache.jena" level="INFO" />
+    <!--<logger name="org.apache.jena" level="INFO" />-->
 
     <root level="OFF">
         <appender-ref ref="STDERR" />
