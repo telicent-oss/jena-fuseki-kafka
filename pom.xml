@@ -375,7 +375,10 @@
                     <argLine>
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        @{jacocoArgLine} -XX:+EnableDynamicAgentLoading
+                        @{jacocoArgLine}
+                        -javaagent:${org.mockito:mockito-core:jar}
+                        -XX:+EnableDynamicAgentLoading
+                        -Xshare:off
                     </argLine>
                 </configuration>
             </plugin>
@@ -447,6 +450,14 @@
                     <overWriteReleases>false</overWriteReleases>
                     <overWriteIfNewer>true</overWriteIfNewer>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>properties</id>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Run the enforcer plugin automatically at compile time -->

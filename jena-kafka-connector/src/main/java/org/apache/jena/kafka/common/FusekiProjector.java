@@ -5,6 +5,7 @@ import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
 import io.telicent.smart.cache.projectors.Projector;
 import io.telicent.smart.cache.projectors.Sink;
+import io.telicent.smart.cache.projectors.driver.StallAwareProjector;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
 import io.telicent.smart.cache.sources.Header;
@@ -26,6 +27,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.Bytes;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,19 +42,31 @@ import java.util.stream.Stream;
  * each event will be processed in its own transaction.
  * </p>
  * <p>
- * Note that regardless of the batch size selected the projector tries to maximise the batch size where possible.  For
+ * Note that regardless of the batch size selected the projector tries to maximise the batch size where possible. For
  * example if you set the batch size to 25 but the event source has fetched 100 events into memory then it will attempt
  * to process all 100 events prior to committing the transaction.
  * </p>
  * <p>
  * It will also use metadata from the event source to decide when to commit the batch.  Again supposed you set the batch
  * size to 25 but there are fewer than 25 events available, once the event source reports that it has no events
- * remaining then the projector guarantees to commit the batch.
+ * remaining then the projector guarantees to commit the batch. Note that in pathological cases - a slow upstream
+ * producer writing to the consumed topic - this could result in single event transactions which can have adverse effect
+ * on database disk size when using TDB2.  However, this scenario is hopefully fairly unusual and should generally be
+ * mitigated by the Kafka poll interval.
  * </p>
  * <p>
- * Note that in pathological cases - a slow upstream producer writing to the consumed topic - this could result in
- * single event transactions which can have adverse effect on database disk size when using TDB2.  However, this
- * scenario is hopefully fairly unusual and should generally be mitigated by the Kafka poll interval.
+ * It also uses time based triggering to commit a batch.  If you are reading from topic(s) being populated by a slow low
+ * volume producer it is possible that the batch size is rarely reached, and we don't ever completely run out of new
+ * events to process.  The maximum transaction duration protects the projector from holding a transaction open
+ * endlessly, if a transaction is open for longer than this duration then it will be committed regardless of batch
+ * size/remaining events.  This prevents undue delays in data being visible in the graph that could otherwise be caused
+ * in this scenario.
+ * </p>
+ * <p>
+ * Finally the projector is stall aware, if the {@link io.telicent.smart.cache.projectors.driver.ProjectorDriver} finds
+ * that there are no new events available, or it loses the connection to Kafka, then it informs the projector.  At this
+ * point the projector immediately commits the current batch (if one exists).  Once it starts receiving events again,
+ * and/or reconnects to Kafka, then a new batch will be started.
  * </p>
  * <h3>Error Handling</h3>
  * <p>
@@ -65,7 +79,11 @@ import java.util.stream.Stream;
  * should abort further processing.
  * </p>
  */
-public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Event<Bytes, RdfPayload>> {
+public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayload>, Event<Bytes, RdfPayload>> {
+    /**
+     * Default maximum transaction duration, if a transaction exceeds this time then it will be committed
+     */
+    public static final Duration DEFAULT_MAX_TRANSACTION_DURATION = Duration.ofMinutes(5);
     /**
      * Default batch size if not otherwise configured
      */
@@ -78,6 +96,9 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     private final EventSource<Bytes, RdfPayload> source;
     @Getter
     private final long batchSize;
+    @Getter
+    private final Duration maxTransactionDuration;
+    private long lastCommitTime = -1L;
     private final List<Event<Bytes, RdfPayload>> eventsSinceLastCommit = new ArrayList<>();
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
@@ -94,18 +115,31 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
      */
     @Builder
     private FusekiProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source, DatasetGraph dataset,
-                            long batchSize, Sink<Event<Bytes, RdfPayload>> dlq) {
+                            long batchSize, Duration maxTransactionDuration, Sink<Event<Bytes, RdfPayload>> dlq) {
         this.connector = Objects.requireNonNull(connector);
         this.topicNames = StringUtils.join(this.connector.getTopics(), ", ");
         this.source = Objects.requireNonNull(source);
         this.dataset = Objects.requireNonNull(dataset);
         this.batchSize = batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
+        this.maxTransactionDuration = isValidDuration(maxTransactionDuration) ? maxTransactionDuration :
+                                      DEFAULT_MAX_TRANSACTION_DURATION;
         this.dlq = dlq;
+    }
+
+    private static boolean isValidDuration(Duration maxTransactionDuration) {
+        return maxTransactionDuration != null && !maxTransactionDuration.isNegative() && !maxTransactionDuration.isZero();
     }
 
     @Override
     public void project(Event<Bytes, RdfPayload> event, Sink<Event<Bytes, RdfPayload>> sink) {
         try {
+            // If this is our first projected event then treat the current point in time as our last commit point, this
+            // is used for determining if we've exceeded our maximum transaction duration.
+            // See commitTransactionIfNeeded()
+            if (this.lastCommitTime == -1L) {
+                this.lastCommitTime = System.currentTimeMillis();
+            }
+
             // Setup for projecting the event
             materialiseValue(event);
             startTransactionIfNeeded();
@@ -219,6 +253,8 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
      */
     protected void commitTransactionIfNeeded(Event<Bytes, RdfPayload> event) {
         // Make a decision about whether to commit
+        Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - this.lastCommitTime);
+
         if (event.value().isPatch() && !this.dataset.isInTransaction()) {
             // Just processed an RDF Patch that committed the transaction for us
             // Need to call our own commit() now or our state will be incorrect
@@ -238,8 +274,18 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
                         this.topicNames, this.batchSize);
                 commit();
             }
-
             // If we have more events in-memory we should be being called again shortly with those
+
+        } else if (elapsed.compareTo(this.maxTransactionDuration) >= 0) {
+            // Have we exceeded the maximum transaction time?
+            // This can happen if we have a slow low volume producer writing to the input topics, this can cause the
+            // projector to never hit zero events remaining and means that we would otherwise leave the transaction
+            // open far longer than we should.  This both impacts our memory usage, and delays new data appearing in
+            // the graph which is a bad user experience.
+            FusekiKafka.LOG.warn(
+                    "[{}] Committing due to exceeding maximum transaction duration ({}), this is most likely caused by a slow low volume producer writing to these topics.",
+                    this.topicNames, this.maxTransactionDuration);
+            commit();
         } else {
             // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
             Long remaining = this.source.remaining();
@@ -289,6 +335,7 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
     @SuppressWarnings("rawtypes")
     protected final void commit() {
         // Commit changes to the dataset
+        this.lastCommitTime = System.currentTimeMillis();
         FusekiKafka.LOG.debug("[{}] Committing write transaction for {} Kafka events", this.topicNames,
                               this.eventsSinceLastCommit.size());
         if (this.dataset.isInTransaction()) {
@@ -332,5 +379,21 @@ public class FusekiProjector implements Projector<Event<Bytes, RdfPayload>, Even
 
         // Reset our state ready for next batch
         this.eventsSinceLastCommit.clear();
+    }
+
+    @Override
+    public void stalled(Sink<Event<Bytes, RdfPayload>> sink) {
+        if (this.dataset.isInTransaction()) {
+            // If we're in a transaction then we have pending uncommitted changes and should commit upon a stall
+            // occurring
+            // A stall means that there's no new events available from Kafka, i.e. we're caught up, or we're not
+            // currently connected to Kafka.  This latter case might be a transient error but as we don't know which
+            // case we've encountered, nor in the latter case when it might resolve, safer to commit the open
+            // transaction for now and start a new one as and when we start receiving new data again.
+            FusekiKafka.LOG.warn(
+                    "[{}] Committing due to stall, either no new events are currently available for these topic(s) or the connection to Kafka was lost",
+                    this.topicNames);
+            this.commit();
+        }
     }
 }

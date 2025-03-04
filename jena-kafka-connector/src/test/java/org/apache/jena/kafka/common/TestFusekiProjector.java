@@ -22,14 +22,19 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
+import javax.xml.crypto.Data;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -112,17 +117,24 @@ public class TestFusekiProjector {
     }
 
     public static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
-                                                  DatasetGraph dsg, int batchSize) {
-        return FusekiProjector.builder().connector(connector).source(source).dataset(dsg).batchSize(batchSize).build();
+                                                 DatasetGraph dsg, int batchSize) {
+        return buildProjector(connector, source, dsg, batchSize, null, null);
     }
 
     public static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
-                                                  DatasetGraph dsg, int batchSize, Sink<Event<Bytes, RdfPayload>> dlq) {
+                                                 DatasetGraph dsg, int batchSize, Sink<Event<Bytes, RdfPayload>> dlq) {
+        return buildProjector(connector, source, dsg, batchSize, null, dlq);
+    }
+
+    public static FusekiProjector buildProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source,
+                                                 DatasetGraph dsg, int batchSize, Duration maxTransactionDuration,
+                                                 Sink<Event<Bytes, RdfPayload>> dlq) {
         return FusekiProjector.builder()
                               .connector(connector)
                               .source(source)
                               .dataset(dsg)
                               .batchSize(batchSize)
+                              .maxTransactionDuration(maxTransactionDuration)
                               .dlq(dlq)
                               .build();
     }
@@ -132,8 +144,8 @@ public class TestFusekiProjector {
     }
 
     public static void verifyProjection(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,
-                                         DatasetGraph dsg, long expectedEvents, int expectedBeginTransactions,
-                                         int expectedCommitTransactions) {
+                                        DatasetGraph dsg, long expectedEvents, int expectedBeginTransactions,
+                                        int expectedCommitTransactions) {
         try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
             while (!source.isExhausted()) {
                 projector.project(source.poll(Duration.ZERO), sink);
@@ -186,6 +198,35 @@ public class TestFusekiProjector {
         // Then
         Assertions.assertNotNull(projector);
         Assertions.assertEquals(FusekiProjector.DEFAULT_BATCH_SIZE, projector.getBatchSize());
+    }
+
+
+    private static Stream<Arguments> badMaxDurations() {
+        return Stream.of(() -> new Object[] { null }, Arguments.of(Duration.ZERO), Arguments.of(Duration.ofMinutes(-10)));
+    }
+
+    @ParameterizedTest
+    @MethodSource(value = "badMaxDurations")
+    public void givenMinimalConfigAndBadMaxTransactionDuration_whenBuildingProjector_thenDefaultMaxTransactionDurationIsUsed(
+            Duration badMax) {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
+
+        // When
+        FusekiProjector projector = FusekiProjector.builder()
+                                                   .connector(connector)
+                                                   .source(source)
+                                                   .dataset(dsg)
+                                                   .maxTransactionDuration(badMax)
+                                                   .build();
+
+        // Then
+        Assertions.assertNotNull(projector);
+        Assertions.assertEquals(FusekiProjector.DEFAULT_BATCH_SIZE, projector.getBatchSize());
+        Assertions.assertEquals(FusekiProjector.DEFAULT_MAX_TRANSACTION_DURATION,
+                                projector.getMaxTransactionDuration());
     }
 
     @Test
@@ -252,6 +293,32 @@ public class TestFusekiProjector {
 
         // When and Then
         verifyProjection(source, projector, dsg, 3, 1, 1);
+    }
+
+    @Test
+    public void givenBatchingProjector_whenProjectingAllAvailableEventsButFewerThanBatchSize_thenProjectedWithSingleTransaction() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 100);
+
+        // When and Then
+        verifyProjection(source, projector, dsg, 3, 1, 1);
+    }
+
+    @Test
+    public void givenBatchingProjector_whenProjectingFewerEventsThanBatchSizeFromSourceWithNullRemaining_thenNoCommit() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
+        EventSource<Bytes, RdfPayload> source = new RemainingNullEventSource<>(List.of(event, event, event));
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 100);
+
+        // When and Then
+        verifyProjection(source, projector, dsg, 3, 1, 0);
     }
 
     private List<Event<Bytes, RdfPayload>> createKafkaTestEvents(int size) {
@@ -446,5 +513,103 @@ public class TestFusekiProjector {
 
         // Then
         Assertions.assertEquals(1L, dsg.stream().count());
+    }
+
+    @Test
+    public void givenIdleProjector_whenStalling_thenNothingIsCommited() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        KConnectorDesc connector = createTestConnector();
+        Sink<Event<Bytes, RdfPayload>> sink = NullSink.of();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        FusekiProjector projector = buildProjector(connector, source, dsg, 10, sink);
+
+        // When
+        projector.stalled(sink);
+
+        // Then
+        verifyNoTransactions(dsg);
+    }
+
+    @Test
+    public void givenProjectorInTransaction_whenStalling_thenCommits() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        KConnectorDesc connector = createTestConnector();
+        NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(createKafkaTestEvents(10));
+        FusekiProjector projector = buildProjector(connector, source, dsg, 10, sink);
+
+        // When
+        projector.project(createTestDatasetEvent(), sink);
+        projector.stalled(sink);
+
+        // Then
+        Assertions.assertEquals(1L, sink.count());
+        verify(dsg, times(1)).begin((TxnType) any());
+        verify(dsg, times(1)).commit();
+    }
+
+    @Test
+    public void givenNonBatchingProjector_whenStalling_thenNoAdditionalCommits() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        KConnectorDesc connector = createTestConnector();
+        NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(createKafkaTestEvents(10));
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, sink);
+
+        // When
+        projector.project(createTestDatasetEvent(), sink);
+        projector.stalled(sink);
+
+        // Then
+        Assertions.assertEquals(1L, sink.count());
+        verify(dsg, times(1)).begin((TxnType) any());
+        verify(dsg, times(1)).commit();
+    }
+
+    @Test
+    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() throws
+            InterruptedException {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        KConnectorDesc connector = createTestConnector();
+        NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(createKafkaTestEvents(10));
+        FusekiProjector projector = buildProjector(connector, source, dsg, 10, Duration.ofMillis(100), sink);
+
+        // When
+        projector.project(createTestDatasetEvent(), sink);
+        Thread.sleep(500);
+        // NB - We slept longer than our max transaction duration of 100 milliseconds, next projected event should
+        //      trigger a commit due to exceeding the duration
+        projector.project(createTestDatasetEvent(), sink);
+
+        // Then
+        Assertions.assertEquals(2L, sink.count());
+        verify(dsg, times(1)).begin((TxnType) any());
+        verify(dsg, times(1)).commit();
+    }
+
+    @Test
+    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsFasterThanMaxDuration_thenNoCommits() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        KConnectorDesc connector = createTestConnector();
+        NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(createKafkaTestEvents(10));
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1_000, Duration.ofMillis(100), sink);
+
+        // When
+        // NB - Intentionally 1 fewer than batch size, and source will have remaining events so shouldn't trigger
+        //      a commit, plus no sleeps so max duration should not be exceeded
+        for (int i = 1; i <= 999; i++) {
+            projector.project(createTestDatasetEvent(), sink);
+        }
+
+        // Then
+        Assertions.assertEquals(999L, sink.count());
+        verify(dsg, never()).commit();
     }
 }
