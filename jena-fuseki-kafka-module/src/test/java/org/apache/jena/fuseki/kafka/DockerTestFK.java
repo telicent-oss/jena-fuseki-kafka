@@ -63,7 +63,6 @@ public class DockerTestFK {
         // Start Kafka Test Cluster
         this.kafka = createTestCluster();
         kafka.setup();
-        Thread.sleep(500);
 
         // Inject test data to Kafka
         String DIR = "src/test/files";

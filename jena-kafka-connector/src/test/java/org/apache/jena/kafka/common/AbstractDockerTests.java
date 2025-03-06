@@ -44,7 +44,6 @@ public class AbstractDockerTests {
     public static void setup() throws InterruptedException {
         KAFKA.setup();
         KAFKA.resetTestTopic();
-        Thread.sleep(1000);
 
         // Generate test events
         List<Node> predicates = new ArrayList<>();

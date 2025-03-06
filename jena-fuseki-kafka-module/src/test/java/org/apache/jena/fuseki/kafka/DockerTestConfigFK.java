@@ -80,11 +80,6 @@ public class DockerTestConfigFK {
         kafka = createTestCluster();
         kafka.setup();
         resetTopics();
-
-        // As Kafka is a distributed system there's a race condition that can happen when the topics aren't fully
-        // created, and we try to write to them resulting in the events being lost
-        // Inserting a small sleep here avoids that happening.
-        Thread.sleep(750);
     }
 
     private void resetTopics() {
