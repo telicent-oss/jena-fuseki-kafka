@@ -2,6 +2,7 @@ package org.apache.jena.fuseki.kafka;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.sys.JenaSystem;
 import org.testng.Assert;
@@ -37,7 +38,11 @@ public class TestConfig {
         String configFile = "src/test/files/no-connectors.ttl";
 
         // When
-        FusekiServer server = FusekiServer.create().port(0).parseConfigFile(configFile).build();
+        FusekiServer server = FusekiServer.create()
+                                          .port(0)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .parseConfigFile(configFile)
+                                          .build();
         try {
             server.start();
 
@@ -55,7 +60,11 @@ public class TestConfig {
         // Given and When
         AtomicReference<FusekiServer> server = new AtomicReference<>();
         try {
-            server.set(FusekiServer.create().port(0).parseConfigFile(configFile).build());
+            server.set(FusekiServer.create()
+                                   .port(0)
+                                   .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                   .parseConfigFile(configFile)
+                                   .build());
             server.get().start();
             Assert.fail("Did not throw an exception as expected");
         } catch (Throwable e) {
