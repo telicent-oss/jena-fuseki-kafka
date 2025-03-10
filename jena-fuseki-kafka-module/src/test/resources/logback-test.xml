@@ -1,0 +1,24 @@
+<!--
+
+    Copyright (C) 2022 Telicent Limited
+
+-->
+<configuration>
+    <!-- Disables logging of Logback initialisation - remove if facing issue with logging config -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <target>System.err</target>
+        <encoder>
+            <pattern>%date{ISO8601} [%X{Request-ID:-Server}] [%X{JwtUser:-&lt;anon>}] %-5level %logger{0} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Kafka's NetworkClient is very chatty! -->
+    <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
+
+    <root level="OFF">
+        <appender-ref ref="STDERR" />
+    </root>
+</configuration>

@@ -1,0 +1,14 @@
+PREFIX fuseki:  <http://jena.apache.org/fuseki#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
+
+# Malformed - boolean property specified as an integer
+
+<#connector> rdf:type fk:Connector ;
+    fk:bootstrapServers    "localhost:9092";
+    fk:topic               "RDF0";
+    fk:fusekiServiceName   "/ds1";
+    fk:syncTopic           1;
+    
+    fk:stateFile           "1.state";
+    .

@@ -1,7 +1,7 @@
 H id <uuid:73323f12-4011-4a3a-add3-5754baf3fda9> .
 TX .
-A <http://example/s> <http://example/p> "two" .
-A <http://example/s> <http://example/p> "one" .
-A <http://example/s> <http://example/p> "three" .
-A <http://example/s> <http://example/p> "four" .
+A <http://example/s> <http://example/p> "two" <http://example/patch> .
+A <http://example/s> <http://example/p> "one" <http://example/patch> .
+A <http://example/s> <http://example/p> "three" <http://example/patch> .
+A <http://example/s> <http://example/p> "four" <http://example/patch> .
 TC .

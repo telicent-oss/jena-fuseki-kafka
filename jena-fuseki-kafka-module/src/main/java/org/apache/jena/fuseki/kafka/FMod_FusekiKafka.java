@@ -18,40 +18,45 @@ package org.apache.jena.fuseki.kafka;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.io.File;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
+import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.projectors.Sink;
+import io.telicent.smart.cache.sources.Event;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.assembler.Assembler;
 import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.apache.jena.fuseki.main.FusekiServer.Builder;
 import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
-import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
-import org.apache.jena.kafka.RequestFK;
 import org.apache.jena.kafka.SysJenaKafka;
-import org.apache.jena.kafka.common.DataState;
-import org.apache.jena.kafka.common.PersistentState;
+import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.JenaException;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
 import org.apache.jena.sparql.util.graph.GraphUtils;
+import org.apache.jena.sys.JenaSystem;
+import org.apache.kafka.common.utils.Bytes;
 
 /**
  * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add data), SPARQL Update or RDF patch.
  */
 public class FMod_FusekiKafka implements FusekiAutoModule {
 
-    private static AtomicBoolean INITIALIZED = new AtomicBoolean(false);
+    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
     private static void init() {
+        JenaSystem.init();
+
         boolean b = INITIALIZED.getAndSet(true);
         if (b)
         // Already done.
@@ -66,8 +71,8 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
 
     // The Fuseki modules build lifecycle is same-thread.
     // This passes information from 'prepare' to 'server'
-    // [BATCHER] Change in concurrent hash map (topic -> Pair<KConnectorDesc, DataState>>)
-    private ThreadLocal<List<Pair<KConnectorDesc, DataState>>> buildState = ThreadLocal.withInitial(ArrayList::new);
+    private final ThreadLocal<List<Pair<KConnectorDesc, FusekiOffsetStore>>> buildState =
+            ThreadLocal.withInitial(ArrayList::new);
 
     @Override
     public String name() {
@@ -84,50 +89,53 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         Log.info(Fuseki.configLog, logMessage());
 
         if (configModel == null) {
-            // FmtLog.error(LOG, "No server configuration. Can't build connector");
+            FmtLog.warn(LOG, "No server configuration. Can't build Kafka connector(s) automatically!");
             return;
         }
         List<Resource> connectors = GraphUtils.findRootsByType(configModel, KafkaConnectorAssembler.getType());
         if (connectors.isEmpty()) {
-            // FmtLog.error(LOG, "No connector in server configuration");
+            FmtLog.warn(LOG, "No Kafka connector(s) found in provided server configuration!");
             return;
         }
-        connectors.forEach(connector -> oneConnector(builder, connector, configModel));
+        connectors.forEach(this::oneConnector);
     }
 
-    /*package*/ void oneConnector(FusekiServer.Builder builder, Resource connector, Model configModel) {
+    /*package*/ void oneConnector(Resource connector) {
         KConnectorDesc conn;
         try {
             conn = (KConnectorDesc) Assembler.general.open(connector);
         } catch (JenaException ex) {
-            FmtLog.error(LOG, "Failed to build a connector", ex);
-            return;
+            throw new FusekiKafkaException("Failed to build a connector", ex);
+        }
+        if (conn == null) {
+            throw new FusekiKafkaException("Failed to build a connector, check log for more details");
         }
 
-        String dispatchURI = conn.getLocalDispatchPath();
-        String remoteEndpoint = conn.getRemoteEndpoint();
-
-//        // Endpoint to dataset. Abbreviate a endpoint-based dispatch name to a dataset.
-//        String datasetName = datasetName(dispatchURI);
-//        DatasetGraph dsg = builder.getDataset(datasetName);
-//        if ( dsg == null )
-//            throw new FusekiKafkaException("No datasets for '" + conn.getLocalEndpoint() + "'");
-        PersistentState state = new PersistentState(conn.getStateFile());
-
-        DataState dataState = DataState.restoreOrCreate(state, dispatchURI, remoteEndpoint, conn.getTopic());
-        long lastOffset = dataState.getLastOffset();
-        FmtLog.info(LOG, "Initial offset for topic %s = %d (%s)", conn.getTopic(), lastOffset, dispatchURI);
-        recordConnector(builder, conn, dataState);
+        String datasetName = conn.getDatasetName();
+        FusekiOffsetStore offsets = FusekiOffsetStore.builder()
+                                                     .datasetName(datasetName)
+                                                     .stateFile(new File(conn.getStateFile()))
+                                                     .consumerGroup(conn.getConsumerGroupId())
+                                                     .build();
+        for (Map.Entry<String, Object> offset : offsets.offsets()) {
+            if (StringUtils.endsWith(offset.getKey(), conn.getConsumerGroupId())) {
+                String[] partition = offset.getKey().split("-", 3);
+                FmtLog.info(LOG, "[%s] Initial offset for topic partition %s-%s = %s (%s)",
+                            StringUtils.join(conn.getTopics(), ", "), partition[0], partition[1], offset.getValue(),
+                            datasetName);
+            }
+        }
+        recordConnector(conn, offsets);
     }
 
     // Passing connector across stages by using a ThreadLocal.
-    private void recordConnector(Builder builder, KConnectorDesc conn, DataState dataState) {
-        Pair<KConnectorDesc, DataState> pair = Pair.create(conn, dataState);
+    private void recordConnector(KConnectorDesc conn, FusekiOffsetStore offsets) {
+        Pair<KConnectorDesc, FusekiOffsetStore> pair = Pair.create(conn, offsets);
         buildState.get().add(pair);
-        FKRegistry.get().register(conn.getTopic(), conn);
+        FKRegistry.get().register(conn.getTopics(), conn);
     }
 
-    private List<Pair<KConnectorDesc, DataState>> connectors(FusekiServer server) {
+    private List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
         return buildState.get();
     }
 
@@ -150,7 +158,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
     /**
      * Starts the Kafka Connectors
      * <p>
-     * This needs to be called once, and only once, by this module.  By default this gets called from the
+     * This needs to be called once, and only once, by this module.  By default, this gets called from the
      * {@link #serverBeforeStarting(FusekiServer)} method, this means that Fuseki will guarantee it is up to date on all
      * topics before it starts servicing any requests.
      * </p>
@@ -173,53 +181,60 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
      * @param server Fuseki Server
      */
     protected void startKafkaConnectors(FusekiServer server) {
-        List<Pair<KConnectorDesc, DataState>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
         if (connectors == null) {
             return;
         }
+        Set<String> groupIds = new HashSet<>();
         connectors.forEach(pair -> {
             KConnectorDesc conn = pair.getLeft();
-            DataState dataState = pair.getRight();
-            FmtLog.info(LOG, "[%s] Starting connector between %s topic %s and endpoint %s", conn.getTopic(),
-                        conn.getBootstrapServers(), conn.getTopic(),
-                        conn.dispatchLocal() ? conn.getLocalDispatchPath() : conn.getRemoteEndpoint());
-            FKBatchProcessor batchProcessor = makeFKBatchProcessor(conn, server);
-            FKS.addConnectorToServer(conn, server, dataState, batchProcessor);
+            FusekiOffsetStore offsets = pair.getRight();
+
+            // Sanity check - if multiple connectors defined then each MUST have a unique consumer group ID otherwise
+            // the KafkaConsumer instances will get stuck in a group rebalance loop
+            if (!groupIds.add(conn.getConsumerGroupId())) {
+                throw new FusekiKafkaException(
+                        "When multiple connectors are defined each MUST have a unique " + KafkaConnectorAssembler.pKafkaGroupId + " value set, found multiple connectors with Group ID " + conn.getConsumerGroupId());
+            }
+
+            // Start the connector
+            FmtLog.info(LOG, "[%s] Starting connector between topic(s) %s on %s and endpoint %s",
+                        StringUtils.join(conn.getTopics(), ", "), StringUtils.join(conn.getTopics(), ", "),
+                        conn.getBootstrapServers(), conn.getDatasetName());
+            FKS.addConnectorToServer(conn, server, offsets, getSinkBuilder());
         });
     }
 
     /**
-     * Clear-up build state.
+     * Gets the sink builder function, by default this returns {@code null} which causes
+     * {@link FKS#addConnectorToServer(KConnectorDesc, FusekiServer, FusekiOffsetStore, Function)} to use
+     * {@link FKS#defaultSinkBuilder()}.
+     * <p>
+     * If you are extending this module this provides an extension point that allows more control over how events are
+     * actually applied to the target dataset.  The default {@link org.apache.jena.kafka.common.FusekiSink} just applies
+     * the event directly to the target dataset.  If you need to take additional actions to apply events then you
+     * should extend this class and override this method to provide your desired sink builder function.
+     * </p>
+     *
+     * @return Sink builder function, {@code null} by default
      */
-    @Override
-    public void serverAfterStarting(FusekiServer server) {
-        // Clear up thread local.
-        buildState.get().clear();
-        buildState.remove();
-    }
-
-    /**
-     * Make a {@link FKBatchProcessor} for the Fuseki Server being built. The default is one that loops on the
-     * ConsumerRecords ({@link RequestFK}) sending each to the Fuseki server for dispatch. Other policies are possible
-     * such as aggregating batches or directly applying to a dataset.
-     */
-    protected FKBatchProcessor makeFKBatchProcessor(KConnectorDesc conn, FusekiServer server) {
-        if (DataAccessPointRegistry.get(server.getServletContext()) == null) {
-            DataAccessPointRegistry.set(server.getServletContext(), server.getDataAccessPointRegistry());
-        }
-        return FKS.plainFKBatchProcessor(conn, server.getServletContext());
+    protected Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> getSinkBuilder() {
+        return null;
     }
 
     @Override
     public void serverStopped(FusekiServer server) {
-        List<Pair<KConnectorDesc, DataState>> connectors = connectors(server);
+        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
         if (connectors == null) {
             return;
         }
         connectors.forEach(pair -> {
             KConnectorDesc conn = pair.getLeft();
-            DataState dataState = pair.getRight();
-            FKRegistry.get().unregister(conn.getTopic());
+            FKRegistry.get().unregister(conn.getTopics());
         });
+
+        // Reset the poll threads otherwise they would continue running infinitely
+        // On normal server shutdown that might be fine, in a test/dev environment this is undesirable
+        FKS.resetPollThreads();
     }
 }

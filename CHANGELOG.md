@@ -1,5 +1,78 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.0.0
+
+This is a major version with significant breaking changes versus the 1.x releases.  These changes have been motivated by
+reducing Telicent's code maintenance burden by adopting common libraries we use across our products that standardise how
+we interact with Kafka, especially as those Core Libraries are much more heavily tested in a wide variety of unit and
+integration tests than the existing one-off code in this repository was.
+
+### Breaking Changes
+
+- State file format updated, legacy state files will be automatically read and converted (with warnings) to the new
+  format the first time you use it
+    - `PersistentState` and `DataState` classes that handled state replaced with new `FusekiOffsetStore` that uses Smart
+      Cache Core library APIs
+- Removed `FKProcessor`, `FKBatchProcessor` and related implementation classes
+    - Replaced with `FusekiSink` and `FusekiProjector` to use Smart Cache Core library APIs
+- Removed support for receiving SPARQL Updates over Kafka
+    - This was brittle because the update may have different effects depending on the state of the Fuseki instance
+      receiving it at the time of reception
+    - See `SPARQL_Update_CQRS` in the https://github.com/telicent-oss/smart-cache-graph repository for a way to turn
+      SPARQL Updates into RDF Patches that Fuseki Kafka can apply
+- Removed start up checks of Kafka connectivity
+    - The Smart Cache Core libraries we are using include various connectivity, and topic existence checking, plus error
+      handling and logging for lots more Kafka failure scenarios.  These scenarios will now be surfaced in the Fuseki
+      logs so should be monitored for and addressed accordingly.
+- Removed unimplemented support for dispatching events to a remote endpoint
+    - **NB** This was a placeholder for future functionality for which we had no actual use cases
+- Removed deprecated `MockKafka`
+    - We were already using `KafkaTestCluster` from Smart Cache Core libraries for all integration tests anyway
+- Removed `jena-kafka-client` module
+    - `debug` CLI from Smart Caches Core provides more general equivalent functionality -
+      https://github.com/telicent-oss/smart-caches-core/blob/main/docs/cli/debug.md
+
+### New Features
+
+- Introduced Telicent Smart Cache Core libraries to handle all the Kafka read/write logic.  These APIs provide wrappers
+  around the lower level Kafka APIs that make it easier for us to handle errors, avoid lost events etc.
+- Kafka Connectors can now be optionally configured with a Dead Letter Queue (DLQ) to which bad events are forwarded
+    - If no DLQ is configured the Kafka Connector will abort
+- Kafka Connectors can now be configured with multiple topics so a single connector can read events from multiple topics
+  into a single dataset
+    - Previously this required configuring a connector for each unique topic
+- Kafka Connectors now support reading events from multi-partition topics
+    - Previously they would only read from partition `0` regardless of how many partitions the topic had
+- Batching behaviour is now handled automatically and aims to maximise transaction batch size based on available events
+
+### Bug Fixes
+
+- Fixed a bug where stopping a server would not guarantee to stop and de-register existing Kafka connectors, this is
+  especially relevant for uses who embed Fuseki in another process
+- Fixed a bug where a bad event would cause an entire batch of Kafka messages to not be processed potentially losing
+  some data
+    - Provided that a DLQ is configured the module now guarantees that all events prior to the bad event are properly
+      applied so no data is lost
+- Fixed a bug where Consumer Group was ignored and never actually used
+    - Previously this could be configured but due to how the Kafka APIs were used it was effectively ignored
+- Fixed a bug where Consumer Group was suffixed with a random UUID
+    - This meant that every time you ran SCG you got a unique Consumer Group, due to the above bug this actually had no
+      effect but now that bug is fixed we also had to fix this otherwise every time it restarted it would potentially
+      create a new Consumer Group
+    - **NB** This does mean that if you are running multiple instances of Fuseki with Kafka Connectors each instance
+      **MUST** now have a unique Consumer Group otherwise only one instance will be assigned the topic partitions for
+      the configured topic(s) so only one instance will be kept up to date.
+    - If you want to have a single configuration file consider using the environment variable interpolation feature to
+      inject a per-instance unique value into the consumer group, e.g. `fk:groupId "env:POD_NAME"`
+- Fixed a bug where multiple connectors with the same Consumer Group would get the application into a group rebalance
+  loop that resulted in it never being assigned partitions
+    - Each connector in the configuration **MUST** now be assigned a unique Consumer Group
+- Fixed a bug where otherwise well-formed RDF patches could fail to apply due to interactions with the external
+  transaction that the event processing was wrapping around them
+- Fixed a bug where malformed configuration files could lead to either a NPE, or silently ignoring a malformed Kafka
+  connector during startup
+    - These should now throw an error that halts Fuseki startup
+
 ## 1.5.3
 
 - Upgraded Apache Jena to 5.3.0

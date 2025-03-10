@@ -16,7 +16,6 @@
 
 package org.apache.jena.kafka;
 
-import org.apache.jena.riot.web.HttpNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,10 +23,9 @@ public class FusekiKafka {
     /** Log used for runtime general information */
     public static Logger LOG = LoggerFactory.getLogger(FusekiKafka.class);
 
-    public static final String hContentType = HttpNames.hContentType;
-    public static final String hRequestType = "RT";
-
+    /**
+     * Constant used to indicate in Fuseki Kafka configuration that no remote endpoint is configured
+     */
     public static String noRemoteEndpointName = "";
-    public static String noFusekiServiceName  = "";
 }
 

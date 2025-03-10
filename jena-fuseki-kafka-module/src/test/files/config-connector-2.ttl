@@ -47,6 +47,7 @@ PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
     fk:topic               "RDF1";
     fk:fusekiServiceName   "/ds1";
     fk:syncTopic           true;
+    fk:groupId             "connector-1";
     ##fk:replayTopic       true;
     fk:stateFile           "Replay-RDF1.state";
     .
@@ -56,6 +57,7 @@ PREFIX fk:      <http://jena.apache.org/fuseki/kafka#>
     fk:topic               "RDF2";
     fk:fusekiServiceName   "/ds2";
     fk:syncTopic           true;
+    fk:groupId             "connector-2";
     ##fk:replayTopic       true;
     fk:stateFile           "Replay-RDF2.state";
     .

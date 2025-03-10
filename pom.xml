@@ -15,574 +15,651 @@
     limitations under the License.
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <groupId>io.telicent.jena</groupId>
-  <artifactId>jena-kafka</artifactId>
-  <packaging>pom</packaging>
-  <version>1.5.4-SNAPSHOT</version>
+    <groupId>io.telicent.jena</groupId>
+    <artifactId>jena-kafka</artifactId>
+    <packaging>pom</packaging>
+    <version>2.0.0-SNAPSHOT</version>
 
-  <name>Apache Jena Fuseki-Kafka Connector</name>
-  <description>Fuseki Module : Kafka Connector</description>
-  <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
-
-  <developers>
-    <developer>
-        <name>Telicent Developers</name>
-        <email>opensource@telicent.io</email>
-        <organization>Telicent Ltd</organization>
-        <organizationUrl>https://telicent.io</organizationUrl>
-    </developer>
-  </developers>
-
-  <licenses>
-    <license>
-      <name>Apache 2.0 License</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-    </license>
-  </licenses>
-
-  <issueManagement>
+    <name>Apache Jena Fuseki-Kafka Connector</name>
+    <description>Fuseki Module : Kafka Connector</description>
     <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
-  </issueManagement>
 
-  <scm>
-    <connection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</connection>
-    <developerConnection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</developerConnection>
-    <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
-    <tag>1.3.2</tag>
-  </scm>
+    <developers>
+        <developer>
+            <name>Telicent Developers</name>
+            <email>opensource@telicent.io</email>
+            <organization>Telicent Ltd</organization>
+            <organizationUrl>https://telicent.io</organizationUrl>
+        </developer>
+    </developers>
+    <licenses>
+        <license>
+            <name>Apache 2.0 License</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
 
-  <properties>
-    <!-- build properties -->
-    <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
-    <java.version>17</java.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2025-02-14T10:37:50Z</project.build.outputTimestamp>
+    <issueManagement>
+        <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
+    </issueManagement>
 
-    <!-- Maven Plugin versions -->
-    <plugin.clean>3.4.1</plugin.clean>
-    <plugin.compiler>3.14.0</plugin.compiler>
-    <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
-    <plugin.dependency>3.8.1</plugin.dependency>
-    <plugin.deploy>3.1.3</plugin.deploy>
-    <plugin.enforcer>3.5.0</plugin.enforcer>
-    <plugin.exec>3.5.0</plugin.exec>
-    <plugin.gpg>3.2.7</plugin.gpg>
-    <plugin.install>3.1.3</plugin.install>
-    <plugin.jacoco>0.8.12</plugin.jacoco>
-    <plugin.jar>3.4.2</plugin.jar>
-    <plugin.javadoc>3.11.2</plugin.javadoc>
-    <plugin.nexus>1.7.0</plugin.nexus>
-    <plugin.resources>3.3.1</plugin.resources>
-    <plugin.shade>3.6.0</plugin.shade>
-    <plugin.site>3.21.0</plugin.site>
-    <plugin.source>3.3.1</plugin.source>
-    <plugin.surefire>3.5.2</plugin.surefire>
+    <scm>
+        <connection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</connection>
+        <developerConnection>scm:git:git@github.com:telicent-oss/jena-fuseki-kafka</developerConnection>
+        <url>https://github.com/telicent-oss/jena-fuseki-kafka</url>
+        <tag>1.3.2</tag>
+    </scm>
 
-    <!-- Internal dependencies -->
-    <dependency.jena>5.3.0</dependency.jena>
-    <dependency.smart-caches>0.27.1</dependency.smart-caches>
+    <properties>
+        <!-- build properties -->
+        <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.outputTimestamp>2025-01-24T09:38:42Z</project.build.outputTimestamp>
+        <coverage.minimum>0.8</coverage.minimum>
+        <test.maxForks>2</test.maxForks>
 
-    <!-- External dependencies -->
-    <dependency.commons-io>2.18.0</dependency.commons-io>
-    <dependency.commons-lang>3.17.0</dependency.commons-lang>
-    <dependency.kafka>3.9.0</dependency.kafka>
-    <dependency.log4j2>2.24.3</dependency.log4j2>
-    <dependency.servlet>6.1.0</dependency.servlet>
-    <dependency.slf4j>2.0.7</dependency.slf4j>
+        <!-- Maven Plugin versions -->
+        <plugin.clean>3.4.0</plugin.clean>
+        <plugin.compiler>3.13.0</plugin.compiler>
+        <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
+        <plugin.dependency>3.8.1</plugin.dependency>
+        <plugin.deploy>3.1.3</plugin.deploy>
+        <plugin.enforcer>3.5.0</plugin.enforcer>
+        <plugin.exec>3.5.0</plugin.exec>
+        <plugin.gpg>3.2.7</plugin.gpg>
+        <plugin.install>3.1.3</plugin.install>
+        <plugin.jacoco>0.8.12</plugin.jacoco>
+        <plugin.jar>3.4.2</plugin.jar>
+        <plugin.javadoc>3.11.2</plugin.javadoc>
+        <plugin.nexus>1.7.0</plugin.nexus>
+        <plugin.resources>3.3.1</plugin.resources>
+        <plugin.shade>3.6.0</plugin.shade>
+        <plugin.site>3.21.0</plugin.site>
+        <plugin.source>3.3.1</plugin.source>
+        <plugin.surefire>3.5.2</plugin.surefire>
 
-    <!-- Test dependencies -->
-    <dependency.awaitility>4.3.0</dependency.awaitility>
-    <dependency.junit5>5.12.0</dependency.junit5>
-    <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
-    <dependency.logback>1.5.15</dependency.logback>
-    <dependency.mockito>5.15.2</dependency.mockito>
-    <dependency.testcontainers>1.20.5</dependency.testcontainers>
-    <dependency.testng>7.11.0</dependency.testng>
+        <!-- Internal dependencies -->
+        <dependency.jena>5.2.0</dependency.jena>
+        <dependency.smart-caches>0.28.1</dependency.smart-caches>
 
-  </properties>
+        <!-- External dependencies -->
+        <dependency.commons-io>2.18.0</dependency.commons-io>
+        <dependency.commons-lang>3.17.0</dependency.commons-lang>
+        <dependency.kafka>3.9.0</dependency.kafka>
+        <dependency.log4j2>2.24.3</dependency.log4j2>
+        <dependency.lombok>1.18.36</dependency.lombok>
+        <dependency.servlet>6.1.0</dependency.servlet>
+        <dependency.slf4j>2.0.7</dependency.slf4j>
 
-  <modules>
-    <module>jena-kafka-connector</module>
-    <module>jena-fuseki-kafka-module</module>
-    <module>jena-kafka-client</module>
-    <module>jena-fmod-kafka</module>
-  </modules>
+        <!-- Test dependencies -->
+        <dependency.awaitility>4.2.2</dependency.awaitility>
+        <dependency.junit5>5.11.4</dependency.junit5>
+        <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
+        <dependency.logback>1.5.16</dependency.logback>
+        <dependency.log4j2>2.24.3</dependency.log4j2>
+        <dependency.mockito>5.15.2</dependency.mockito>
+        <dependency.testcontainers>1.20.4</dependency.testcontainers>
+        <dependency.testng>7.10.2</dependency.testng>
 
-  <dependencyManagement>
-    <dependencies>
+    </properties>
 
-      <!-- Internal dependency -->
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-arq</artifactId>
-        <version>${dependency.jena}</version>
-        <!-- 
-             Exclusions for errorprone can be
-             removed for Jena 5.1.0 because Jena does not pass them on.
-        -->
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.errorprone</groupId>
-            <artifactId>error_prone_annotations</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
+    <modules>
+        <module>jena-kafka-connector</module>
+        <module>jena-fuseki-kafka-module</module>
+        <module>jena-fmod-kafka</module>
+    </modules>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-base</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+    <dependencyManagement>
+        <dependencies>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-core</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <!-- Internal dependency -->
+            <dependency>
+                <groupId>io.telicent.smart-caches</groupId>
+                <artifactId>event-source-file</artifactId>
+                <version>${dependency.smart-caches}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.telicent.smart-caches</groupId>
+                <artifactId>event-source-kafka</artifactId>
+                <version>${dependency.smart-caches}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-cmds</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-arq</artifactId>
+                <version>${dependency.jena}</version>
+                <!--
+                     Exclusions for errorprone can be
+                     removed for Jena 5.1.0 because Jena does not pass them on.
+                -->
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.errorprone</groupId>
+                        <artifactId>error_prone_annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>jcl-over-slf4j</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-fuseki-core</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-base</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-fuseki-main</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-core</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <!-- The combined jar for Fuseki main -->
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-fuseki-server</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-cmds</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-rdfpatch</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-fuseki-core</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.jena</groupId>
-        <artifactId>jena-tdb2</artifactId>
-        <version>${dependency.jena}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-fuseki-main</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <!-- External dependencies -->
-      <!-- JAX-RS related dependencies -->
-      <dependency>
-        <groupId>jakarta.servlet</groupId>
-        <artifactId>jakarta.servlet-api</artifactId>
-        <version>${dependency.servlet}</version>
-      </dependency>
+            <!-- The combined jar for Fuseki main -->
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-fuseki-server</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>${dependency.commons-lang}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-rdfpatch</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.kafka</groupId>
-        <artifactId>kafka-clients</artifactId>
-        <version>${dependency.kafka}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.jena</groupId>
+                <artifactId>jena-tdb2</artifactId>
+                <version>${dependency.jena}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j2-impl</artifactId>
-        <version>${dependency.log4j2}</version>
-      </dependency>
+            <!-- External dependencies -->
+            <!-- JAX-RS related dependencies -->
+            <dependency>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
+                <version>${dependency.servlet}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>${dependency.slf4j}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${dependency.commons-lang}</version>
+            </dependency>
 
-      <!-- Test dependencies -->
-      <!-- Adding to avoid incompatibility with older versions and Test Containers -->
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>${dependency.commons-io}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>4.13.2</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>kafka</artifactId>
-        <version>${dependency.testcontainers}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>toxiproxy</artifactId>
-        <version>${dependency.testcontainers}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>${dependency.junit5}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${dependency.kafka}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>${dependency.mockito}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j2-impl</artifactId>
+                <version>${dependency.log4j2}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-junit-jupiter</artifactId>
-        <version>${dependency.mockito}</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${dependency.slf4j}</version>
+            </dependency>
 
-  <build>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${dependency.lombok}</version>
+            </dependency>
 
-    <plugins>
+            <!-- Test dependencies -->
+            <!-- Adding to avoid incompatibility with older versions and Test Containers -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${dependency.commons-io}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>kafka</artifactId>
+                <version>${dependency.testcontainers}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-compress</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>toxiproxy</artifactId>
+                <version>${dependency.testcontainers}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-compress</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${dependency.junit5}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>${plugin.compiler}</version>
-        <configuration>
-          <release>${java.version}</release>
-          <compilerArgument>-proc:none</compilerArgument>
-        </configuration>
-      </plugin>
-      
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>${plugin.jar}</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-            </manifest>
-          </archive>
-        </configuration>
-        <executions>
-          <execution>
-            <id>create-test-jar</id>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-            <configuration>
-              <classifier>tests</classifier>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${dependency.mockito}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>${plugin.shade}</version>
-      </plugin>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${dependency.mockito}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-source-plugin</artifactId>
-          <version>${plugin.source}</version>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <goals>
-                <goal>jar-no-fork</goal>
-              </goals>
-            </execution>
-            <execution> 
-              <id>attach-sources-test</id> 
-              <goals> 
-                <goal>test-jar-no-fork</goal> 
-              </goals>
-            </execution>
-          </executions>
-      </plugin>
-      
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${plugin.surefire}</version>
-        <configuration>
-          <argLine>
-            --add-opens java.base/java.util=ALL-UNNAMED
-            --add-opens java.base/java.lang=ALL-UNNAMED
-            @{jacocoArgLine} -XX:+EnableDynamicAgentLoading
-          </argLine>
-        </configuration>
-      </plugin>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${plugin.compiler}</version>
+                <configuration>
+                    <release>${java.version}</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${dependency.lombok}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>${plugin.javadoc}</version>
-        <executions>
-          <execution>
-            <id>attach-javadocs</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <notimestamp>true</notimestamp>
-          <quiet>true</quiet>
-          <doclint>none</doclint>
-          <version>true</version>
-          <show>public</show>
-          <encoding>UTF-8</encoding>
-          <windowtitle>${project.name} ${project.version}</windowtitle>
-          <doctitle>${project.name} ${project.version}</doctitle>
-          <bottom>Licensed under the Apache License, Version 2.0</bottom>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${plugin.jar}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>create-test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>tests</classifier>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
-          <!-- Settings for @apiNote, @implSpec and @implNote -->
-          <tags>
-            <tag>
-              <name>apiNote</name>
-              <placement>a</placement>
-              <head>API Note:</head>
-            </tag>
-            <tag>
-              <name>implSpec</name>
-              <placement>a</placement>
-              <head>Implementation Requirements:</head>
-            </tag>
-            <tag>
-              <name>implNote</name>
-              <placement>a</placement>
-              <head>Implementation Note:</head>
-            </tag>
-          </tags>
-        </configuration>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${plugin.shade}</version>
+            </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-	      <version>${plugin.resources}</version>
-        <configuration>
-          <encoding>UTF-8</encoding>
-        </configuration>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${plugin.source}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>attach-sources-test</id>
+                        <goals>
+                            <goal>test-jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <version>${plugin.deploy}</version>
-      </plugin>
-      
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>${plugin.dependency}</version>
-        <configuration>
-          <overWriteReleases>false</overWriteReleases>
-          <overWriteIfNewer>true</overWriteIfNewer>
-        </configuration>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${plugin.surefire}</version>
+                <configuration>
+                    <argLine>
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        @{jacocoArgLine} -XX:+EnableDynamicAgentLoading
+                    </argLine>
+                </configuration>
+            </plugin>
 
-      <!-- Run the enforcer plugin automatically at compile time -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${plugin.enforcer}</version>
-        <executions>
-          <execution>
-            <id>enforce</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration combine.self="override">
-              <rules>
-                <requirePluginVersions>
-                  <message>Best practice is to always define plugin versions!</message>
-                  <banLatest>true</banLatest>
-                  <banRelease>true</banRelease>
-                </requirePluginVersions>
-                <requireReleaseDeps>
-                  <message>No SNAPSHOT dependencies are allowed!</message>
-                  <onlyWhenRelease>true</onlyWhenRelease>
-                </requireReleaseDeps>
-                <requireMavenVersion>
-                  <version>3.8.1</version>
-                </requireMavenVersion>
-              </rules>
-              <fail>true</fail>
-              <failFast>false</failFast>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${plugin.javadoc}</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <notimestamp>true</notimestamp>
+                    <quiet>true</quiet>
+                    <doclint>none</doclint>
+                    <version>true</version>
+                    <show>public</show>
+                    <encoding>UTF-8</encoding>
+                    <windowtitle>${project.name} ${project.version}</windowtitle>
+                    <doctitle>${project.name} ${project.version}</doctitle>
+                    <bottom>Licensed under the Apache License, Version 2.0</bottom>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-clean-plugin</artifactId>
-        <version>${plugin.clean}</version>
-      </plugin>
+                    <!-- Settings for @apiNote, @implSpec and @implNote -->
+                    <tags>
+                        <tag>
+                            <name>apiNote</name>
+                            <placement>a</placement>
+                            <head>API Note:</head>
+                        </tag>
+                        <tag>
+                            <name>implSpec</name>
+                            <placement>a</placement>
+                            <head>Implementation Requirements:</head>
+                        </tag>
+                        <tag>
+                            <name>implNote</name>
+                            <placement>a</placement>
+                            <head>Implementation Note:</head>
+                        </tag>
+                    </tags>
+                </configuration>
+            </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-install-plugin</artifactId>
-        <version>${plugin.install}</version>
-      </plugin>
-      
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <version>${plugin.site}</version>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${plugin.resources}</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
 
-      <plugin>
-        <groupId>org.cyclonedx</groupId>
-        <artifactId>cyclonedx-maven-plugin</artifactId>
-        <version>${plugin.cyclonedx}</version>
-        <executions>
-          <execution>
-            <id>build-sbom-cyclonedx</id>
-            <phase>package</phase>
-            <goals>
-              <goal>makeAggregateBom</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <outputName>${project.artifactId}-${project.version}-bom</outputName>
-        </configuration>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>${plugin.deploy}</version>
+            </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-gpg-plugin</artifactId>
-        <version>${plugin.gpg}</version>
-        <executions>
-            <execution>
-                <goals>
-                    <goal>sign</goal>
-                </goals>
-                <phase>verify</phase>
-            </execution>
-        </executions>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${plugin.dependency}</version>
+                <configuration>
+                    <overWriteReleases>false</overWriteReleases>
+                    <overWriteIfNewer>true</overWriteIfNewer>
+                </configuration>
+            </plugin>
 
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>${plugin.nexus}</version>
-        <extensions>true</extensions>
-        <configuration>
-          <serverId>sonatype-oss</serverId>
-          <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-          <autoReleaseAfterClose>true</autoReleaseAfterClose>
-          <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
-          <stagingProgressTimeoutMinutes>15</stagingProgressTimeoutMinutes>
-        </configuration>
-      </plugin>
+            <!-- Run the enforcer plugin automatically at compile time -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${plugin.enforcer}</version>
+                <executions>
+                    <execution>
+                        <id>enforce</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration combine.self="override">
+                            <rules>
+                                <requirePluginVersions>
+                                    <message>Best practice is to always define plugin versions!</message>
+                                    <banLatest>true</banLatest>
+                                    <banRelease>true</banRelease>
+                                </requirePluginVersions>
+                                <requireReleaseDeps>
+                                    <message>No SNAPSHOT dependencies are allowed!</message>
+                                    <onlyWhenRelease>true</onlyWhenRelease>
+                                </requireReleaseDeps>
+                                <requireMavenVersion>
+                                    <version>3.8.1</version>
+                                </requireMavenVersion>
+                            </rules>
+                            <fail>true</fail>
+                            <failFast>false</failFast>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>${plugin.jacoco}</version>
-        <configuration>
-          <propertyName>jacocoArgLine</propertyName>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>prepare-agent</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>report</id>
-            <phase>prepare-package</phase>
-            <goals>
-              <goal>report</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>${plugin.clean}</version>
+            </plugin>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>${plugin.install}</version>
+            </plugin>
 
-    </plugins>
-  </build>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>${plugin.site}</version>
+            </plugin>
 
-  <repositories>
-    <repository>
-      <id>apache-snapshots</id>
-      <url>https://repository.apache.org/content/repositories/snapshots/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>sonatype-oss</id>
-      <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>${plugin.cyclonedx}</version>
+                <executions>
+                    <execution>
+                        <id>build-sbom-cyclonedx</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeAggregateBom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <outputName>${project.artifactId}-${project.version}-bom</outputName>
+                </configuration>
+            </plugin>
 
-  <distributionManagement>
-    <snapshotRepository>
-      <id>sonatype-oss</id>
-      <name>Sonatype OSS Snapshots</name>
-      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-        <id>sonatype-oss</id>
-        <name>Sonatype OSS</name>
-        <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${plugin.gpg}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <phase>verify</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>${plugin.nexus}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>sonatype-oss</serverId>
+                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                    <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
+                    <stagingProgressTimeoutMinutes>15</stagingProgressTimeoutMinutes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${plugin.jacoco}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <!--
+                            Needs to be true so that if a module invokes Maven surefire/failsafe multiple times,
+                            e.g. with different configurations, the coverage from all those runs is combined
+                            -->
+                            <append>true</append>
+                            <propertyName>jacocoArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>require-test-coverage</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipTests}</skip>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>CLASS</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>METHOD</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>COMPLEXITY</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                            <haltOnFailure>true</haltOnFailure>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>apache-snapshots</id>
+            <url>https://repository.apache.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>sonatype-oss</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>sonatype-oss</id>
+            <name>Sonatype OSS Snapshots</name>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>sonatype-oss</id>
+            <name>Sonatype OSS</name>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
 </project>
