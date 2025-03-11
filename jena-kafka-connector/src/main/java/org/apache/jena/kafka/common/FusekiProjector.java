@@ -3,7 +3,6 @@ package org.apache.jena.kafka.common;
 import io.telicent.smart.cache.observability.RuntimeInfo;
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
-import io.telicent.smart.cache.projectors.Projector;
 import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.StallAwareProjector;
 import io.telicent.smart.cache.sources.Event;
