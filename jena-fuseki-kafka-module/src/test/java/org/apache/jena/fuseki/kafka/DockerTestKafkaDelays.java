@@ -15,6 +15,7 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.system.G;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.testcontainers.containers.KafkaContainer;
