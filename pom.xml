@@ -91,7 +91,7 @@
         <!-- External dependencies -->
         <dependency.commons-io>2.18.0</dependency.commons-io>
         <dependency.commons-lang>3.17.0</dependency.commons-lang>
-        <dependency.kafka>3.9.0</dependency.kafka>
+        <dependency.kafka>4.0.0</dependency.kafka>
         <dependency.log4j2>2.24.3</dependency.log4j2>
         <dependency.lombok>1.18.36</dependency.lombok>
         <dependency.servlet>6.1.0</dependency.servlet>
