@@ -86,7 +86,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>5.4.0</dependency.jena>
-        <dependency.smart-caches>0.28.2</dependency.smart-caches>
+        <dependency.smart-caches>0.29.0</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-io>2.19.0</dependency.commons-io>
