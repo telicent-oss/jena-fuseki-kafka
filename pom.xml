@@ -71,7 +71,7 @@
         <plugin.dependency>3.8.1</plugin.dependency>
         <plugin.deploy>3.1.4</plugin.deploy>
         <plugin.enforcer>3.5.0</plugin.enforcer>
-        <plugin.exec>3.5.0</plugin.exec>
+        <plugin.exec>3.5.1</plugin.exec>
         <plugin.gpg>3.2.7</plugin.gpg>
         <plugin.install>3.1.4</plugin.install>
         <plugin.jacoco>0.8.13</plugin.jacoco>
@@ -86,7 +86,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>5.4.0</dependency.jena>
-        <dependency.smart-caches>0.29.0</dependency.smart-caches>
+        <dependency.smart-caches>0.29.1</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-io>2.19.0</dependency.commons-io>
@@ -99,7 +99,7 @@
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
-        <dependency.junit5>5.13.0</dependency.junit5>
+        <dependency.junit5>5.13.1</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
         <dependency.logback>1.5.18</dependency.logback>
         <dependency.log4j2>2.24.3</dependency.log4j2>
