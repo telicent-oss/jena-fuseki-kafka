@@ -208,17 +208,23 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
 
     @Override
     public void serverStopped(FusekiServer server) {
-        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
-        if (connectors == null) {
-            return;
-        }
-        connectors.forEach(pair -> {
-            KConnectorDesc conn = pair.getLeft();
-            FKRegistry.get().unregister(conn.getTopics());
-        });
+        try {
+            List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
+            if (connectors == null) {
+                return;
+            }
+            connectors.forEach(pair -> {
+                KConnectorDesc conn = pair.getLeft();
+                FKRegistry.get().unregister(conn.getTopics());
+            });
 
-        // Reset the poll threads otherwise they would continue running infinitely
-        // On normal server shutdown that might be fine, in a test/dev environment this is undesirable
-        FKS.resetPollThreads();
+            // Reset the poll threads otherwise they would continue running infinitely
+            // On normal server shutdown that might be fine, in a test/dev environment this is undesirable
+            FKS.resetPollThreads();
+        } finally {
+            // Clean up our build state otherwise it could bleed over to other servers
+            // This generally only is applicable in test/dev environments but good to do anyway
+            this.buildState.remove();
+        }
     }
 }

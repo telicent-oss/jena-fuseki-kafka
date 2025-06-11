@@ -171,9 +171,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *
          *     ## false means replay from the start (ignore sync)
          *     fk:replayTopic       false;
-         *
-         *     ## Relay to a remote triplestore.
-         *     fk:remoteEndpoint    "http://host/triplestore";
          *     .
          */
 
