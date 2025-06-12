@@ -18,7 +18,7 @@
     <!-- Kafka's NetworkClient is very chatty! -->
     <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
 
-    <root level="INFO">
+    <root level="OFF">
         <appender-ref ref="STDERR" />
     </root>
 </configuration>
