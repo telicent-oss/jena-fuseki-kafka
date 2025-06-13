@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestFKRegistry {
 
@@ -31,7 +32,22 @@ public class TestFKRegistry {
             Assert.assertEquals(FKRegistry.get().getConnectorDescriptor(KafkaTestCluster.DEFAULT_TOPIC), conn);
             FKRegistry.get().register(topics, conn);
         } finally {
-            FKRegistry.get().unregister(topics);
+            FKRegistry.get().unregister(topics, conn);
         }
+    }
+
+    @Test(expectedExceptions = JenaKafkaException.class, expectedExceptionsMessageRegExp = ".*DLQ topic.*")
+    public void givenDlqLoop_whenRegistering_thenError() {
+        // Given
+        KConnectorDesc conn1 = mock(KConnectorDesc.class);
+        when(conn1.getDlqTopic()).thenReturn("b");
+        List<String> topics1 = List.of("a");
+        KConnectorDesc conn2 = mock(KConnectorDesc.class);
+        when(conn2.getDlqTopic()).thenReturn("a");
+        List<String> topics2 = List.of("b");
+
+        // When and Then
+        FKRegistry.get().register(topics1, conn1);
+        FKRegistry.get().register(topics2, conn2);
     }
 }

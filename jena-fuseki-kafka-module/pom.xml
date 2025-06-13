@@ -77,6 +77,12 @@
     <!-- External dependencies -->
 
     <dependency>
+      <groupId>commons-beanutils</groupId>
+      <artifactId>commons-beanutils</artifactId>
+      <version>${dependency.commons-beanutils}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
@@ -212,6 +218,14 @@
                 <include>**/Test*.java</include>
                 <include>**/DockerTest*.java</include>
               </includes>
+              <argLine>
+                --add-opens java.base/java.util=ALL-UNNAMED
+                --add-opens java.base/java.lang=ALL-UNNAMED
+                @{jacocoArgLine}
+                -javaagent:${org.mockito:mockito-core:jar}
+                -XX:+EnableDynamicAgentLoading
+                -Xshare:off
+              </argLine>
             </configuration>
           </plugin>
 
@@ -220,6 +234,12 @@
             <artifactId>maven-dependency-plugin</artifactId>
             <version>${plugin.dependency}</version>
             <executions>
+              <execution>
+                <id>properties</id>
+                <goals>
+                  <goal>properties</goal>
+                </goals>
+              </execution>
               <execution>
                 <id>unpack-certs-helper</id>
                 <phase>generate-test-resources</phase>

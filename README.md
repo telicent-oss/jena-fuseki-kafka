@@ -102,7 +102,9 @@ However, if your workload involves deleting triples via RDF patches then the ord
 have only a single partition otherwise events could be applied out of order and deletes not take affect as intended.
 
 Finally, note that Fuseki Kafka restricts that each input Kafka topic **MAY** only be used by a single connector in your
-configuration.
+configuration i.e. you can't use the same topic as input to multiple connectors.  Additionally a topic used for input
+**MUST NOT** also be used for [DLQ](#error-handling) otherwise Fuseki Kafka could find itself in a loop of reflecting
+bad messages to itself.
 
 #### `fk:replay` and `fk:sync`
 
@@ -131,15 +133,16 @@ Kafka topic(s) over Fuseki restarts.
 
 The `fk:stateFile` property sets the location of the persistent state file on disk, this is used to track Kafka offsets.
 If this is not configured then offsets are only tracked on the Kafka brokers and may be ignored on subsequent Fuseki
-restarts.
+restarts, depending on the [`fk:replay`/`fk:sync`](#fkreplay-and-fksync) properties you have configured.
 
 In the 2.x releases the format of this file changed and it is not backwards compatible with 1.x releases.  If you are
-upgrading from the 1.x releases then Fuseki Kafka does understand the 1.x format state file and will transform it into
-the new format the first time you restart Fuseki with Fuseki Kafka 2.x.x
+upgrading from the 1.x releases then Fuseki Kafka does still understand the 1.x format state file and will transform it
+into the new format the first time you restart Fuseki with Fuseki Kafka 2.x.x
 
 The state file, and the Kafka Consumer Group offsets, are only updated once Fuseki Kafka has successfully applied and
-`commit()`'d events to the target dataset.  Therefore in the event of a service crash event consumption will resume from
-the last known committed offset, assuming [default `fk:sync` behaviour](#fkreplay-and-fksync) is in use.
+`commit()`'d events to the target dataset.  Therefore in the event of Fuseki being stopped/crashing the Kafka event
+consumption will resume from the last known committed offset upon restart, assuming [default `fk:sync`
+behaviour](#fkreplay-and-fksync) is in use.
 
 ### Batching
 
@@ -154,16 +157,17 @@ The default batch size is `5000` events, this may be controlled by setting the `
 the desired value via the `fk:config` property, e.g. in our earlier example this was set to `1000`.  Note that Fuseki
 Kafka **does not** guarantee to honour this batch size exactly and uses various heuristics to decide when to commit a
 batch, e.g., if it has fully caught up with the Kafka topic (i.e. lag is `0`), if there's events buffered in memory from
-earlier Kafka polling, if it hasn't committed in a certain time window etc.  Please see JavaDoc on `FusekiProjector`
-which implements the batching logic for more details.  In general it aims to maximise batch size, and minimise the
-number of transactions wherever possible, while ensuring timely application of events to the target dataset.
+earlier Kafka polling, if it hasn't committed a transaction within a certain time window etc.  Please see JavaDoc on
+`FusekiProjector` which implements the batching logic for more details.  In general it aims to maximise batch size, and
+minimise the number of transactions wherever possible, while ensuring timely application of events to the target
+dataset.
 
 ### Error Handling
 
 By default error handling is off as of `2.0.0`, if a malformed event is received on the Kafka topic(s), or an event
 cannot be applied, then processing aborts and no further events will be read from Kafka.  This default behaviour was
 changed from the 1.x releases as in those it was possible for a malformed/misapplied event to cause an entire batch of
-events to be discarded and not applied leading to data loss.
+events to be discarded and not applied potentially leading to data loss.
 
 For robust error handling we strongly recommend that you use the new `fk:dlqTopic` property to specify a Dead Letter
 Queue (DLQ) topic to which malformed/misapplied events will be written.  A `Dead-Letter-Reason` header will be added to
@@ -259,7 +263,7 @@ to supplying the appropriate Kafka configuration properties using the mechanisms
 You might also find our own [Kafka Connectivity
 Options](https://github.com/telicent-oss/smart-caches-core/blob/main/docs/cli/index.md#kafka-connectivity-options)
 documentation useful.  Note that while the options and environment variables discussed there **DO NOT** apply to this
-repository since that is for CLIs and this is a library, the examples of Kafka properties for different Kafka
+repository since that is for CLIs, and this is a library, the examples of Kafka properties for different Kafka
 Authentication modes are applicable.
 
 ## Build

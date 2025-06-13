@@ -135,8 +135,8 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         FKRegistry.get().register(conn.getTopics(), conn);
     }
 
-    private List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
-        return buildState.get();
+    List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
+        return Collections.unmodifiableList(buildState.get());
     }
 
     /**
@@ -215,7 +215,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
             }
             connectors.forEach(pair -> {
                 KConnectorDesc conn = pair.getLeft();
-                FKRegistry.get().unregister(conn.getTopics());
+                FKRegistry.get().unregister(conn.getTopics(), conn);
             });
 
             // Reset the poll threads otherwise they would continue running infinitely

@@ -78,6 +78,14 @@ integration tests than the existing one-off code in this repository was.
   connector during startup
     - These should now throw an error that halts Fuseki startup
 
+### Build and Test Improvements
+
+- Upgraded Apache Commons BeanUtils to 1.11.0
+- Upgraded Apache Jena to 5.4.0
+- Upgraded Apache Kafka to 3.9.1
+- Upgraded Smart Caches Core Libraries to 0.29.1
+- Upgraded various build and test dependencies to latest available
+
 ## 1.5.3
 
 - Upgraded Apache Jena to 5.3.0

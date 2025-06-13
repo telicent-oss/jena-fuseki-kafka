@@ -19,10 +19,13 @@ package org.apache.jena.fuseki.kafka;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 
@@ -43,6 +46,7 @@ public class FKRegistry {
 
     // Topic to connector record.
     private final Map<String, KConnectorDesc> topicToConnector = new ConcurrentHashMap<>();
+    private final Set<String> dlqTopics = new ConcurrentSkipListSet<>();
 
     /**
      * Return the {@link KConnectorDesc} for a topic.
@@ -66,9 +70,20 @@ public class FKRegistry {
      * Register a connector binding {@link KConnectorDesc} for the given topic(s)
      */
     public void register(List<String> topics, KConnectorDesc connectorDescriptor) {
+        // Track DLQ topics as we don't allow a DLQ topic to also be an input topic otherwise a malformed message would
+        // put connectors into a DLQ loop
+        if (StringUtils.isNotBlank(connectorDescriptor.getDlqTopic())) {
+            dlqTopics.add(connectorDescriptor.getDlqTopic());
+        }
+
+        // We only permit a single connector per-topic
         for (String topicName : topics) {
             if (topicToConnector.containsKey(topicName)) {
                 throw new JenaKafkaException("Multiple connectors configured for same topic: " + topicName);
+            }
+            if (dlqTopics.contains(topicName)) {
+                throw new JenaKafkaException(
+                        "Can't configure a connector with input topic '" + topicName + "' as this is already a DLQ topic for another connector");
             }
             topicToConnector.put(topicName, connectorDescriptor);
         }
@@ -77,7 +92,10 @@ public class FKRegistry {
     /**
      * Remove all registrations associated with the given topic(s)
      */
-    public void unregister(List<String> topics) {
+    public void unregister(List<String> topics, KConnectorDesc connectorDescriptor) {
+        if (StringUtils.isNotBlank(connectorDescriptor.getDlqTopic())) {
+            dlqTopics.remove(connectorDescriptor.getDlqTopic());
+        }
         for (String topicName : topics) {
             topicToConnector.remove(topicName);
         }
