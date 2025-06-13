@@ -69,6 +69,10 @@ public class KConnectorDesc {
             throw new IllegalArgumentException("topics cannot be empty");
         }
         this.dlqTopic = dlqTopic;
+        if (StringUtils.isNotBlank(this.dlqTopic) && this.topics.contains(this.dlqTopic)) {
+            throw new JenaKafkaException(
+                    "Can't configure the DLQ topic as " + this.dlqTopic + " as this is also an input topic!");
+        }
         this.bootstrapServers = Objects.requireNonNull(bootstrapServers, "bootstrapServers cannot be null");
         this.datasetName = datasetName;
         this.syncTopic = syncTopic;

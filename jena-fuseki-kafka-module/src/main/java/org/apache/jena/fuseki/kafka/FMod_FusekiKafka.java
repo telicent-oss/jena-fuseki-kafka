@@ -103,7 +103,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
     /*package*/ void oneConnector(Resource connector) {
         KConnectorDesc conn;
         try {
-            conn = (KConnectorDesc) Assembler.general.open(connector);
+            conn = (KConnectorDesc) Assembler.general().open(connector);
         } catch (JenaException ex) {
             throw new FusekiKafkaException("Failed to build a connector", ex);
         }
@@ -135,18 +135,12 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         FKRegistry.get().register(conn.getTopics(), conn);
     }
 
-    private List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
-        return buildState.get();
+    List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors() {
+        return Collections.unmodifiableList(buildState.get());
     }
 
     /**
      * Add each connector, with the state tracker, to the server configured server.
-     * <p>
-     * See notes on {@link #startKafkaConnectors(FusekiServer)} about potential pitfalls of starting connectors at this
-     * point in the server lifecycle.  Derived modules <strong>MAY</strong> wish to override this method to not start
-     * the connectors at this stage and override {@link #serverAfterStarting(FusekiServer)}, or another lifecycle method
-     * instead.
-     * </p>
      */
     @Override
     public void serverBeforeStarting(FusekiServer server) {
@@ -159,23 +153,13 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
      * Starts the Kafka Connectors
      * <p>
      * This needs to be called once, and only once, by this module.  By default, this gets called from the
-     * {@link #serverBeforeStarting(FusekiServer)} method, this means that Fuseki will guarantee it is up to date on all
-     * topics before it starts servicing any requests.
+     * {@link #serverBeforeStarting(FusekiServer)} method.  Note that this only starts the connectors on background
+     * threads, it <strong>DOES NOT</strong> guarantee that it is up to date with those topics.
      * </p>
      * <p>
-     * Note that if the server is lagging far behind the Kafka topic(s) it is being subscribed to then it will take a
-     * long time before Fuseki is able to service requests.  This may be problematic if you are deployed this in an
-     * environment that relies on HTTP Health Probes as the HTTP Server is not started while Fuseki is catching up on
-     * the Kafka topics.  This can result in the service being placed into a Crash Restart Loop as it fails health
-     * checks and is restarted.
-     * </p>
-     * <p>
-     * Also bear in mind that if the producers writing data to the Kafka topic(s) that Fuseki is consuming are doing so
-     * at a rate faster than Fuseki can process those updates the service can potentially never reach a ready state.
-     * </p>
-     * <p>
-     * Therefore, derived implementations <strong>MAY</strong> prefer to call this at a different point in the lifecycle
-     * e.g. {@link #serverAfterStarting(FusekiServer)} and live with the graph being eventually consistent
+     * Bear in mind that if the producers are writing data to the Kafka topic(s) that Fuseki is consuming are doing so
+     * at a rate faster than Fuseki can process those updates, the service can potentially never be up to date.  This is
+     * however a well understood trade off in event driven systems that you only get eventual consistency.
      * </p>
      *
      * @param server Fuseki Server
@@ -212,8 +196,8 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
      * <p>
      * If you are extending this module this provides an extension point that allows more control over how events are
      * actually applied to the target dataset.  The default {@link org.apache.jena.kafka.common.FusekiSink} just applies
-     * the event directly to the target dataset.  If you need to take additional actions to apply events then you
-     * should extend this class and override this method to provide your desired sink builder function.
+     * the event directly to the target dataset.  If you need to take additional actions to apply events then you should
+     * extend this class and override this method to provide your desired sink builder function.
      * </p>
      *
      * @return Sink builder function, {@code null} by default
@@ -224,17 +208,23 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
 
     @Override
     public void serverStopped(FusekiServer server) {
-        List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
-        if (connectors == null) {
-            return;
-        }
-        connectors.forEach(pair -> {
-            KConnectorDesc conn = pair.getLeft();
-            FKRegistry.get().unregister(conn.getTopics());
-        });
+        try {
+            List<Pair<KConnectorDesc, FusekiOffsetStore>> connectors = connectors();
+            if (connectors == null) {
+                return;
+            }
+            connectors.forEach(pair -> {
+                KConnectorDesc conn = pair.getLeft();
+                FKRegistry.get().unregister(conn.getTopics(), conn);
+            });
 
-        // Reset the poll threads otherwise they would continue running infinitely
-        // On normal server shutdown that might be fine, in a test/dev environment this is undesirable
-        FKS.resetPollThreads();
+            // Reset the poll threads otherwise they would continue running infinitely
+            // On normal server shutdown that might be fine, in a test/dev environment this is undesirable
+            FKS.resetPollThreads();
+        } finally {
+            // Clean up our build state otherwise it could bleed over to other servers
+            // This generally only is applicable in test/dev environments but good to do anyway
+            this.buildState.remove();
+        }
     }
 }

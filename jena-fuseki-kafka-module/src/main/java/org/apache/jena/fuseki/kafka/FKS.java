@@ -146,6 +146,27 @@ public class FKS {
         return dap.getDataService();
     }
 
+    /**
+     * Find the connectors referring to the dataset and return the list of topics feeding into this dataset. This can be
+     * the empty list.
+     * <p>
+     * This is primarily intended for use by extensions that build atop this module as it allows additional services to
+     * discover the configured Kafka topic(s) for a given dataset and act upon those as needed.
+     * </p>
+     */
+    @SuppressWarnings("unused")
+    public static List<String> findTopics(String uriPath) {
+        uriPath = DataAccessPoint.canonical(uriPath);
+        List<String> topics = new ArrayList<>();
+        for (KConnectorDesc fkConn : FKRegistry.get().getConnectors()) {
+            String dispatchURI = fkConn.getDatasetName();
+            if (dispatchURI.startsWith(uriPath)) {
+                topics.addAll(fkConn.getTopics());
+            }
+        }
+        return Collections.unmodifiableList(topics);
+    }
+
     private static ExecutorService EXECUTOR = threadExecutor();
 
     private static ExecutorService threadExecutor() {

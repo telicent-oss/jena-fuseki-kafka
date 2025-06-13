@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Assembler for a Fuseki-Kafka connector that takes Kafka events and executes them on a Fuseki server.
  * <p>
- * The Kafka event has a header "Content-type" and acts the same as HTTP.
+ * The Kafka event has a header "Content-type" which is used to detect the incoming event format.
  * <p>
  * This is an update stream, not publishing data to Kafka.
  * <p>
@@ -70,6 +70,11 @@ import org.slf4j.LoggerFactory;
  *
  *   # Kafka topic
  *   fk:topic               "RDF";
+ *   # May be multiple topics e.g.
+ *   # fk:topic             "Other";
+ *
+ *   # Optional DLQ Topic to which malformed events are sent
+ *   # fk:dlqTopic          "dlq";
  *
  *   # File used to track the state (the last offset processes)
  *   # Used across Fuseki restarts.
@@ -171,9 +176,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
          *
          *     ## false means replay from the start (ignore sync)
          *     fk:replayTopic       false;
-         *
-         *     ## Relay to a remote triplestore.
-         *     fk:remoteEndpoint    "http://host/triplestore";
          *     .
          */
 

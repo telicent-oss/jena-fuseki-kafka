@@ -2,44 +2,20 @@
 
 Apache Jena Fuseki extension module for receiving data over Apache Kafka topics.
 
-License: Apache License 2.0.  
-See [LICENSE](./LICENSE).
-
 The Fuseki-Kafka connector receives Kafka events on a topic and applies them to a Fuseki service endpoint. In effect, it
 is the same as if an HTTP POST request is sent to the Fuseki service.
 
-The Kafka event must have a Kafka message header `Content-Type` set to the MIME type of the content. No other headers
-are required.
+The Kafka event **SHOULD** have a Kafka message header `Content-Type` set to the MIME type of the content, if not
+present then NQuads is assumed. No other headers are required.
 
 Supported MIME types:
-* An RDF triples or quads format - any syntax supported by 
-  Apache Jena - `application/n-triples`, `text/turtle`, ...
-* SPARQL Update
-* [RDF Patch](https://jena.apache.org/documentation/rdf-patch/)
 
-The Fuseki service must be configured with the appropriate operations. `fuseki:gsp-rw` or `fuseki:upload` for pushing
-RDF into a dataset; `fuseki:update` for SPARQL Update, `fuseki:patch` for RDF Patch. The Fuseki implementation of the
-SPARQL Graph Store Protocol is extended to support data sent to the dataset without graph name (i.e. quads).
+- An RDF triples or quads format - any syntax supported by Apache Jena - `application/n-triples`, `text/turtle`, ...
+- [RDF Patch](https://jena.apache.org/documentation/rdf-patch/)
 
-```
-:service rdf:type fuseki:Service ;
-    fuseki:name "ds" ;
-    fuseki:endpoint [ fuseki:operation fuseki:query ] ;
-    ...
-
-    # Fuseki-Kafka
-    fuseki:endpoint [ fuseki:operation fuseki:update ] ;
-    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
-    fuseki:endpoint [ fuseki:operation fuseki:patch ] ;
-    ...
-    fuseki:dataset ... ;
-    .
-```
-
-See [Configuring Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html) for access control and
-other features.
-
-This project uses the Apache Jena Fuseki Main server and is configured with a Fuseki configuration file.
+See [Configuring Fuseki](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html) for general Fuseki
+configuration documentation.  This project uses the Apache Jena Fuseki Main server and is configured with a Fuseki
+configuration file.
 
 Java 17 or later is required.
 
@@ -56,24 +32,25 @@ PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 <#connector> rdf:type fk:Connector ;
-    # Kafka topic
+    # Kafka topic(s)
+    # Specify once for each input topic you wish to read
+    # Note that each topic MAY only be connected to a single dataset
     fk:topic              "env:{ENV_KAFKA_TOPIC:RDF}";
    
-
-    # Destination Fuseki service. This is a URI path (no scheme, host or port).
-    # This can be the dataset, a specific endpoint ("/ds/kafkaIncoming")
-    # with the necessary fuseki:operation.
-    
+    # Destination Fuseki service. This is the base URI path for the dataset
     fk:fusekiServiceName  "/ds";
 
-    # Using Kafka-RAFT
+    # Specify the Kafka bootstrap servers
     fk:bootstrapServers   "localhost:9092";
 
     # File used to track the state (the last offset processes)
     # Used across Fuseki restarts.
     fk:stateFile        "Databases/RDF.state";
 
-    # Kafka GroupId - default "JenaFusekiKafka"
+    # Kafka Consumer GroupId - default "JenaFusekiKafka"
+    # MUST be unique across all connectors in your config file
+    # If you are running multiple Fuseki instances then this MUST be unique for each instance otherwise only a single
+    # instance will actually read data from the Kafka topic
     # fk:groupId          "JenaFusekiKafka";
 
     # What to do on start up.
@@ -82,30 +59,123 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     #    fk:replayTopic      true;
     #    fk:syncTopic        true;
 
-   ## Additional Kafka client properties.
-   ## fk:config ( "key" "value") ;
+    # Optionally configure a Dead Letter Queue (DLQ) topic
+    # 
+    # When configured any malformed events are forwarded here
+    # If not configured then malformed events cause event processing to abort
+    # fk:dlqTopic "env:{ENV_KAFKA_TOPIC:RDF.dlq}" ;
 
-   ## Additional Kafka client properties from an external properties file
-   ## fk:configFile "/path/to/kafka.properties" ;
+    # Additional Kafka client properties.
+    fk:config ( "max.poll.records" "1000" )
+    # fk:config ( "key" "value") ;
+
+    # Additional Kafka client properties from an external properties file
+    # fk:configFile "/path/to/kafka.properties" ;
     .
 ```
 
-Note that the Fuseki Kafka Module by default starts the Kafka connectors prior to the Fuseki HTTP Server starting and
-attempts to catch up with the Kafka topic(s) prior to allowing the HTTP Server to start.  Depending on the batching
-strategy that you have implemented for messages this **MAY** block the HTTP Server from starting for a prolonged period.
-While this ensures that Fuseki is up to date with the Kafka topic(s) it does have some potential pitfalls:
+### Kafka Read Behaviour
 
-- If Fuseki is a long way behind the Kafka topic(s), or `fk:replay true` was set, then it may take a very long time
-  before Fuseki can service requests.
-    - If you are deploying Fuseki somewhere that relies on HTTP Health Checks against the server you may find Fuseki
-      goes into a Crash Restart Loop as a result which further delays it's ability to catch up with the Kafka topic(s)
-- If there are active producers writing to the Kafka topic(s) faster than Fuseki can read from them it could never catch
-  up, and never start servicing HTTP requests.
+Note that the Fuseki Kafka Module by default starts the Kafka connectors prior to the Fuseki HTTP Server starting,
+waiting briefly to see if each starts successfully.  The Kafka polling happens on background threads writing into the
+targeted dataset.  Therefore Fuseki Kafka is eventually consistent, however in the worst case scenario where there are
+active producers writing to the Kafka topic(s) faster than Fuseki can read from them it could never catch up.
 
-Therefore as of `1.4.0` the connector start has been placed into its own `startKafkaConnectors()` method allowing
-developers to choose to extend `FMod_FusekiKafka` and override `serverBeforeStarting()` to not call this method and
-instead call it from a different lifecycle method e.g. `serverAfterStarting()`.  You can find more discussion on this in
-the Javadoc on `FMod_FusekiKafka`
+As of 2.x Fuseki Kafka uses Kafka Consumer Groups when reading events from the configured Kafka topic(s).  This means
+that you **MUST** either have only a single connector in your Fuseki configuration, or each connector **MUST** specify a
+`fk:groupId` property with a unique consumer group ID.
+
+Note that if you are intending to use Kafka to sync RDF to multiple Fuseki instances then each Fuseki instance **MUST**
+use a unique consumer group ID per topic.  Otherwise your instances may not be assigned any partitions, and thus won't
+receive any RDF.
+
+#### Input Topic(s)
+
+The `fk:topic` property on a connector is used to configure one/more topics to which a Kafka connector will subscribe.
+You **MUST** specify this property at least once per connector, and **MAY** specify it multiple times if you wish.
+
+The partitioning strategy for input topics depends on the RDF you are intending to apply.  If your incoming RDF events
+are only additive, i.e. you only ever add new triples, then you can have as many partitions as you want since the set
+semantics of RDF means regardless of the order of event application the dataset will eventually reach the same state.
+
+However, if your workload involves deleting triples via RDF patches then the order of events matters and you **MUST**
+have only a single partition otherwise events could be applied out of order and deletes not take affect as intended.
+
+Finally, note that Fuseki Kafka restricts that each input Kafka topic **MAY** only be used by a single connector in your
+configuration i.e. you can't use the same topic as input to multiple connectors.  Additionally a topic used for input
+**MUST NOT** also be used for [DLQ](#error-handling) otherwise Fuseki Kafka could find itself in a loop of reflecting
+bad messages to itself.
+
+#### `fk:replay` and `fk:sync`
+
+The `fk:replay` and `fk:sync` properties specify boolean values used to configure how Fuseki Kafka reads from the
+configured [input topics](#input-topics).  If not specified then `fk:replay` defaults to `false`, and `fk:sync` defaults
+to `true`.
+
+If both are set to `true` then `fk:replay` takes precedence, depending on the values of these properties, and the
+[`fk:stateFile`](#state-file) property you will get the following read behaviours:
+
+| `fk:replay` | `fk:sync`    | `fk:stateFile` configured? | Read Behaviour                      |
+|-------------|--------------|----------------------------|-------------------------------------|
+| `true`      | `true/false` | Yes/No                     | From beginning of configured topics |
+| `false`     | `true`       | Yes                        | From previously stored offsets in state file, or beginning if no previously stored offsets |
+| `false`     | `false`      | Yes/No                     | From most recent offset             |
+
+So depending on your use case you can configure Fuseki Kafka to read the input topic(s) as needed.  For example if you
+were running a Fuseki instance with a non-persistent dataset then you'd want to set `fk:replay true` so that the dataset
+is rebuilt from the Kafka topic(s) each time Fuseki restarts.
+
+Most users with persistent datsets, e.g. TDB2, will likely want to stick with the default `fk:sync true` behaviour in
+combination with configuring a  [`fk:stateFile`](#state-file) so that your Fuseki instance is kept up to date with the
+Kafka topic(s) over Fuseki restarts.
+
+#### State File
+
+The `fk:stateFile` property sets the location of the persistent state file on disk, this is used to track Kafka offsets.
+If this is not configured then offsets are only tracked on the Kafka brokers and may be ignored on subsequent Fuseki
+restarts, depending on the [`fk:replay`/`fk:sync`](#fkreplay-and-fksync) properties you have configured.
+
+In the 2.x releases the format of this file changed and it is not backwards compatible with 1.x releases.  If you are
+upgrading from the 1.x releases then Fuseki Kafka does still understand the 1.x format state file and will transform it
+into the new format the first time you restart Fuseki with Fuseki Kafka 2.x.x
+
+The state file, and the Kafka Consumer Group offsets, are only updated once Fuseki Kafka has successfully applied and
+`commit()`'d events to the target dataset.  Therefore in the event of Fuseki being stopped/crashing the Kafka event
+consumption will resume from the last known committed offset upon restart, assuming [default `fk:sync`
+behaviour](#fkreplay-and-fksync) is in use.
+
+### Batching
+
+In the 1.x releases batching was an opt-in behaviour, from practical experience it has become clear that not using
+batching has determinental performance impacts so as of 2.x batching is now core functionality of this module.
+
+Fuseki Kafka batches the application of incoming events from the Kafka topic(s) so that many events may be applied in a
+single transaction to reduce the transaction overheads.  This is especially important when using underlying storage like
+TDB2, which has copy-on-write semantics, where a transaction per event would quickly exhaust disk space.
+
+The default batch size is `5000` events, this may be controlled by setting the `max.poll.records` Kafka configuration to
+the desired value via the `fk:config` property, e.g. in our earlier example this was set to `1000`.  Note that Fuseki
+Kafka **does not** guarantee to honour this batch size exactly and uses various heuristics to decide when to commit a
+batch, e.g., if it has fully caught up with the Kafka topic (i.e. lag is `0`), if there's events buffered in memory from
+earlier Kafka polling, if it hasn't committed a transaction within a certain time window etc.  Please see JavaDoc on
+`FusekiProjector` which implements the batching logic for more details.  In general it aims to maximise batch size, and
+minimise the number of transactions wherever possible, while ensuring timely application of events to the target
+dataset.
+
+### Error Handling
+
+By default error handling is off as of `2.0.0`, if a malformed event is received on the Kafka topic(s), or an event
+cannot be applied, then processing aborts and no further events will be read from Kafka.  This default behaviour was
+changed from the 1.x releases as in those it was possible for a malformed/misapplied event to cause an entire batch of
+events to be discarded and not applied potentially leading to data loss.
+
+For robust error handling we strongly recommend that you use the new `fk:dlqTopic` property to specify a Dead Letter
+Queue (DLQ) topic to which malformed/misapplied events will be written.  A `Dead-Letter-Reason` header will be added to
+those events indicating why they were considered malformed, or failed to apply.  When an error occurs the event is
+written to the DLQ, and Fuseki Kafka guarantees to apply all prior events in the [batch](#batching) before proceeding.
+
+Note that the DLQ topic **MUST NOT** be a topic that is used as an input topic for a connector as otherwise that would
+create an error loop where bad events are injected back into the input topic.
 
 ### Environment variable configuration
 
@@ -193,14 +263,15 @@ to supplying the appropriate Kafka configuration properties using the mechanisms
 You might also find our own [Kafka Connectivity
 Options](https://github.com/telicent-oss/smart-caches-core/blob/main/docs/cli/index.md#kafka-connectivity-options)
 documentation useful.  Note that while the options and environment variables discussed there **DO NOT** apply to this
-repository since that is for CLIs and this is a library, the examples of Kafka properties for different Kafka
+repository since that is for CLIs, and this is a library, the examples of Kafka properties for different Kafka
 Authentication modes are applicable.
 
 ## Build
 
 Run
+
 ```
-   mvn clean package
+mvn clean package
 ```
 This includes running Apache Kafka via docker containers from `testcontainers.io`. There is a large, one time, download.
 
@@ -225,7 +296,6 @@ Dry run
 ```
 mvn $MVN_ARGS -DdryRun=true release:clean release:prepare
 ```
-
 and for real
 
 ```
@@ -255,30 +325,20 @@ mvn versions:set -DnewVersion=...-SNAPSHOT
 
 In the directory where you wish to run Fuseki:
 
-Get a copy of Fuseki Main:
+Get a copy of Fuseki Main from the [Apache Jena
+Downloads](https://jena.apache.org/download/index.cgi#apache-jena-binary-distributions) page and place in the current
+directory.
+
+Use the script [`fuseki-main`](https://github.com/Telicent-io/jena-fuseki-kafka/blob/main/fuseki-main) from this
+repository then run:
 
 ```
-wget https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server/4.7.0/jena-fuseki-server-4.7.0.jar
-```
-and place in the current directory.
-
-Get a copy of the script [fuseki-main](https://github.com/Telicent-io/jena-fuseki-kafka/blob/main/fuseki-main)
-then run 
-
-```
-fuseki-main jena-fuseki-server-4.7.0.jar --conf config.ttl`
+fuseki-main jena-fuseki-server-4.7.0.jar --conf config.ttl
 ```
 
-where `config.ttl is the configuration file for the server including the
-connector setup.
+Where `config.ttl` is the configuration file for the server including the connector setup.  Windows uses can run
+`fuseki-main.bat` which may need adjusting for the correct version number of Fuseki.
 
-Windows uses can run `fuseki-main.bat` which may need adjusting for the correct
-version number of Fuseki.
+# License
 
-## Client
-
-`jena-fuseki-client` contains a script `fk` for operations on the Kafka topic.
-
-`fk send FILE` sends a file, using the file extension for the MIME type.
-
-`fk dump` dumps the Kafka topic.
+This code is Copyright Telicent Ltd and licensed under Apache License 2.0.  See [LICENSE](./LICENSE).

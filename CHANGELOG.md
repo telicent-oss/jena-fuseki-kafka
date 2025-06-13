@@ -24,6 +24,11 @@ integration tests than the existing one-off code in this repository was.
     - The Smart Cache Core libraries we are using include various connectivity, and topic existence checking, plus error
       handling and logging for lots more Kafka failure scenarios.  These scenarios will now be surfaced in the Fuseki
       logs so should be monitored for and addressed accordingly.
+- The module no longer requires that connectors be fully up to date with Kafka topics prior to allowing Fuseki to start
+  and service requests.
+    - This fixes a bug where Fuseki Kafka could find itself in a crash restart loop if external monitoring health checks
+      were trying to make HTTP requests to see if it was ready to service requests.  This crash restart loop would
+      continue until such time as it caught up with the topic(s), assuming it did catch up.
 - Removed unimplemented support for dispatching events to a remote endpoint
     - **NB** This was a placeholder for future functionality for which we had no actual use cases
 - Removed deprecated `MockKafka`
@@ -72,6 +77,14 @@ integration tests than the existing one-off code in this repository was.
 - Fixed a bug where malformed configuration files could lead to either a NPE, or silently ignoring a malformed Kafka
   connector during startup
     - These should now throw an error that halts Fuseki startup
+
+### Build and Test Improvements
+
+- Upgraded Apache Commons BeanUtils to 1.11.0
+- Upgraded Apache Jena to 5.4.0
+- Upgraded Apache Kafka to 3.9.1
+- Upgraded Smart Caches Core Libraries to 0.29.1
+- Upgraded various build and test dependencies to latest available
 
 ## 1.5.3
 

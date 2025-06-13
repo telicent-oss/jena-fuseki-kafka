@@ -6,6 +6,7 @@ import org.apache.jena.fuseki.main.sys.FusekiModules;
 import org.apache.jena.fuseki.system.FusekiLogging;
 import org.apache.jena.sys.JenaSystem;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -15,6 +16,11 @@ public class TestConfig {
     static {
         JenaSystem.init();
         FusekiLogging.markInitialized(true);
+    }
+
+    @BeforeClass
+    public void setup() {
+        FKRegistry.get().reset();
     }
 
     @Test

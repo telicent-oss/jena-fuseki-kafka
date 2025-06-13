@@ -210,6 +210,20 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>${plugin.dependency}</version>
+                        <executions>
+                            <execution>
+                                <id>properties</id>
+                                <goals>
+                                    <goal>properties</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
@@ -218,6 +232,14 @@
                             </includes>
                             <reuseForks>false</reuseForks>
                             <forkCount>${test.maxForks}</forkCount>
+                            <argLine>
+                                --add-opens java.base/java.util=ALL-UNNAMED
+                                --add-opens java.base/java.lang=ALL-UNNAMED
+                                @{jacocoArgLine}
+                                -javaagent:${org.mockito:mockito-core:jar}
+                                -XX:+EnableDynamicAgentLoading
+                                -Xshare:off
+                            </argLine>
                         </configuration>
                     </plugin>
                 </plugins>

@@ -54,7 +54,8 @@ public class TestKafkaConnectorAssembler {
             "bad-assem-multi-value-boolean-property.ttl",
             "bad-assem-mistyped-string-property.ttl",
             "bad-assem-mistyped-boolean-property.ttl",
-            "bad-assem-mistyped-mandatory-string-property.ttl"
+            "bad-assem-mistyped-mandatory-string-property.ttl",
+            "bad-assem-dlq-topic-also-input-topic.ttl"
     })
     @ParameterizedTest
     public void givenMalformedConfig_whenAssemblingConnector_thenNotLoaded(String filename) {

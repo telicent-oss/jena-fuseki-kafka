@@ -23,10 +23,14 @@ import org.apache.kafka.common.utils.Bytes;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @ToString
-public class FusekiSink implements Sink<Event<Bytes, RdfPayload>> {
+public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, RdfPayload>> {
 
+    /**
+     * The dataset this sink is writing to
+     */
     @NonNull
-    private final DatasetGraph dataset;
+    @ToString.Exclude
+    protected final T dataset;
 
     @Override
     public final void send(Event<Bytes, RdfPayload> event) {
