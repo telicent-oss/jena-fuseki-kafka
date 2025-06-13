@@ -6,6 +6,8 @@ import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.sys.JenaSystem;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -18,6 +20,16 @@ public class TestFKRegistry {
     static {
         JenaSystem.init();
         FusekiLogging.markInitialized(true);
+    }
+
+    @BeforeClass
+    public void setup() {
+        FKRegistry.get().reset();
+    }
+
+    @AfterClass
+    public void teardown() {
+        FKRegistry.get().reset();
     }
 
     @Test(expectedExceptions = JenaKafkaException.class, expectedExceptionsMessageRegExp = "Multiple connectors.*")

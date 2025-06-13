@@ -16,10 +16,7 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -63,7 +60,7 @@ public class FKRegistry {
      * @return Registered connectors
      */
     public Collection<KConnectorDesc> getConnectors() {
-        return topicToConnector.values();
+        return Collections.unmodifiableCollection(topicToConnector.values());
     }
 
     /**
@@ -99,5 +96,13 @@ public class FKRegistry {
         for (String topicName : topics) {
             topicToConnector.remove(topicName);
         }
+    }
+
+    /**
+     * Resets the register, intended only for testing to ensure a blank slate
+     */
+    void reset() {
+        topicToConnector.clear();
+        dlqTopics.clear();
     }
 }
