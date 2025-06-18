@@ -134,7 +134,8 @@ public class DockerTestFK {
 
             // When
             FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
-            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), 0L);
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"),
+                                  0L);
             FKS.restoreOffsetForDataset(DSG_NAME, newOffsets);
 
             // Then
@@ -158,7 +159,8 @@ public class DockerTestFK {
             DSG.clear();
             DockerTestConfigFK.waitForDataCount(URL, 0);
             FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
-            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), 2L);
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"),
+                                  2L);
             FKS.restoreOffsetForDataset("", newOffsets);
 
             // Then
@@ -180,7 +182,8 @@ public class DockerTestFK {
             DSG.clear();
             DockerTestConfigFK.waitForDataCount(URL, 0);
             FusekiOffsetStore newOffsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
-            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"), -5L);
+            newOffsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(KafkaTestCluster.DEFAULT_TOPIC, 0, "test"),
+                                  -5L);
             FKS.restoreOffsetForDataset("", newOffsets);
 
             // Then
@@ -203,5 +206,21 @@ public class DockerTestFK {
         FKS.addConnectorToServer(conn, server, offsets, null);
         server.start();
         return server;
+    }
+
+    @Test(expectedExceptions = FusekiKafkaException.class, expectedExceptionsMessageRegExp = "No dataset found.*")
+    public void givenMisconfiguredDatasetName_whenAddingConnectorToServer_thenFails() {
+        // Given
+        KConnectorDesc conn =
+                new KConnectorDesc(List.of(KafkaTestCluster.DEFAULT_TOPIC), this.kafka.getBootstrapServers(), "/wrong",
+                                   null, false, true, null, consumerProps());
+        FusekiServer server = FusekiServer.create()
+                                          .port(0)
+                                          .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
+                                          .add(DSG_NAME, DSG).build();
+        FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName(DSG_NAME).build();
+
+        // When and Then
+        FKS.addConnectorToServer(conn, server, offsets, null);
     }
 }

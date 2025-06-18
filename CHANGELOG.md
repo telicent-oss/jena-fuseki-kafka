@@ -1,5 +1,13 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.0.1
+
+- Fixed a bug where old 1.x configurations that used full endpoint URIs, e.g. `/ds/upload`, for their connector
+  `fk:fusekiServiceName` properties, as opposed to simple service names, i.e. `/ds`, would not successfully start. These
+  service names should now successfully permit startup with a warning that support for full endpoint URIs in
+  configuration will be removed in the future.
+- Fixed a couple of cases where a NPE could be thrown during startup without an accompanying descriptive error
+
 ## 2.0.0
 
 This is a major version with significant breaking changes versus the 1.x releases.  These changes have been motivated by

@@ -115,10 +115,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     @Builder
     private FusekiProjector(KConnectorDesc connector, EventSource<Bytes, RdfPayload> source, DatasetGraph dataset,
                             long batchSize, Duration maxTransactionDuration, Sink<Event<Bytes, RdfPayload>> dlq) {
-        this.connector = Objects.requireNonNull(connector);
+        this.connector = Objects.requireNonNull(connector, "Kafka Connector descriptor cannot be null");
         this.topicNames = StringUtils.join(this.connector.getTopics(), ", ");
-        this.source = Objects.requireNonNull(source);
-        this.dataset = Objects.requireNonNull(dataset);
+        this.source = Objects.requireNonNull(source, "Event Source cannot be null");
+        this.dataset = Objects.requireNonNull(dataset, "Dataset cannot be null");
         this.batchSize = batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
         this.maxTransactionDuration = isValidDuration(maxTransactionDuration) ? maxTransactionDuration :
                                       DEFAULT_MAX_TRANSACTION_DURATION;

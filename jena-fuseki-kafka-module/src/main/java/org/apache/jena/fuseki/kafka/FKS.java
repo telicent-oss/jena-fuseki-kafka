@@ -37,6 +37,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.*;
+import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
@@ -118,6 +119,9 @@ public class FKS {
 
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
+        if (dsg == null) {
+            throw new FusekiKafkaException("No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
+        }
         startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
     }
 
@@ -131,7 +135,15 @@ public class FKS {
     public static Optional<DatasetGraph> findDataset(FusekiServer server, String uriPath) {
         DataService dataService = findDataService(server, uriPath);
         if (dataService == null) {
-            return Optional.empty();
+            if (uriPath.lastIndexOf('/') > 0) {
+                // Strip off the trailing path component and try again
+                LOG.warn(
+                        "Configured URI Path {} for Kafka Connector appears to contain additional path components beyond the base dataset name.  This is considered deprecated and future versions of this library will no longer permit this configuration and it should be adjusted accordingly.",
+                        uriPath);
+                return findDataset(server, uriPath.substring(0, uriPath.lastIndexOf('/')));
+            } else {
+                return Optional.empty();
+            }
         }
         return Optional.ofNullable(dataService.getDataset());
     }
