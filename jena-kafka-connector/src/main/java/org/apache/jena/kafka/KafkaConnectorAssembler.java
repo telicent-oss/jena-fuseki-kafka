@@ -97,7 +97,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     // Preferred:   "fusekiServiceName"
 
     /**
-     * Destination dataset and endpoint for dispatching Kafka events.
+     * Destination dataset for dispatching Kafka events.
      */
     public static Node pFusekiServiceName = NodeFactory.createURI(NS + "fusekiServiceName");
     /*
