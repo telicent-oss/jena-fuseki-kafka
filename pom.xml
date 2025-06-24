@@ -92,7 +92,7 @@
         <dependency.commons-io>2.19.0</dependency.commons-io>
         <dependency.commons-lang>3.17.0</dependency.commons-lang>
         <dependency.kafka>3.9.1</dependency.kafka>
-        <dependency.log4j2>2.24.3</dependency.log4j2>
+        <dependency.log4j2>2.25.0</dependency.log4j2>
         <dependency.lombok>1.18.38</dependency.lombok>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
@@ -104,7 +104,7 @@
         <dependency.logback>1.5.18</dependency.logback>
         <dependency.log4j2>2.24.3</dependency.log4j2>
         <dependency.mockito>5.18.0</dependency.mockito>
-        <dependency.testcontainers>1.21.1</dependency.testcontainers>
+        <dependency.testcontainers>1.21.2</dependency.testcontainers>
         <dependency.testng>7.11.0</dependency.testng>
 
         <!-- CVE-2025-48734 -->
