@@ -182,22 +182,34 @@ public class FKS {
     private static ExecutorService EXECUTOR = threadExecutor();
 
     private static ExecutorService threadExecutor() {
-        return Executors.newCachedThreadPool();
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        // Start a new poll thread monitor whenever we create a new thread pool
+        MONITOR = new PollThreadMonitor();
+        executor.submit(MONITOR);
+
+        return executor;
     }
 
     private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
             new HashMap<>();
+    private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
+
+    private static PollThreadMonitor MONITOR;
+
 
     /**
      * The background threads
      */
     static void resetPollThreads() {
         // Explicitly cancel the projector drivers
+        MONITOR.cancel();
         for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.values().stream().flatMap(
                 Collection::stream).toList()) {
             driver.cancel();
         }
         DRIVERS.clear();
+        ACTIVE_DRIVERS.clear();
 
         // Shutdown the executor now, this will issue interrupts on the spawned threads which should cause them to
         // shut down more promptly.  Once that is done wait a few seconds to give those threads chance to finish before
@@ -262,8 +274,9 @@ public class FKS {
             // Ignore, we can safely assume the projector driver thread started up cleanly
         }
 
-        // TODO We should have a proper monitor thread that is periodically checking the projector driver threads to see
-        //      if any of them have failed
+        // Retain a reference to the future so our monitor thread can periodically check in on the drivers to see if
+        // any have exited unexpectedly
+        ACTIVE_DRIVERS.add(future);
     }
 
     /**
@@ -312,5 +325,57 @@ public class FKS {
     private static TopicPartition decodeExternalOffsetKey(String key) {
         String[] parts = key.split("-", 3);
         return new TopicPartition(parts[0], Integer.parseInt(parts[1]));
+    }
+
+    private static final class PollThreadMonitor implements Runnable {
+
+        private boolean shouldRun = true;
+
+        @Override
+        public void run() {
+            while (this.shouldRun) {
+                List<Future<?>> failures = new ArrayList<>();
+                for (Future<?> future : ACTIVE_DRIVERS) {
+                    try {
+                        if (future.isCancelled()) {
+                            // Ignore
+                            continue;
+                        }
+
+                        // Check the current status of the polling thread by trying to get() it's result
+                        future.get(1, TimeUnit.SECONDS);
+                    } catch (ExecutionException e) {
+                        // This means something fatal has happened on the polling thread to cause it to exit with an
+                        // exception, log this and track the future so we remove the failed thread from further
+                        // monitoring
+                        LOG.error("Polling thread failed: {}", e.getCause().getMessage());
+                        failures.add(future);
+                    } catch (InterruptedException e) {
+                        // Ignore, we could be interrupted for a legitimate reason like JVM shutdown so no point doing
+                        // anything about interrupt here.  If the poll thread continues to run then it'll check the
+                        // driver again on a future loop.
+                    } catch (TimeoutException e) {
+                        // Ignore, this just means the poll thread is still alive and active
+                    }
+                }
+
+                // Remove any failed drivers from subsequent monitoring otherwise we'd spam the logs with the error
+                // repeatedly
+                ACTIVE_DRIVERS.removeAll(failures);
+
+                // Wait a while before checking the threads again
+                try {
+                    Thread.sleep(60_000);
+                } catch (InterruptedException e) {
+                    // Ignore, most likely resetPollThreads() has been called and we're being shutdown
+                }
+            }
+
+            LOG.info("Kafka Polling monitor thread exited");
+        }
+
+        public void cancel() {
+            this.shouldRun = false;
+        }
     }
 }

@@ -2,6 +2,7 @@ package org.apache.jena.kafka.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.sys.JenaSystem;
@@ -69,6 +70,29 @@ public class TestFusekiOffsetStore {
         // Then
         Assertions.assertEquals(datasetName, store.getDatasetName());
         Assertions.assertTrue(store.hasOffset(KafkaEventSource.externalOffsetStoreKey("test", 0, "example")));
+    }
+
+    @Test
+    public void givenLegacyStateFileWithMisMatchedDatasetName_whenCreatingStore_thenConversionFails() throws
+            IOException {
+        // Given
+        String datasetName = DATASET_NAME;
+        Map<String, Object> legacyState = Map.of(FusekiOffsetStore.FIELD_DATASET, datasetName + "/upload",
+                                                 FusekiOffsetStore.LEGACY_FIELD_ENDPOINT, "foo",
+                                                 FusekiOffsetStore.LEGACY_FIELD_TOPIC, "test",
+                                                 FusekiOffsetStore.LEGACY_FIELD_OFFSET, 1234L);
+        File stateFile = createStateFile(legacyState);
+
+        // When and Then
+        JenaKafkaException e = Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
+                                                                                                        .datasetName(
+                                                                                                                datasetName)
+                                                                                                        .stateFile(
+                                                                                                                stateFile)
+                                                                                                        .consumerGroup(
+                                                                                                                "example")
+                                                                                                        .build());
+        Assertions.assertTrue(StringUtils.contains(e.getMessage(), "Dataset name does not match"));
     }
 
     private File createStateFile(Map<String, Object> state) throws IOException {
@@ -196,6 +220,6 @@ public class TestFusekiOffsetStore {
         // Then
         Assertions.assertNotEquals(0, copy.length());
         FusekiOffsetStore copied = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(copy).build();
-        Assertions.assertEquals(1234L, (Long)copied.loadOffset("test"));
+        Assertions.assertEquals(1234L, (Long) copied.loadOffset("test"));
     }
 }
