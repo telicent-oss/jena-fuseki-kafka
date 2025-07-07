@@ -15,7 +15,8 @@
     limitations under the License.
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
@@ -64,6 +65,7 @@
         <test.maxForks>2</test.maxForks>
 
         <!-- Maven Plugin versions -->
+        <plugin.central>0.8.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
         <plugin.compiler>3.14.0</plugin.compiler>
         <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
@@ -76,7 +78,6 @@
         <plugin.jacoco>0.8.13</plugin.jacoco>
         <plugin.jar>3.4.2</plugin.jar>
         <plugin.javadoc>3.11.2</plugin.javadoc>
-        <plugin.nexus>1.7.0</plugin.nexus>
         <plugin.resources>3.3.1</plugin.resources>
         <plugin.shade>3.6.0</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
@@ -547,6 +548,7 @@
                 </executions>
                 <configuration>
                     <outputName>${project.artifactId}-${project.version}-bom</outputName>
+                    <skipNotDeployed>false</skipNotDeployed>
                 </configuration>
             </plugin>
 
@@ -564,17 +566,16 @@
                 </executions>
             </plugin>
 
+            <!-- Central Publishing Plugin -->
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>${plugin.nexus}</version>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${plugin.central}</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <serverId>sonatype-oss</serverId>
-                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                    <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
-                    <stagingProgressTimeoutMinutes>15</stagingProgressTimeoutMinutes>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
                 </configuration>
             </plugin>
 
@@ -683,15 +684,10 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>sonatype-oss</id>
-            <name>Sonatype OSS Snapshots</name>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <id>central</id>
+            <name>Maven Central Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         </snapshotRepository>
-        <repository>
-            <id>sonatype-oss</id>
-            <name>Sonatype OSS</name>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
     </distributionManagement>
 
 </project>
