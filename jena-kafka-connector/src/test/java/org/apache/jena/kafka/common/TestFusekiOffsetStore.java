@@ -3,10 +3,8 @@ package org.apache.jena.kafka.common;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.sys.JenaSystem;
-import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -69,7 +67,10 @@ public class TestFusekiOffsetStore {
 
         // Then
         Assertions.assertEquals(datasetName, store.getDatasetName());
-        Assertions.assertTrue(store.hasOffset(KafkaEventSource.externalOffsetStoreKey("test", 0, "example")));
+        String key = KafkaEventSource.externalOffsetStoreKey("test", 0, "example");
+        Assertions.assertTrue(store.hasOffset(key));
+        Assertions.assertEquals(1235L, (Long) store.loadOffset(key),
+                                "Legacy state file offsets were off by 1 so upgrading should correct that");
     }
 
     @Test
