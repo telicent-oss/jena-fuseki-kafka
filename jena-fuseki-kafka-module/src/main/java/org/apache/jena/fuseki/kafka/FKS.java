@@ -57,6 +57,11 @@ import org.apache.kafka.common.utils.Bytes;
 public class FKS {
 
     /**
+     * Default check interval for the poll monitor thread in seconds
+     */
+    private static final int DEFAULT_POLL_MONITOR_INTERVAL_SECONDS = 60;
+
+    /**
      * Add a connector to a server and starts the polling.
      * <p>
      * This is mainly called from {@link FMod_FusekiKafka#startKafkaConnectors(FusekiServer)}.  Public static visibility
@@ -120,7 +125,8 @@ public class FKS {
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
         if (dsg == null) {
-            throw new FusekiKafkaException("No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
+            throw new FusekiKafkaException(
+                    "No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
         }
         startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
     }
@@ -179,23 +185,21 @@ public class FKS {
         return Collections.unmodifiableList(topics);
     }
 
+    // All the static fields for managing the Kafka polling threads
+    private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
+            new HashMap<>();
+    private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
+    private static PollThreadMonitor MONITOR;
     private static ExecutorService EXECUTOR = threadExecutor();
-
     private static ExecutorService threadExecutor() {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         // Start a new poll thread monitor whenever we create a new thread pool
-        MONITOR = new PollThreadMonitor();
+        MONITOR = new PollThreadMonitor(ACTIVE_DRIVERS, DEFAULT_POLL_MONITOR_INTERVAL_SECONDS);
         executor.submit(MONITOR);
 
         return executor;
     }
-
-    private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
-            new HashMap<>();
-    private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
-
-    private static PollThreadMonitor MONITOR;
 
 
     /**
@@ -327,45 +331,67 @@ public class FKS {
         return new TopicPartition(parts[0], Integer.parseInt(parts[1]));
     }
 
-    private static final class PollThreadMonitor implements Runnable {
+    /**
+     * A thread that monitors the Kafka polling threads for any abnormal exit conditions
+     */
+    static final class PollThreadMonitor implements Runnable {
 
         private boolean shouldRun = true;
+        private final Semaphore waitLock = new Semaphore(0);
+        private final long checkInterval;
+        private final Collection<Future<?>> active;
+
+        /**
+         * Creates a new monitoring thread
+         *
+         * @param active Active thread futures to monitor
+         */
+        public PollThreadMonitor(Collection<Future<?>> active, long checkInterval) {
+            this.active = Objects.requireNonNull(active);
+            if (checkInterval < 0) {
+                throw new IllegalArgumentException("Check interval cannot be zero/negative");
+            }
+            this.checkInterval = checkInterval;
+        }
 
         @Override
         public void run() {
             while (this.shouldRun) {
-                List<Future<?>> failures = new ArrayList<>();
-                for (Future<?> future : ACTIVE_DRIVERS) {
+                for (Future<?> future : active) {
                     try {
                         if (future.isCancelled()) {
-                            // Ignore
+                            // Ignore threads that have been explicitly cancelled
                             continue;
                         }
 
-                        // Check the current status of the polling thread by trying to get() it's result
+                        // Check the current status of the polling thread by waiting briefly to get() it's result
                         future.get(1, TimeUnit.SECONDS);
+
+                        // If we successfully get() it's result then it has exited normally
+                        // BUT in most cases the thread should only exit if it either fails, or we're being shutdown
+                        LOG.info("Polling thread exited normally");
                     } catch (ExecutionException e) {
                         // This means something fatal has happened on the polling thread to cause it to exit with an
-                        // exception, log this and track the future so we remove the failed thread from further
-                        // monitoring
+                        // exception, log an error for this
                         LOG.error("Polling thread failed: {}", e.getCause().getMessage());
-                        failures.add(future);
-                    } catch (InterruptedException e) {
-                        // Ignore, we could be interrupted for a legitimate reason like JVM shutdown so no point doing
-                        // anything about interrupt here.  If the poll thread continues to run then it'll check the
-                        // driver again on a future loop.
+                    } catch (InterruptedException | CancellationException e) {
+                        // Ignore, we could be cancelled/interrupted for a legitimate reason like JVM shutdown so no
+                        // point doing anything about those here.  If the poll thread continues to run then it'll check
+                        // the driver again on a future loop unless it was genuinely cancelled
                     } catch (TimeoutException e) {
                         // Ignore, this just means the poll thread is still alive and active
                     }
                 }
 
-                // Remove any failed drivers from subsequent monitoring otherwise we'd spam the logs with the error
-                // repeatedly
-                ACTIVE_DRIVERS.removeAll(failures);
+                // Remove any cancelled/failed/completed drivers from subsequent monitoring otherwise we'd spam the logs
+                // with the error repeatedly
+                active.removeIf(f -> f.isCancelled() || f.isDone());
 
                 // Wait a while before checking the threads again
+                // We intentionally use a semaphore here as that allows the cancel() method to immediately unblock this
+                // thread during cleanup/shutdown by releasing a permit to the semaphore
                 try {
-                    Thread.sleep(60_000);
+                    this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
                     // Ignore, most likely resetPollThreads() has been called and we're being shutdown
                 }
@@ -374,8 +400,15 @@ public class FKS {
             LOG.info("Kafka Polling monitor thread exited");
         }
 
+        /**
+         * Cancels and stops the polling monitor thread
+         */
         public void cancel() {
             this.shouldRun = false;
+
+            // Release a permit on our wait semaphore so that if the monitoring thread was "sleeping" it more rapidly
+            // notices that the shouldRun flag is now false and exits ASAP
+            this.waitLock.release();
         }
     }
 }

@@ -82,15 +82,20 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
                     if (StringUtils.isNotBlank(topic)) {
                         // Legacy code only allowed for reading a single partition topic
                         // KafkaEventSource expects offsets to be written with both topic and partition
-                        // Therefore if legacy topic and offset fields are present these MUST refer to partition 0 of the topic
-                        // so set that offset now so it is used and persisted
+                        // Therefore if legacy topic and offset fields are present these MUST refer to partition 0 of
+                        // the topic so set that offset now so it is used and persisted
                         LOGGER.info("Interpreted legacy fields in state file to set Offset {} for Topic Partition {}-0",
-                                    offset, topic);
+                                    offset + 1, topic);
                         if (StringUtils.isBlank(this.consumerGroup)) {
                             throw new JenaKafkaException(
                                     "Must supply a consumer group when reading in a legacy state file");
                         }
-                        this.offsets.put(KafkaEventSource.externalOffsetStoreKey(topic, 0, this.consumerGroup), offset);
+                        // NB - The legacy state files stored an offset that was off by 1 relative to the actual Kafka
+                        //      offset that should have been stored.  In testing upgrading of legacy state files this
+                        //      meant the code incorrectly re-processed the last event on the topic.  While this was
+                        //      generally harmless it's better to correct the off by 1 error when upgrading to avoid
+                        //      this!
+                        this.offsets.put(KafkaEventSource.externalOffsetStoreKey(topic, 0, this.consumerGroup), offset + 1);
                     }
                 } catch (ClassCastException e) {
                     throw new JenaKafkaException(
