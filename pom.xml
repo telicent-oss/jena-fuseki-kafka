@@ -15,7 +15,8 @@
     limitations under the License.
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
@@ -64,19 +65,19 @@
         <test.maxForks>2</test.maxForks>
 
         <!-- Maven Plugin versions -->
+        <plugin.central>0.8.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
         <plugin.compiler>3.14.0</plugin.compiler>
         <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
         <plugin.dependency>3.8.1</plugin.dependency>
         <plugin.deploy>3.1.4</plugin.deploy>
-        <plugin.enforcer>3.5.0</plugin.enforcer>
+        <plugin.enforcer>3.6.0</plugin.enforcer>
         <plugin.exec>3.5.1</plugin.exec>
-        <plugin.gpg>3.2.7</plugin.gpg>
+        <plugin.gpg>3.2.8</plugin.gpg>
         <plugin.install>3.1.4</plugin.install>
         <plugin.jacoco>0.8.13</plugin.jacoco>
         <plugin.jar>3.4.2</plugin.jar>
         <plugin.javadoc>3.11.2</plugin.javadoc>
-        <plugin.nexus>1.7.0</plugin.nexus>
         <plugin.resources>3.3.1</plugin.resources>
         <plugin.shade>3.6.0</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
@@ -90,21 +91,21 @@
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <dependency.commons-io>2.19.0</dependency.commons-io>
-        <dependency.commons-lang>3.17.0</dependency.commons-lang>
+        <dependency.commons-lang>3.18.0</dependency.commons-lang>
         <dependency.kafka>3.9.1</dependency.kafka>
-        <dependency.log4j2>2.24.3</dependency.log4j2>
+        <dependency.log4j2>2.25.1</dependency.log4j2>
         <dependency.lombok>1.18.38</dependency.lombok>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
-        <dependency.junit5>5.13.1</dependency.junit5>
+        <dependency.junit5>5.13.3</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
         <dependency.logback>1.5.18</dependency.logback>
-        <dependency.log4j2>2.24.3</dependency.log4j2>
+        <dependency.log4j2>2.25.0</dependency.log4j2>
         <dependency.mockito>5.18.0</dependency.mockito>
-        <dependency.testcontainers>1.21.1</dependency.testcontainers>
+        <dependency.testcontainers>1.21.3</dependency.testcontainers>
         <dependency.testng>7.11.0</dependency.testng>
 
         <!-- CVE-2025-48734 -->
@@ -547,6 +548,7 @@
                 </executions>
                 <configuration>
                     <outputName>${project.artifactId}-${project.version}-bom</outputName>
+                    <skipNotDeployed>false</skipNotDeployed>
                 </configuration>
             </plugin>
 
@@ -564,17 +566,16 @@
                 </executions>
             </plugin>
 
+            <!-- Central Publishing Plugin -->
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>${plugin.nexus}</version>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${plugin.central}</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <serverId>sonatype-oss</serverId>
-                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                    <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
-                    <stagingProgressTimeoutMinutes>15</stagingProgressTimeoutMinutes>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
                 </configuration>
             </plugin>
 
@@ -683,15 +684,10 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>sonatype-oss</id>
-            <name>Sonatype OSS Snapshots</name>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <id>central</id>
+            <name>Maven Central Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         </snapshotRepository>
-        <repository>
-            <id>sonatype-oss</id>
-            <name>Sonatype OSS</name>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
     </distributionManagement>
 
 </project>
