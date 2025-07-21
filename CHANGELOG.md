@@ -1,5 +1,20 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.0.2
+
+- Fixed a bug where upgrading legacy state files caused Kafka offsets to be off by 1 resulting in re-processing an event
+  from the input topic
+- Picked up a fix for Kafka polling where long transaction lock waits (caused by interactions with external code) could
+  lead to Kafka polling threads failing prematurely.  These threads will now auto-recover in this scenario.
+- Build and Dependency Updates:
+    - Switched to new Maven Central publishing process
+    - Apache Commons IO upgraded to 2.20.0
+    - Apache Commons Lang upgraded to 3.18.0
+    - Apache Jena upgraded to 5.5.0
+    - Log4j upgraded to 2.25.1
+    - Smart Caches Core upgraded to 0.29.2
+    - Various build and test dependencies upgraded to latest available
+
 ## 2.0.1
 
 - Fixed a bug where old 1.x configurations that used full endpoint URIs, e.g. `/ds/upload`, for their connector
