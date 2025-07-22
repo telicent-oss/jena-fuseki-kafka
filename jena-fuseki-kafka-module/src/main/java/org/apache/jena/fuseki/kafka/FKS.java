@@ -37,7 +37,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.*;
-import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
@@ -55,6 +54,11 @@ import org.apache.kafka.common.utils.Bytes;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FKS {
+
+    /**
+     * Default check interval for the poll monitor thread in seconds
+     */
+    private static final int DEFAULT_POLL_MONITOR_INTERVAL_SECONDS = 60;
 
     /**
      * Add a connector to a server and starts the polling.
@@ -120,7 +124,8 @@ public class FKS {
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
         if (dsg == null) {
-            throw new FusekiKafkaException("No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
+            throw new FusekiKafkaException(
+                    "No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
         }
         startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
     }
@@ -179,25 +184,35 @@ public class FKS {
         return Collections.unmodifiableList(topics);
     }
 
-    private static ExecutorService EXECUTOR = threadExecutor();
-
-    private static ExecutorService threadExecutor() {
-        return Executors.newCachedThreadPool();
-    }
-
+    // All the static fields for managing the Kafka polling threads
     private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
             new HashMap<>();
+    private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
+    private static PollThreadMonitor MONITOR;
+    private static ExecutorService EXECUTOR = threadExecutor();
+    private static ExecutorService threadExecutor() {
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        // Start a new poll thread monitor whenever we create a new thread pool
+        MONITOR = new PollThreadMonitor(ACTIVE_DRIVERS, DEFAULT_POLL_MONITOR_INTERVAL_SECONDS);
+        executor.submit(MONITOR);
+
+        return executor;
+    }
+
 
     /**
      * The background threads
      */
     static void resetPollThreads() {
         // Explicitly cancel the projector drivers
+        MONITOR.cancel();
         for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.values().stream().flatMap(
                 Collection::stream).toList()) {
             driver.cancel();
         }
         DRIVERS.clear();
+        ACTIVE_DRIVERS.clear();
 
         // Shutdown the executor now, this will issue interrupts on the spawned threads which should cause them to
         // shut down more promptly.  Once that is done wait a few seconds to give those threads chance to finish before
@@ -262,8 +277,9 @@ public class FKS {
             // Ignore, we can safely assume the projector driver thread started up cleanly
         }
 
-        // TODO We should have a proper monitor thread that is periodically checking the projector driver threads to see
-        //      if any of them have failed
+        // Retain a reference to the future so our monitor thread can periodically check in on the drivers to see if
+        // any have exited unexpectedly
+        ACTIVE_DRIVERS.add(future);
     }
 
     /**
@@ -312,5 +328,86 @@ public class FKS {
     private static TopicPartition decodeExternalOffsetKey(String key) {
         String[] parts = key.split("-", 3);
         return new TopicPartition(parts[0], Integer.parseInt(parts[1]));
+    }
+
+    /**
+     * A thread that monitors the Kafka polling threads for any abnormal exit conditions
+     */
+    static final class PollThreadMonitor implements Runnable {
+
+        private boolean shouldRun = true;
+        private final Semaphore waitLock = new Semaphore(0);
+        private final long checkInterval;
+        private final Collection<Future<?>> active;
+
+        /**
+         * Creates a new monitoring thread
+         *
+         * @param active Active thread futures to monitor
+         */
+        public PollThreadMonitor(Collection<Future<?>> active, long checkInterval) {
+            this.active = Objects.requireNonNull(active);
+            if (checkInterval < 0) {
+                throw new IllegalArgumentException("Check interval cannot be zero/negative");
+            }
+            this.checkInterval = checkInterval;
+        }
+
+        @Override
+        public void run() {
+            while (this.shouldRun) {
+                for (Future<?> future : active) {
+                    try {
+                        if (future.isCancelled()) {
+                            // Ignore threads that have been explicitly cancelled
+                            continue;
+                        }
+
+                        // Check the current status of the polling thread by waiting briefly to get() it's result
+                        future.get(1, TimeUnit.SECONDS);
+
+                        // If we successfully get() it's result then it has exited normally
+                        // BUT in most cases the thread should only exit if it either fails, or we're being shutdown
+                        LOG.info("Polling thread exited normally");
+                    } catch (ExecutionException e) {
+                        // This means something fatal has happened on the polling thread to cause it to exit with an
+                        // exception, log an error for this
+                        LOG.error("Polling thread failed: {}", e.getCause().getMessage());
+                    } catch (InterruptedException | CancellationException e) {
+                        // Ignore, we could be cancelled/interrupted for a legitimate reason like JVM shutdown so no
+                        // point doing anything about those here.  If the poll thread continues to run then it'll check
+                        // the driver again on a future loop unless it was genuinely cancelled
+                    } catch (TimeoutException e) {
+                        // Ignore, this just means the poll thread is still alive and active
+                    }
+                }
+
+                // Remove any cancelled/failed/completed drivers from subsequent monitoring otherwise we'd spam the logs
+                // with the error repeatedly
+                active.removeIf(f -> f.isCancelled() || f.isDone());
+
+                // Wait a while before checking the threads again
+                // We intentionally use a semaphore here as that allows the cancel() method to immediately unblock this
+                // thread during cleanup/shutdown by releasing a permit to the semaphore
+                try {
+                    this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    // Ignore, most likely resetPollThreads() has been called and we're being shutdown
+                }
+            }
+
+            LOG.info("Kafka Polling monitor thread exited");
+        }
+
+        /**
+         * Cancels and stops the polling monitor thread
+         */
+        public void cancel() {
+            this.shouldRun = false;
+
+            // Release a permit on our wait semaphore so that if the monitoring thread was "sleeping" it more rapidly
+            // notices that the shouldRun flag is now false and exits ASAP
+            this.waitLock.release();
+        }
     }
 }

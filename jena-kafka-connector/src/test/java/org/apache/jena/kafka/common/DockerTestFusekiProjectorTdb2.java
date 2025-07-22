@@ -2,7 +2,6 @@ package org.apache.jena.kafka.common;
 
 import org.apache.jena.dboe.base.file.Location;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.tdb2.TDB2Factory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
