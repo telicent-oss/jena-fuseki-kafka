@@ -76,7 +76,7 @@
         <plugin.install>3.1.4</plugin.install>
         <plugin.jacoco>0.8.13</plugin.jacoco>
         <plugin.jar>3.4.2</plugin.jar>
-        <plugin.javadoc>3.11.2</plugin.javadoc>
+        <plugin.javadoc>3.11.3</plugin.javadoc>
         <plugin.resources>3.3.1</plugin.resources>
         <plugin.shade>3.6.0</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
@@ -85,7 +85,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>5.5.0</dependency.jena>
-        <dependency.smart-caches>0.29.3</dependency.smart-caches>
+        <dependency.smart-caches>0.29.4</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
@@ -103,7 +103,7 @@
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
         <dependency.logback>1.5.18</dependency.logback>
         <dependency.log4j2>2.25.1</dependency.log4j2>
-        <dependency.mockito>5.18.0</dependency.mockito>
+        <dependency.mockito>5.19.0</dependency.mockito>
         <dependency.testcontainers>1.21.3</dependency.testcontainers>
         <dependency.testng>7.11.0</dependency.testng>
 
