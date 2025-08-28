@@ -14,8 +14,10 @@ import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
@@ -27,10 +29,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.Bytes;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -84,9 +83,41 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      */
     public static final Duration DEFAULT_MAX_TRANSACTION_DURATION = Duration.ofMinutes(5);
     /**
-     * Default batch size if not otherwise configured
+     * Default number of recent batch sizes which will be tracked to detect scenarios where we're receiving low volumes
+     * of data and thus may be generating too small batches
+     */
+    public static final int RECENT_BATCH_SIZE_WINDOW = 25;
+    /**
+     * The threshold, in number of events, at/below which topics are considered low volume and the projector will switch
+     * to low volume batching mode.
+     * <p>
+     * When in low volume batching mode we do not immediately commit on reaching zero lag, rather we wait until we are
+     * definitely stalled (no new events from a {@link EventSource#poll(Duration)}) or until our maximum transaction
+     * duration has been exceeded.
+     * </p>
+     */
+    public static final int AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD = 10;
+    /**
+     * Default batch size, in number of events, if not otherwise configured
      */
     public static int DEFAULT_BATCH_SIZE = 1000;
+    /**
+     * The threshold, in number of events, beyond which topics are considered high lag and the projector will switch to
+     * high lag batching mode.  See {@link #HIGH_LAG_BATCH_BYTE_THRESHOLD} for more details.
+     */
+    public static final long HIGH_LAG_THRESHOLD = 10_000;
+    /**
+     * High lag batch byte threshold (50MB)
+     * <p>
+     * When the projector detects that it is experiencing high lag in catching up with a Kafka topic it stops respecting
+     * the batch size (number of events) threshold and instead switches to maximising batch size by going by batch size
+     * in bytes instead.  As in practise if most events are quite small (few kilobytes to few hundred kilobytes) just
+     * batching by number of events may lead to smaller than desired batches which introduces more frequent transaction
+     * overheads.  Therefore, changing batching mode to be data size based leads to more predictable and stable batch
+     * sizes when catching up on high lag.
+     * </p>
+     */
+    public static final long HIGH_LAG_BATCH_BYTE_THRESHOLD = 50 * 1024 * 1024;
 
     @Getter
     private final KConnectorDesc connector;
@@ -101,6 +132,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final List<Event<Bytes, RdfPayload>> eventsSinceLastCommit = new ArrayList<>();
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
+    @Getter
+    private boolean lowVolumeDetected = false, highLagDetected = false;
+    private final DescriptiveStatistics recentBatchSizes = new DescriptiveStatistics(RECENT_BATCH_SIZE_WINDOW);
 
     /**
      * Creates a new projector
@@ -120,8 +154,8 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         this.source = Objects.requireNonNull(source, "Event Source cannot be null");
         this.dataset = Objects.requireNonNull(dataset, "Dataset cannot be null");
         this.batchSize = batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
-        this.maxTransactionDuration = isValidDuration(maxTransactionDuration) ? maxTransactionDuration :
-                                      DEFAULT_MAX_TRANSACTION_DURATION;
+        this.maxTransactionDuration =
+                isValidDuration(maxTransactionDuration) ? maxTransactionDuration : DEFAULT_MAX_TRANSACTION_DURATION;
         this.dlq = dlq;
     }
 
@@ -183,8 +217,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
             ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
             FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {}", record.topic(), record.partition(),
-                                  record.offset(),
-                                  e.getMessage());
+                                  record.offset(), e.getMessage());
         } else {
             FusekiKafka.LOG.error("[{}] Malformed Event: {}", topicNames, event);
         }
@@ -263,7 +296,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             // No batching enabled, always commit immediately
             FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
             this.commit();
-        } else if (this.eventsSinceLastCommit.size() >= this.batchSize) {
+        } else if (!this.highLagDetected && this.eventsSinceLastCommit.size() >= this.batchSize) {
             // Reached batch size
             // Check whether further events are available immediately, if not commit now
             if (!this.source.availableImmediately()) {
@@ -274,7 +307,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                 commit();
             }
             // If we have more events in-memory we should be being called again shortly with those
-
         } else if (elapsed.compareTo(this.maxTransactionDuration) >= 0) {
             // Have we exceeded the maximum transaction time?
             // This can happen if we have a slow low volume producer writing to the input topics, this can cause the
@@ -285,13 +317,32 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     "[{}] Committing due to exceeding maximum transaction duration ({}), this is most likely caused by a slow low volume producer writing to these topics.",
                     this.topicNames, this.maxTransactionDuration);
             commit();
-        } else {
+        } else if (this.highLagDetected && calculateBatchSizeInBytes() > HIGH_LAG_BATCH_BYTE_THRESHOLD) {
+            // We are in high lag batching mode AND we've exceeded the batch size threshold
+            long sizeInBytes = calculateBatchSizeInBytes();
+            FusekiKafka.LOG.debug("[{}] Committing due to exceeding high lag data size threshold ({})", this.topicNames,
+                                  FileUtils.byteCountToDisplaySize(sizeInBytes));
+            commit();
+        } else if (!this.lowVolumeDetected) {
             // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
             Long remaining = this.source.remaining();
             if (remaining != null && remaining == 0L) {
                 // Caught up, commit now!
                 FusekiKafka.LOG.info("[{}] Completely up to date with Kafka topic(s)", this.topicNames);
                 commit();
+
+                // Reset high lag detection state if we've caught up
+                if (this.highLagDetected) {
+                    FusekiKafka.LOG.info("[{}] Lag is now zero, disabling high lag batching mode for these topics",
+                                         this.topicNames);
+                    this.highLagDetected = false;
+                }
+            } else if (!this.highLagDetected && remaining != null && remaining > HIGH_LAG_THRESHOLD) {
+                // Enable high lag batching mode
+                FusekiKafka.LOG.info(
+                        "[{}] Lag is currently {}, switching to high lag batching mode for these topics",
+                        this.topicNames, remaining);
+                this.highLagDetected = true;
             }
             // Not caught up so we should be being called again shortly with further events after the next Kafka
             // poll completes
@@ -360,24 +411,42 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                                 .append(", ");
             }
             offsetLogMessage.delete(offsetLogMessage.length() - 2, offsetLogMessage.length());
-            long sizeInBytes =
-                    this.eventsSinceLastCommit.stream().map(e -> e.value().sizeInBytes()).reduce(0L, Long::sum);
+            long sizeInBytes = calculateBatchSizeInBytes();
             offsetLogMessage.append(" (")
                             .append(String.format("%,d", this.eventsSinceLastCommit.size()))
                             .append(" events");
             if (sizeInBytes > 0) {
-                Pair<Double, String> sizeDetails = RuntimeInfo.parseMemory(sizeInBytes);
                 offsetLogMessage.append(", ")
-                                .append(String.format("%.2f", sizeDetails.getLeft()))
-                                .append(' ')
-                                .append(sizeDetails.getRight());
+                                .append(FileUtils.byteCountToDisplaySize(sizeInBytes));
             }
             offsetLogMessage.append(")");
             FusekiKafka.LOG.info("{}", offsetLogMessage);
         }
 
+        // Track the sizes of batches to help detect low volume conditions
+        // Only detect this once we have sufficient number of batches observed
+        this.recentBatchSizes.addValue(this.eventsSinceLastCommit.size());
+        if (this.recentBatchSizes.getN() >= RECENT_BATCH_SIZE_WINDOW) {
+            long avgBatchSize = Math.round(this.recentBatchSizes.getMean());
+            if (!this.lowVolumeDetected && avgBatchSize <= AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD) {
+                FusekiKafka.LOG.info(
+                        "[{}] Average batch size is currently {}, switching to low volume batching mode for these topics",
+                        this.topicNames, avgBatchSize);
+                this.lowVolumeDetected = true;
+            } else if (this.lowVolumeDetected && avgBatchSize > AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD) {
+                FusekiKafka.LOG.info(
+                        "[{}] Average batch size increased to {}, disabling low volume batching mode for these topics",
+                        this.topicNames, avgBatchSize);
+                this.lowVolumeDetected = false;
+            }
+        }
+
         // Reset our state ready for next batch
         this.eventsSinceLastCommit.clear();
+    }
+
+    private Long calculateBatchSizeInBytes() {
+        return this.eventsSinceLastCommit.stream().map(e -> e.value().sizeInBytes()).reduce(0L, Long::sum);
     }
 
     @Override
