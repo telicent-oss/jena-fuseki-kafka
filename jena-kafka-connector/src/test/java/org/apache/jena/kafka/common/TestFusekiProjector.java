@@ -11,6 +11,7 @@ import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
 import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
+import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
@@ -70,7 +71,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
         // Then
         Assertions.assertNotNull(projector);
-        Assertions.assertEquals(FusekiProjector.DEFAULT_BATCH_SIZE, projector.getBatchSize());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE, projector.getBatchSize());
     }
 
 
@@ -97,8 +98,8 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
         // Then
         Assertions.assertNotNull(projector);
-        Assertions.assertEquals(FusekiProjector.DEFAULT_BATCH_SIZE, projector.getBatchSize());
-        Assertions.assertEquals(FusekiProjector.DEFAULT_MAX_TRANSACTION_DURATION,
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE, projector.getBatchSize());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_MAX_TRANSACTION_DURATION,
                                 projector.getMaxTransactionDuration());
     }
 

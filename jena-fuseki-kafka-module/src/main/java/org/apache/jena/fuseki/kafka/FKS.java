@@ -190,6 +190,7 @@ public class FKS {
     private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
     private static PollThreadMonitor MONITOR;
     private static ExecutorService EXECUTOR = threadExecutor();
+
     private static ExecutorService threadExecutor() {
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -207,8 +208,10 @@ public class FKS {
     static void resetPollThreads() {
         // Explicitly cancel the projector drivers
         MONITOR.cancel();
-        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.values().stream().flatMap(
-                Collection::stream).toList()) {
+        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.values()
+                                                                                          .stream()
+                                                                                          .flatMap(Collection::stream)
+                                                                                          .toList()) {
             driver.cancel();
         }
         DRIVERS.clear();
@@ -253,7 +256,8 @@ public class FKS {
                                                          .source(source)
                                                          .dataset(destination)
                                                          .connector(connector)
-                                                         .batchSize(connector.getMaxPollRecords())
+                                                         .batchSize(connector.getBatchSize())
+                                                         .maxTransactionDuration(connector.getMaxTransactionDuration())
                                                          .dlq(dlq)
                                                          .build())
                                .destination(sinkBuilder.apply(destination))
@@ -293,9 +297,7 @@ public class FKS {
      * @return Default sink builder function
      */
     public static Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> defaultSinkBuilder() {
-        return dsg -> FusekiSink.builder()
-                                .dataset(dsg)
-                                .build();
+        return dsg -> FusekiSink.builder().dataset(dsg).build();
     }
 
     /**

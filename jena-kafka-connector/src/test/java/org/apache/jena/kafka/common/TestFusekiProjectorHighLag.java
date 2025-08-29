@@ -12,17 +12,14 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFWriter;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.graph.GraphFactory;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 

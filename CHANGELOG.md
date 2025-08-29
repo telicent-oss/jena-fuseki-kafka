@@ -1,5 +1,21 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.1.0
+
+- `FusekiProjector` batching improvements:
+    - The automatic batching logic in `FusekiProjector` has been improved to handle two key edge cases observed in
+      production usage:
+        - When experiencing high lag then batching by number of events is disabled and batching is instead done by
+          amount of data received.  This works particularly well when far behind a topic containing lots of small
+          messages as it reduces the number of transactions which speeds up processing.
+        - When connecting to a low volume topic, or the input topic is populated by a slow producer, such that we are
+          frequently up to date (lag=0) and committing small batches then committing at zero lag is disabled and instead
+          done only when batch size/max transaction duration is reached.  This reduces the number of transactions for
+          such topics again improving performance by limiting transaction overheads.
+        - Both of these modes automatically switch back to normal batching behaviour as and when the triggering
+          conditions are no longer present.
+    - Added support for custom Fuseki Kafka specific properties to be supplied to control all of the above behaviours
+
 ## 2.0.2
 
 - Fixed a bug where upgrading legacy state files caused Kafka offsets to be off by 1 resulting in re-processing an event

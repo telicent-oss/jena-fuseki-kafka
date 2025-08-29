@@ -4,6 +4,7 @@ import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
+import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.kafka.common.utils.Bytes;
@@ -31,17 +32,17 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
 
         // When
         try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
-            sendEvents(projector, source, sink, FusekiProjector.RECENT_BATCH_SIZE_WINDOW);
+            sendEvents(projector, source, sink, SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW);
 
             // Then
             Assertions.assertTrue(projector.isLowVolumeDetected());
-            Assertions.assertEquals(FusekiProjector.RECENT_BATCH_SIZE_WINDOW, sink.count());
+            Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW, sink.count());
             verify(dsg, times(25)).begin((TxnType) any());
             verify(dsg, times(25)).commit();
 
             // And
             sendEvents(projector, source, sink, 100);
-            Assertions.assertEquals(FusekiProjector.RECENT_BATCH_SIZE_WINDOW + 100, sink.count());
+            Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW + 100, sink.count());
             verify(dsg, times(26)).begin((TxnType) any());
             verify(dsg, times(26)).commit();
         }
@@ -58,11 +59,11 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
 
         // When
         try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
-            sendEvents(projector, source, sink, FusekiProjector.RECENT_BATCH_SIZE_WINDOW);
+            sendEvents(projector, source, sink, SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW);
 
             // Then
             Assertions.assertTrue(projector.isLowVolumeDetected());
-            Assertions.assertEquals(FusekiProjector.RECENT_BATCH_SIZE_WINDOW, sink.count());
+            Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW, sink.count());
             verify(dsg, times(25)).begin((TxnType) any());
             verify(dsg, times(25)).commit();
 
