@@ -22,6 +22,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
@@ -93,6 +94,82 @@ public class TestConnectorDescriptor {
 
         // Then
         Assertions.assertEquals("example", groupId);
+    }
+
+    @Test
+    public void givenCustomFusekiKafkaProperties_whenGettingAdvancedConfiguration_thenAsExpected() {
+        // Given
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "100000");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW, "50");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, "25");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_MAX_TRANSACTION_DURATION, "PT1M");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE, "10000");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_BYTES, Long.toString(100 * 1024 * 1024));
+        KConnectorDesc conn = new KConnectorDesc(List.of("test"), "test", "/ds", null, true, false, null, properties);
+
+        // When and Then
+        Assertions.assertEquals(10000, conn.getBatchSize());
+        Assertions.assertEquals(100L * 1024L * 1024L, conn.getBatchSizeBytes());
+        Assertions.assertEquals(Duration.ofMinutes(1), conn.getMaxTransactionDuration());
+        Assertions.assertEquals(25, conn.getLowVolumeBatchSizeThreshold());
+        Assertions.assertEquals(50, conn.getBatchSizeTrackingWindow());
+        Assertions.assertEquals(100000L, conn.getHighLagThreshold());
+    }
+
+    @Test
+    public void givenCustomFusekiKafkaPropertiesWithNonParseableValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
+        // Given
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "foo");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW, "bar");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, "foo");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_MAX_TRANSACTION_DURATION, "bar");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE, "foo");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_BYTES, "bar");
+        KConnectorDesc conn = new KConnectorDesc(List.of("test"), "test", "/ds", null, true, false, null, properties);
+
+        // When and Then
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE, conn.getBatchSize());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD, conn.getBatchSizeBytes());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_MAX_TRANSACTION_DURATION, conn.getMaxTransactionDuration());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD, conn.getLowVolumeBatchSizeThreshold());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW, conn.getBatchSizeTrackingWindow());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_HIGH_LAG_THRESHOLD, conn.getHighLagThreshold());
+    }
+
+    @Test
+    public void givenCustomFusekiKafkaPropertiesWithOutOfRangeValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
+        // Given
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "-1");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW, "-1");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, "-1");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_MAX_TRANSACTION_DURATION, "PT0M");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE, "-1");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_BYTES, "-1");
+        KConnectorDesc conn = new KConnectorDesc(List.of("test"), "test", "/ds", null, true, false, null, properties);
+
+        // When and Then
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE, conn.getBatchSize());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD, conn.getBatchSizeBytes());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_MAX_TRANSACTION_DURATION, conn.getMaxTransactionDuration());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD, conn.getLowVolumeBatchSizeThreshold());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW, conn.getBatchSizeTrackingWindow());
+        Assertions.assertEquals(SysJenaKafka.DEFAULT_HIGH_LAG_THRESHOLD, conn.getHighLagThreshold());
+    }
+
+    @Test
+    public void givenKafkaPropertiesUsableForAdvancedConfiguration_whenGettingAdvancedConfiguration_thenPropertyValuesReturned() {
+        // Given
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "2500");
+        properties.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, Long.toString(10 * 1024 * 1024));
+        KConnectorDesc conn = new KConnectorDesc(List.of("test"), "test", "/ds", null, true, false, null, properties);
+
+        // When and Then
+        Assertions.assertEquals(2500, conn.getBatchSize());
+        Assertions.assertEquals(10L * 1024L * 1024L, conn.getBatchSizeBytes());
     }
 
 }

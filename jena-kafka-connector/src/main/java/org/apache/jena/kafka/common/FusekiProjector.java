@@ -88,7 +88,7 @@ import java.util.stream.Stream;
  * then low volume mode is automatically disabled and the projector returns to normal batching behaviour.
  * </p>
  * <p>
- * This mode may be disabled entirely by setting the average batch size threshold to the {@value Integer#MAX_VALUE}.
+ * This mode may be disabled entirely by setting the average batch size threshold to {@code 0}.
  * </p>
  * <h4>High Lag Batching Mode</h4>
  * <p>

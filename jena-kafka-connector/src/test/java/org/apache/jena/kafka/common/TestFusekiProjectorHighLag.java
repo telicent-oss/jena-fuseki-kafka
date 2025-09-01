@@ -10,6 +10,7 @@ import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFWriter;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -78,6 +80,28 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
         // And
         verify(dsg, never()).commit();
+    }
+
+    @Test
+    public void givenHighLagSourceWithAdvancedConnectorConfiguration_whenProjectingBatchSizeEvents_thenHighLagNotDetected_andCommitsAsNormal() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        EventSource<Bytes, RdfPayload> source = createHighVolumeSource(50_000, 1);
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "100000");
+        FusekiProjector projector = buildProjector(createTestConnector(properties), source, dsg, 50_000);
+
+        // When
+        try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
+            sendEvents(projector, source, sink, 50_000);
+        }
+
+        // Then
+        Assertions.assertFalse(projector.isHighLagDetected());
+        verify(dsg, times(1)).begin((TxnType) any());
+
+        // And
+        verify(dsg, times(1)).commit();
     }
 
     @Test

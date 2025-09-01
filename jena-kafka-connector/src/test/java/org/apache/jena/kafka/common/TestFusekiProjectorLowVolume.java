@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Properties;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -118,6 +119,51 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
             verify(dsg, atLeastOnce()).commit();
             Assertions.assertTrue(projector.isLowVolumeDetected());
 
+        }
+    }
+
+    @Test
+    public void givenLowVolumeSourceAndConnectorWithAdvancedConfiguration_whenProjecting_thenLowVolumeModeEngages() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        // NB - In this test our source has higher data volume then the default low volume thresholds, but we're
+        //      configuring the connector so low volume mode still engages
+        EventSource<Bytes, RdfPayload> source = createLowVolumeSource(100, 1.0);
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW, "5");
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, "100");
+        FusekiProjector projector = buildProjector(createTestConnector(properties), source, dsg, 100);
+
+        // When
+        try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
+            while (!projector.isLowVolumeDetected()) {
+                sendEvents(projector, source, sink, Math.max(1, source.remaining().intValue()));
+            }
+
+            // Then
+            verify(dsg, atLeastOnce()).begin((TxnType) any());
+            verify(dsg, atLeastOnce()).commit();
+            Assertions.assertTrue(projector.isLowVolumeDetected());
+        }
+    }
+
+    @Test
+    public void givenLowVolumeSourceAndConnectorConfigDisablesLowVolumeMode_whenProjecting_thenLowVolumeModeIsNotEngaged() {
+        // Given
+        DatasetGraph dsg = mockDatasetGraph();
+        EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1);
+        Properties properties = new Properties();
+        properties.put(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, Integer.toString(0));
+        FusekiProjector projector = buildProjector(createTestConnector(properties), source, dsg, 10);
+
+        // When
+        try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
+            sendEvents(projector, source, sink, SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW * 10);
+
+            // Then
+            Assertions.assertFalse(projector.isLowVolumeDetected());
+            verify(dsg, times(250)).begin((TxnType) any());
+            verify(dsg, times(250)).commit();
         }
     }
 

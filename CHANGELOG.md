@@ -14,7 +14,8 @@
           such topics again improving performance by limiting transaction overheads.
         - Both of these modes automatically switch back to normal batching behaviour as and when the triggering
           conditions are no longer present.
-    - Added support for custom Fuseki Kafka specific properties to be supplied to control all of the above behaviours
+    - Added support for custom Fuseki Kafka specific properties to be supplied to control/disable all of the above
+      behaviours
 
 ## 2.0.2
 

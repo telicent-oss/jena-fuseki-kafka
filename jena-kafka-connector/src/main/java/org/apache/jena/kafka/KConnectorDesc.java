@@ -73,9 +73,20 @@ public class KConnectorDesc {
     // Kafka consumer setup.
     private final Properties kafkaConsumerProps;
 
-    public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName,
-                          String stateFile, boolean syncTopic, boolean replayTopic, String dlqTopic,
-                          Properties kafkaConsumerProps) {
+    /**
+     * Creates a new connector descriptor
+     *
+     * @param topics             Topic(s) to connect to
+     * @param bootstrapServers   Bootstrap servers to use
+     * @param datasetName        Dataset name
+     * @param stateFile          State file
+     * @param syncTopic          Whether to synchronise data with the input topics
+     * @param replayTopic        Whether to replay data from the input topics
+     * @param dlqTopic           Optional dead letter queue (DLQ) topic to use for malformed events
+     * @param kafkaConsumerProps Additional Kafka configuration properties
+     */
+    public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName, String stateFile,
+                          boolean syncTopic, boolean replayTopic, String dlqTopic, Properties kafkaConsumerProps) {
         this.topics = Objects.requireNonNull(topics, "topics cannot be null");
         if (this.topics.isEmpty()) {
             throw new IllegalArgumentException("topics cannot be empty");
@@ -90,7 +101,7 @@ public class KConnectorDesc {
         this.syncTopic = syncTopic;
         this.replayTopic = replayTopic;
         this.stateFile = stateFile;
-        this.kafkaConsumerProps = kafkaConsumerProps;
+        this.kafkaConsumerProps = Objects.requireNonNullElse(kafkaConsumerProps, new Properties());
 
         boolean hasLocalFusekiService = StringUtils.isNotBlank(datasetName);
         if (!hasLocalFusekiService) {
@@ -134,6 +145,10 @@ public class KConnectorDesc {
 
     /**
      * Gets the maximum poll records as configured for the connector
+     * <p>
+     * May be configured via the standard Kafka configuration property {@value ConsumerConfig#MAX_POLL_RECORDS_CONFIG},
+     * default is {@value SysJenaKafka#KAFKA_FETCH_POLL_SIZE} records.
+     * </p>
      *
      * @return Maximum poll records
      */
@@ -149,13 +164,16 @@ public class KConnectorDesc {
      *     <li>The Kafka configuration property {@value ConsumerConfig#MAX_POLL_RECORDS_CONFIG}</li>
      *     <li>The Fuseki Kafka default {@value SysJenaKafka#KAFKA_FETCH_POLL_SIZE}</li>
      * </ol>
+     * <p>
+     * Default is {@value SysJenaKafka#DEFAULT_BATCH_SIZE} events.
+     * </p>
      *
      * @return Batch size, in number of events, to use
      */
     public int getBatchSize() {
         return fromKafkaProperties(
                 new String[] { SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE, ConsumerConfig.MAX_POLL_RECORDS_CONFIG },
-                Integer::parseInt, IS_POSITIVE_INTEGER, SysJenaKafka.KAFKA_FETCH_POLL_SIZE);
+                Integer::parseInt, IS_POSITIVE_INTEGER, SysJenaKafka.DEFAULT_BATCH_SIZE);
     }
 
     /**
@@ -167,7 +185,8 @@ public class KConnectorDesc {
      *     <li>The Fuseki Kafka default {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD}</li>
      * </ol>
      * <p>
-     * Note that this configuration is only used when the {@link #getHighLagThreshold()} is exceeded.
+     * Note that this configuration is only used when the {@link #getHighLagThreshold()} is exceeded.  Default is
+     * {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} bytes.
      * </p>
      *
      * @return Batch size, in number of bytes, to use
@@ -184,20 +203,22 @@ public class KConnectorDesc {
      * Gets the number of batch sizes to track in order to average batch sizes over this and determine whether we're
      * connected to low volume topics.
      * <p>
-     * Configured by the custom Fuseki Kafka property {@value SysJenaKafka#FUSEKI_KAFKA_BATCH_SIZE_TRACKING}, using a
-     * default of {@value SysJenaKafka#DEFAULT_BATCH_SIZE_TRACKING_WINDOW}.  Once at least this many batches have been
-     * processed if the average batch size falls below the configured {@link #getLowVolumeBatchSizeThreshold()} then the
-     * {@link org.apache.jena.kafka.common.FusekiProjector} switches over to low volume batching mode.  In this mode it
-     * does not automatically commit as soon as it reaches lag of 0 instead waiting until either the batch size, or the
-     * {@link #getMaxTransactionDuration()} is exceeded.
+     * Once at least this many batches have been processed if the average batch size falls below the configured
+     * {@link #getLowVolumeBatchSizeThreshold()} then the {@link org.apache.jena.kafka.common.FusekiProjector} switches
+     * over to low volume batching mode.  In this mode it does not automatically commit as soon as it reaches lag of 0
+     * instead waiting until either the batch size, or the {@link #getMaxTransactionDuration()} is exceeded.
+     * </p>
+     * <p>
+     * May be configured by setting the custom Fuseki Kafka configuration property
+     * {@value SysJenaKafka#FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW}. Default is
+     * {@value SysJenaKafka#DEFAULT_BATCH_SIZE_TRACKING_WINDOW} batches.
      * </p>
      *
      * @return Number of batch sizes to track
      */
     public int getBatchSizeTrackingWindow() {
-        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING, Integer::parseInt,
-                                   IS_POSITIVE_INTEGER,
-                                   SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW);
+        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW, Integer::parseInt,
+                                   IS_POSITIVE_INTEGER, SysJenaKafka.DEFAULT_BATCH_SIZE_TRACKING_WINDOW);
     }
 
     /**
@@ -207,12 +228,16 @@ public class KConnectorDesc {
      * this threshold then the {@link org.apache.jena.kafka.common.FusekiProjector} switches over to low volume batching
      * mode.  See {@link #getBatchSizeTrackingWindow()} for more details on this.
      * </p>
+     * <p>
+     * May be configured by setting the custom Fuseki Kafka configuration property
+     * {@value SysJenaKafka#FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD} in the consumer properties provided to this connector.
+     * Defaults to {@value SysJenaKafka#DEFAULT_AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD}.
+     * </p>
      *
      * @return Low volume batch size threshold
      */
     public int getLowVolumeBatchSizeThreshold() {
-        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, Integer::parseInt,
-                                   IS_POSITIVE_INTEGER,
+        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_LOW_VOLUME_THRESHOLD, Integer::parseInt, x -> x >= 0,
                                    SysJenaKafka.DEFAULT_AVERAGE_BATCH_SIZE_LOW_VOLUME_THRESHOLD);
     }
 
@@ -223,28 +248,35 @@ public class KConnectorDesc {
      * batching mode.  In this mode it no longer honours the {@link #getBatchSize()} instead only committing once
      * {@link #getBatchSizeBytes()} has been reached.
      * </p>
+     * <p>
+     * May be configured by setting the custom Fuseki Kafka configuration property
+     * {@value SysJenaKafka#FUSEKI_KAFKA_HIGH_LAG_THRESHOLD} in the consumer properties provided to this connector.
+     * Default is {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} bytes.
+     * </p>
      *
      * @return High lag threshold
      */
     public long getHighLagThreshold() {
-        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, Long::parseLong,
-                                   IS_POSITIVE_LONG,
+        return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, Long::parseLong, IS_POSITIVE_LONG,
                                    SysJenaKafka.DEFAULT_HIGH_LAG_THRESHOLD);
     }
 
     /**
      * Gets the maximum transaction duration
      * <p>
-     * This is expressed as an ISO 8601 Duration in the Kafka configuration e.g. {@code PT5M} is 5 minutes, defaults to
-     * {@link SysJenaKafka#DEFAULT_MAX_TRANSACTION_DURATION}.
+     * This is expressed as an ISO 8601 Duration in the Kafka configuration e.g. {@code PT1M} is 1 minute.
+     * </p>
+     * <p>
+     * May be configured by setting the custom Fuseki Kafka configuration property
+     * {@value SysJenaKafka#FUSEKI_KAFKA_MAX_TRANSACTION_DURATION} in the consumer properties provided to this
+     * connector.  Default is {@link SysJenaKafka#DEFAULT_MAX_TRANSACTION_DURATION}, which is currently 5 minutes.
      * </p>
      *
      * @return Max transaction duration
      */
     public Duration getMaxTransactionDuration() {
         return fromKafkaProperties(SysJenaKafka.FUSEKI_KAFKA_MAX_TRANSACTION_DURATION, Duration::parse,
-                                   SysJenaKafka::isValidDuration,
-                                   SysJenaKafka.DEFAULT_MAX_TRANSACTION_DURATION);
+                                   SysJenaKafka::isValidDuration, SysJenaKafka.DEFAULT_MAX_TRANSACTION_DURATION);
     }
 
 }

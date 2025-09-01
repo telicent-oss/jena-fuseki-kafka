@@ -126,7 +126,11 @@ public class AbstractFusekiProjectorTests {
     }
 
     protected static KConnectorDesc createTestConnector() {
-        return new KConnectorDesc(List.of("test"), "localhost:9092", "/ds", null, true, false, null, new Properties());
+        return createTestConnector(new Properties());
+    }
+
+    protected static KConnectorDesc createTestConnector(Properties properties) {
+        return new KConnectorDesc(List.of("test"), "localhost:9092", "/ds", null, true, false, null, properties);
     }
 
     public static void verifyProjection(EventSource<Bytes, RdfPayload> source, FusekiProjector projector,

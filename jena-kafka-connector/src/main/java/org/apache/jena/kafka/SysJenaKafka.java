@@ -90,7 +90,7 @@ public class SysJenaKafka {
     /**
      * Custom Fuseki Kafka configuration property used for {@link KConnectorDesc#getBatchSizeTrackingWindow()}
      */
-    public static final String FUSEKI_KAFKA_BATCH_SIZE_TRACKING = "fuseki.kafka.batch.size.tracking";
+    public static final String FUSEKI_KAFKA_BATCH_SIZE_TRACKING_WINDOW = "fuseki.kafka.batch.size.tracking";
     /**
      * Custom Fuseki Kafka configuration property used for {@link KConnectorDesc#getLowVolumeBatchSizeThreshold()}
      */
@@ -123,7 +123,7 @@ public class SysJenaKafka {
     /**
      * Default batch size, in number of events, if not otherwise configured
      */
-    public static int DEFAULT_BATCH_SIZE = 1000;
+    public static int DEFAULT_BATCH_SIZE = 5000;
 
     /**
      * Kafka consumer properties.
