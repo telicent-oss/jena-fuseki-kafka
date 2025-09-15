@@ -1,5 +1,6 @@
 package org.apache.jena.kafka.common;
 
+import io.telicent.smart.cache.observability.RuntimeInfo;
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
 import io.telicent.smart.cache.projectors.Sink;
@@ -13,8 +14,8 @@ import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
@@ -317,7 +318,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
             this.commit();
         } else if (!this.highLagDetected && this.eventsSinceLastCommit.size() >= this.batchSize) {
-            // Reached batch size
+            // Reached batch size and NOT high lag detected
+            // When in high lag mode we ignore the batch size (in terms of number of events) and prefer batch size in
+            // terms of event size in bytes, provided events are generally small so this almost certainly leads to
+            // larger batches and lets us catch up on the high lag faster
             // Check whether further events are available immediately, if not commit now
             if (!this.source.availableImmediately()) {
                 // All in-memory events consumed so commit now
@@ -338,14 +342,16 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     this.topicNames, this.maxTransactionDuration);
             commit();
         } else {
-            if (this.highLagDetected && calculateBatchSizeInBytes() > batchSizeBytes) {
+            long sizeInBytes = calculateBatchSizeInBytes();
+            if (this.highLagDetected && sizeInBytes > batchSizeBytes) {
                 // We are in high lag batching mode AND we've exceeded the batch size threshold
-                long sizeInBytes = calculateBatchSizeInBytes();
                 FusekiKafka.LOG.debug("[{}] Committing due to exceeding high lag data size threshold ({})",
-                                      this.topicNames, FileUtils.byteCountToDisplaySize(sizeInBytes));
+                                      this.topicNames, byteCountToDisplaySize(sizeInBytes));
                 commit();
             } else if (!this.lowVolumeDetected) {
                 // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
+                // We DON't do this when in low volume mode as we're likely caught up fairly frequently and we're trying
+                // to avoid having lots of small batches
                 Long remaining = this.source.remaining();
                 if (remaining != null && remaining == 0L) {
                     // Caught up, commit now!
@@ -361,6 +367,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                 } else {
                     if (!this.highLagDetected && remaining != null && remaining > highLagThreshold) {
                         // Enable high lag batching mode
+                        // Our outstanding lag is above our configured high lag threshold so for the time being want to
+                        // batch based on size of events in bytes, rather than number of events, as provided events are
+                        // small that leads to larger batches and fewer transactions, thus letting us catch up sooner
                         FusekiKafka.LOG.info(
                                 "[{}] Lag is currently {}, switching to high lag batching mode for these topics",
                                 this.topicNames, remaining);
@@ -440,7 +449,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                             .append(String.format("%,d", this.eventsSinceLastCommit.size()))
                             .append(" events");
             if (sizeInBytes > 0) {
-                offsetLogMessage.append(", ").append(FileUtils.byteCountToDisplaySize(sizeInBytes));
+                offsetLogMessage.append(", ").append(byteCountToDisplaySize(sizeInBytes));
             }
             offsetLogMessage.append(")");
             FusekiKafka.LOG.info("{}", offsetLogMessage);
@@ -468,7 +477,23 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         this.eventsSinceLastCommit.clear();
     }
 
-    private Long calculateBatchSizeInBytes() {
+    /**
+     * Converts a byte count into a human-readable form
+     *
+     * @param sizeInBytes Size in bytes
+     * @return Human-readable form of byte count
+     */
+    private String byteCountToDisplaySize(long sizeInBytes) {
+        Pair<Double, String> parsed = RuntimeInfo.parseMemory(sizeInBytes);
+        return String.format("%.2f %s", parsed.getLeft(), parsed.getRight());
+    }
+
+    /**
+     * Calculates the size of the current batch in terms of bytes
+     *
+     * @return Batch size in bytes
+     */
+    private long calculateBatchSizeInBytes() {
         return this.eventsSinceLastCommit.stream().map(e -> e.value().sizeInBytes()).reduce(0L, Long::sum);
     }
 

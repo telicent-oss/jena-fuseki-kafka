@@ -118,6 +118,16 @@ public class KConnectorDesc {
         return this.kafkaConsumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
     }
 
+    /**
+     * Obtains configuration from Kafka Properties
+     *
+     * @param key          Configuration Key
+     * @param parser       Parser to convert the configured value to the desired value type
+     * @param validator    Validator to check the configured value conforms to expectations, invalid values are ignored
+     * @param defaultValue Default value to use if value is not set, or cannot be parsed
+     * @param <T>          Value type
+     * @return             Configuration value, possibly the supplied {@code defaultValue}
+     */
     private <T> T fromKafkaProperties(String key, Function<String, T> parser, Predicate<T> validator, T defaultValue) {
         String rawValue = this.kafkaConsumerProps.getProperty(key);
         if (StringUtils.isBlank(rawValue)) {
@@ -125,13 +135,29 @@ public class KConnectorDesc {
         } else {
             try {
                 T value = parser.apply(rawValue);
-                return validator.test(value) ? value : defaultValue;
+                if (validator.test(value)) {
+                    return value;
+                } else {
+                    FusekiKafka.LOG.warn("Kafka Configuration property {} had an invalid value: {}", key, value);
+                    return defaultValue;
+                }
             } catch (Throwable e) {
+                FusekiKafka.LOG.warn("Kafka Configuration property {} had a non-parseable value: {}", key, rawValue);
                 return defaultValue;
             }
         }
     }
 
+    /**
+     * Obtains configuration from Kafka Properties
+     *
+     * @param keys         Configuration Keys in order of preference
+     * @param parser       Parser to convert the configured value to the desired value type
+     * @param validator    Validator to check the configured value conforms to expectations, invalid values are ignored
+     * @param defaultValue Default value to use if value is not set, or cannot be parsed
+     * @param <T>          Value type
+     * @return             First valid configuration value found, possibly the supplied {@code defaultValue}
+     */
     private <T> T fromKafkaProperties(String[] keys, Function<String, T> parser, Predicate<T> validator,
                                       T defaultValue) {
         for (String key : keys) {
@@ -251,7 +277,7 @@ public class KConnectorDesc {
      * <p>
      * May be configured by setting the custom Fuseki Kafka configuration property
      * {@value SysJenaKafka#FUSEKI_KAFKA_HIGH_LAG_THRESHOLD} in the consumer properties provided to this connector.
-     * Default is {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} bytes.
+     * Default is {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} events.
      * </p>
      *
      * @return High lag threshold
