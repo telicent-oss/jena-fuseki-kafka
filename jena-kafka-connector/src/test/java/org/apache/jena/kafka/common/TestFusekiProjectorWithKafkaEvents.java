@@ -144,7 +144,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
         KConnectorDesc connector = createTestConnector();
         NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(createKafkaTestEvents(10));
-        FusekiProjector projector = buildProjector(connector, source, dsg, 1_000, Duration.ofMillis(100), sink);
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1_000, Duration.ofMinutes(5), sink);
 
         // When
         // NB - Intentionally 1 fewer than batch size, and source will have remaining events so shouldn't trigger
