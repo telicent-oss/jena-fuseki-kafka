@@ -16,6 +16,11 @@
           conditions are no longer present.
     - Added support for custom Fuseki Kafka specific properties to be supplied to control/disable all of the above
       behaviours
+- Build and Test improvements:
+    - Added dependency on Apache Commons Math 3.6.1
+    - Lombok upgraded to 1.18.40
+    - Smart Caches Core upgraded to 0.29.5
+    - Various build and test dependencies upgraded to latest available
 
 ## 2.0.2
 
