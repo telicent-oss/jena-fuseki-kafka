@@ -78,10 +78,10 @@
         <plugin.jar>3.4.2</plugin.jar>
         <plugin.javadoc>3.11.3</plugin.javadoc>
         <plugin.resources>3.3.1</plugin.resources>
-        <plugin.shade>3.6.0</plugin.shade>
+        <plugin.shade>3.6.1</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
         <plugin.source>3.3.1</plugin.source>
-        <plugin.surefire>3.5.3</plugin.surefire>
+        <plugin.surefire>3.5.4</plugin.surefire>
 
         <!-- Internal dependencies -->
         <dependency.jena>5.5.0</dependency.jena>
