@@ -153,14 +153,50 @@ Fuseki Kafka batches the application of incoming events from the Kafka topic(s) 
 single transaction to reduce the transaction overheads.  This is especially important when using underlying storage like
 TDB2, which has copy-on-write semantics, where a transaction per event would quickly exhaust disk space.
 
-The default batch size is `5000` events, this may be controlled by setting the `max.poll.records` Kafka configuration to
-the desired value via the `fk:config` property, e.g. in our earlier example this was set to `1000`.  Note that Fuseki
-Kafka **does not** guarantee to honour this batch size exactly and uses various heuristics to decide when to commit a
-batch, e.g., if it has fully caught up with the Kafka topic (i.e. lag is `0`), if there's events buffered in memory from
-earlier Kafka polling, if it hasn't committed a transaction within a certain time window etc.  Please see JavaDoc on
-`FusekiProjector` which implements the batching logic for more details.  In general it aims to maximise batch size, and
-minimise the number of transactions wherever possible, while ensuring timely application of events to the target
-dataset.
+The default batch size is `5000` events, this may be controlled by setting either the `fuseki.kafka.batch.size`, or
+`max.poll.records` Kafka configuration property, to the desired value via the `fk:config` property, e.g. in our earlier
+example this was set to `1000`.  Note that Fuseki Kafka **does not** guarantee to honour this batch size exactly and
+uses various heuristics to decide when to commit a batch, e.g., if it has fully caught up with the Kafka topic (i.e. lag
+is `0`), if there's events buffered in memory from earlier Kafka polling, if it hasn't committed a transaction within a
+certain time window etc.  Please see JavaDoc on `FusekiProjector` which implements the batching logic for more details.
+In general it aims to maximise batch size, and minimise the number of transactions wherever possible, while ensuring
+timely application of events to the target dataset.
+
+From 2.1.0 onwards 2 additional batching modes are implemented based on observations of our production workloads, these
+are automatically enabled/disabled based on observed conditions of the input topics:
+
+1. [Low Volume Batching Mode](#low-volume-batching-mode) - For input topics with low volumes and/or slow producers to
+   avoid small batch sizes.
+2. [High Lag Batching Mode](#high-lag-batching-mode) - For input topics with high lag to increase batch sizes and help
+   catch up sooner.
+
+While unlikely, it is possible for both these modes to be enabled simultaneously e.g. you have high lag against a slow
+producer that generates large RDF events to Kafka so you may wish to monitor logs on your workload to see which mode, if
+either, is being enabled and adjust your configuration if needed.  2.1.0 includes support for [Custom Fuseki Kafka
+Configuration](#custom-fuseki-kafka-configuration) properties to provide full control over all the batching parameters
+if the default thresholds and batch sizes do not match your workload.
+
+#### Low Volume Batching Mode
+
+Low Volume batching mode engages when average batch size over the most recent batches falls at/below the threshold
+(default average batch size of `10` events over last `25` batches).  In this mode it stops batching based on having
+reached zero lag and instead batches based on batch size or maximum transaction duration.  This improves performance
+where the producers to the input topics are slow/low volume which would otherwise lead to lots of very small
+transactions with a few events.
+
+This mode is automatically disabled when average batch size increases above the threshold.  If you don't want this mode
+to be used at all configure the threshold to be `0`.
+
+#### High Lag Batching Mode
+
+High Lag batching mode engages when lag is above a threshold (default `10000` events).  In this mode it ignores the
+batch size in terms of number of events, instead batching based on the batch size in terms of number of bytes or other
+batching criteria e.g. max transaction duration exceeded.  This improves performance by preferring larger batches with
+more events, assuming that your events are typically on the order of a few to a few hundred kilobytes.  This allows
+Fuseki Kafka to catch up with the input topics faster by committing transactions less often.
+
+This mode is automatically disabled once lag reaches `0` again.  If you don't want this mode to be used at all configure
+the threshold to be `Long.MAX_VALUE`.
 
 ### Error Handling
 
@@ -247,7 +283,8 @@ necessary.
 
 If multiple `fk:configFile` triples are present then all the referenced properties files are loaded, however the order
 of loading is not defined.  Therefore we recommend that you only split your Kafka configuration over multiple properties
-files if they are not going to override each others configuration.
+files if they are not going to override each others configuration e.g. one provides authentication credentials and
+another general configuration.
 
 #### Configuring for Kafka Authentication
 
@@ -265,6 +302,21 @@ Options](https://github.com/telicent-oss/smart-caches-core/blob/main/docs/cli/in
 documentation useful.  Note that while the options and environment variables discussed there **DO NOT** apply to this
 repository since that is for CLIs, and this is a library, the examples of Kafka properties for different Kafka
 Authentication modes are applicable.
+
+#### Custom Fuseki Kafka Configuration
+
+As of `2.1.0` a number of custom Fuseki Kafka configuration properties may be specified as part of your [Additional
+Kafka Configuration](#additional-kafka-configuration) in order to customise some aspects of how the Fuseki Kafka
+Connector behaves:
+
+| Property                                    | Default   | Notes |
+|---------------------------------------------|-----------|-------|
+| `fuseki.kafka.batch.size`                   | `5000`    | Target minimum batch size of events to process as a transaction |
+| `fuseki.kafka.max.transaction.duration`     | `PT5M`    | Maximum permitted transaction duration |
+| `fuseki.kafka.batch.size.tracking`          | `25`      | Number of recent batch sizes to track to check average batch size for low volume |
+| `fuseki.kafka.low.volume.threshold`         | `10`      | If average batch size over tracking window is at/below this threshold enables low volume batching mode.  Set to `0` to disable low volume batching mode. |
+| `fuseki.kafka.high.lag.threshold`           | `10000`   | If lag is above this threshold then enables high lag batching mode.  Set to `Long.MAX_VALUE` to disable high lag batching mode. |
+| `fuseki.kafka.batch.size.bytes`             | `52428800` | When high lag batching mode is enabled this is the target minimum batch size in total bytes to process as a transaction |
 
 ## Build
 
