@@ -66,7 +66,7 @@
         <!-- Maven Plugin versions -->
         <plugin.central>0.8.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
-        <plugin.compiler>3.14.0</plugin.compiler>
+        <plugin.compiler>3.14.1</plugin.compiler>
         <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
         <plugin.dependency>3.8.1</plugin.dependency>
         <plugin.deploy>3.1.4</plugin.deploy>
@@ -76,7 +76,7 @@
         <plugin.install>3.1.4</plugin.install>
         <plugin.jacoco>0.8.13</plugin.jacoco>
         <plugin.jar>3.4.2</plugin.jar>
-        <plugin.javadoc>3.11.3</plugin.javadoc>
+        <plugin.javadoc>3.12.0</plugin.javadoc>
         <plugin.resources>3.3.1</plugin.resources>
         <plugin.shade>3.6.1</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
@@ -93,8 +93,8 @@
         <dependency.commons-lang>3.18.0</dependency.commons-lang>
         <dependency.commons-math>3.6.1</dependency.commons-math>
         <dependency.kafka>3.9.1</dependency.kafka>
-        <dependency.log4j2>2.25.1</dependency.log4j2>
-        <dependency.lombok>1.18.40</dependency.lombok>
+        <dependency.log4j2>2.25.2</dependency.log4j2>
+        <dependency.lombok>1.18.42</dependency.lombok>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
 
@@ -104,7 +104,7 @@
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
         <dependency.logback>1.5.18</dependency.logback>
         <dependency.log4j2>2.25.1</dependency.log4j2>
-        <dependency.mockito>5.19.0</dependency.mockito>
+        <dependency.mockito>5.20.0</dependency.mockito>
         <dependency.testcontainers>1.21.3</dependency.testcontainers>
         <dependency.testng>7.11.0</dependency.testng>
 
