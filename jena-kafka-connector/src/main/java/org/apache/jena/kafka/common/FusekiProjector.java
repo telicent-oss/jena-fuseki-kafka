@@ -144,6 +144,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final Duration maxTransactionDuration;
     private long lastCommitTime = -1L;
     private final List<Event<Bytes, RdfPayload>> eventsSinceLastCommit = new ArrayList<>();
+    private long currentBatchSizeBytes = 0L;
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
@@ -305,9 +306,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @param event Current event
      */
     protected void commitTransactionIfNeeded(Event<Bytes, RdfPayload> event) {
-        // Make a decision about whether to commit
+        // Calculate how long since we last committed
         Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - this.lastCommitTime);
 
+        // Track current batch size as we go to avoid repeatedly recalculating it
+        this.currentBatchSizeBytes += event.value().sizeInBytes();
+
+        // Make a decision about whether to commit
         if (event.value().isPatch() && !this.dataset.isInTransaction()) {
             // Just processed an RDF Patch that committed the transaction for us
             // Need to call our own commit() now or our state will be incorrect
@@ -342,11 +347,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     this.topicNames, this.maxTransactionDuration);
             commit();
         } else {
-            long sizeInBytes = calculateBatchSizeInBytes();
-            if (this.highLagDetected && sizeInBytes > batchSizeBytes) {
+            if (this.highLagDetected && this.currentBatchSizeBytes > batchSizeBytes) {
                 // We are in high lag batching mode AND we've exceeded the batch size threshold
                 FusekiKafka.LOG.debug("[{}] Committing due to exceeding high lag data size threshold ({})",
-                                      this.topicNames, byteCountToDisplaySize(sizeInBytes));
+                                      this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
                 commit();
             } else if (!this.lowVolumeDetected) {
                 // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
@@ -444,12 +448,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                                 .append(", ");
             }
             offsetLogMessage.delete(offsetLogMessage.length() - 2, offsetLogMessage.length());
-            long sizeInBytes = calculateBatchSizeInBytes();
             offsetLogMessage.append(" (")
                             .append(String.format("%,d", this.eventsSinceLastCommit.size()))
                             .append(" events");
-            if (sizeInBytes > 0) {
-                offsetLogMessage.append(", ").append(byteCountToDisplaySize(sizeInBytes));
+            if (this.currentBatchSizeBytes > 0) {
+                offsetLogMessage.append(", ").append(byteCountToDisplaySize(this.currentBatchSizeBytes));
             }
             offsetLogMessage.append(")");
             FusekiKafka.LOG.info("{}", offsetLogMessage);
@@ -475,6 +478,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         // Reset our state ready for next batch
         this.eventsSinceLastCommit.clear();
+        this.currentBatchSizeBytes = 0L;
     }
 
     /**
@@ -483,18 +487,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @param sizeInBytes Size in bytes
      * @return Human-readable form of byte count
      */
-    private String byteCountToDisplaySize(long sizeInBytes) {
+    private static String byteCountToDisplaySize(long sizeInBytes) {
         Pair<Double, String> parsed = RuntimeInfo.parseMemory(sizeInBytes);
         return String.format("%.2f %s", parsed.getLeft(), parsed.getRight());
-    }
-
-    /**
-     * Calculates the size of the current batch in terms of bytes
-     *
-     * @return Batch size in bytes
-     */
-    private long calculateBatchSizeInBytes() {
-        return this.eventsSinceLastCommit.stream().map(e -> e.value().sizeInBytes()).reduce(0L, Long::sum);
     }
 
     @Override
