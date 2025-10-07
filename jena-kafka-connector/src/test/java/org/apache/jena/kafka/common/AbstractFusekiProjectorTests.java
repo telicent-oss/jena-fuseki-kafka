@@ -155,7 +155,7 @@ public class AbstractFusekiProjectorTests {
     }
 
     protected static void sendEvents(FusekiProjector projector, EventSource<Bytes, RdfPayload> source,
-                                     NullSink<Event<Bytes, RdfPayload>> sink, int count) {
+                                     Sink<Event<Bytes, RdfPayload>> sink, int count) {
         for (int i = 0; i < count; i++) {
             if (source.isExhausted()) return;
             Event<Bytes, RdfPayload> event = source.poll(Duration.ofSeconds(3));

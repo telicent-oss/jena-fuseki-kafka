@@ -68,6 +68,7 @@ public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, Rdf
      */
     protected void applyDatasetEvent(Event<Bytes, RdfPayload> event) {
         event.value().getDataset().stream().forEach(this.dataset::add);
+
     }
 
     @Override
