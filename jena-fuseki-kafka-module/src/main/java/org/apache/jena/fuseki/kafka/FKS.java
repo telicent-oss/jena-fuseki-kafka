@@ -252,6 +252,9 @@ public class FKS {
                                .unlimited()
                                .reportBatchSize(10_000)
                                .source(source)
+                               // Label each driver with the topics it pertains to, this makes the logs easier to read
+                               // if there are multiple connectors defined
+                               .logLabel("[" + StringUtils.join(connector.getTopics(), ", ") + "]")
                                .projector(FusekiProjector.builder()
                                                          .source(source)
                                                          .dataset(destination)
