@@ -1,5 +1,19 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.1.1
+
+- General improvements:
+    - `FusekiProjector` calculates batch size in bytes more efficiently when needed
+    - `ProjectorDriver` instances now configured with topic name log label to make log output from multiple running
+      connectors easier to interpret
+- Build and test improvements:
+    - Apache Commons Lang upgraded to 3.19.0
+    - Log4j upgraded to 2.25.2
+    - Logback upgraded to 1.5.19
+    - Lombok upgraded to 1.18.42
+    - Smart Caches Core upgraded to 0.30.1
+    - Various build and test dependencies upgraded to latest available
+
 ## 2.1.0
 
 - `FusekiProjector` batching improvements:
