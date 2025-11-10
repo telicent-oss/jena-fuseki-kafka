@@ -89,7 +89,7 @@
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
-        <dependency.commons-io>2.20.0</dependency.commons-io>
+        <dependency.commons-io>2.21.0</dependency.commons-io>
         <dependency.commons-lang>3.19.0</dependency.commons-lang>
         <dependency.commons-math>3.6.1</dependency.commons-math>
         <dependency.kafka>3.9.1</dependency.kafka>
