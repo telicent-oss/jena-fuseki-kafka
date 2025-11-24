@@ -17,6 +17,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
@@ -62,6 +63,11 @@ import java.util.stream.Stream;
  * the projector from holding a transaction open endlessly, if a transaction is open for longer than this duration then
  * it will be committed regardless of batch size/remaining events.  This prevents undue delays in data being visible in
  * the graph that could otherwise be caused in this scenario.
+ * </p>
+ * <p>
+ * It will also use event size based triggering to commit a batch.  If you are reading from topic(s) with a lot of large
+ * events then this avoids running out of memory by holding too many events in memory at once at a cost of more frequent
+ * transactions.
  * </p>
  * <p>
  * The projector is also stall aware, if the {@link io.telicent.smart.cache.projectors.driver.ProjectorDriver} finds
@@ -183,6 +189,22 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         this.lowVolumeBatchSizeThreshold = connector.getLowVolumeBatchSizeThreshold();
         this.recentBatchSizeWindow = connector.getBatchSizeTrackingWindow();
         this.recentBatchSizes = new DescriptiveStatistics(this.recentBatchSizeWindow);
+
+        // Log information about the projector configuration
+        FmtLog.info(FusekiKafka.LOG,
+                    "[%s] Created projector with batch thresholds:\n  Number of Events: %,d\n  Size in Bytes: %,d (%s)\n  Max Transaction Duration: %s",
+                    this.topicNames, this.batchSize, this.batchSizeBytes,
+                    byteCountToDisplaySize(this.batchSizeBytes), this.maxTransactionDuration);
+        FmtLog.info(FusekiKafka.LOG,
+                    "[%s] Additional configuration:\n  High Lag Threshold: %,d\n  Low Volume Threshold: %,d\n  Batch Size Tracking Window: %,d",
+                    this.topicNames, this.highLagThreshold, this.lowVolumeBatchSizeThreshold,
+                    this.recentBatchSizeWindow);
+        if (this.dlq == null) {
+            FusekiKafka.LOG.warn(
+                    "No DLQ configured, if malformed events are encountered, or unable to apply events then Kafka processing will be aborted.  Consider configuring a DLQ to ensure robust error handling and recovery.");
+        } else {
+            FmtLog.info(FusekiKafka.LOG, "[%s] DLQ configured as %s", this.topicNames, this.dlq);
+        }
     }
 
     @Override
@@ -322,6 +344,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             // No batching enabled, always commit immediately
             FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
             this.commit();
+        } else if (this.currentBatchSizeBytes > batchSizeBytes) {
+            // We've exceeded the batch size bytes threshold
+            FusekiKafka.LOG.debug("[{}] Committing due to exceeding max batch size in bytes threshold ({})",
+                                  this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
+            commit();
         } else if (!this.highLagDetected && this.eventsSinceLastCommit.size() >= this.batchSize) {
             // Reached batch size and NOT high lag detected
             // When in high lag mode we ignore the batch size (in terms of number of events) and prefer batch size in
@@ -347,15 +374,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     this.topicNames, this.maxTransactionDuration);
             commit();
         } else {
-            if (this.highLagDetected && this.currentBatchSizeBytes > batchSizeBytes) {
-                // We are in high lag batching mode AND we've exceeded the batch size threshold
-                FusekiKafka.LOG.debug("[{}] Committing due to exceeding high lag data size threshold ({})",
-                                      this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
-                commit();
-            } else if (!this.lowVolumeDetected) {
+            if (!this.lowVolumeDetected) {
                 // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
-                // We DON't do this when in low volume mode as we're likely caught up fairly frequently and we're trying
-                // to avoid having lots of small batches
+                // We DON't do this when in low volume mode as we're likely caught up fairly frequently, and we're
+                // trying to avoid having lots of small batches
                 Long remaining = this.source.remaining();
                 if (remaining != null && remaining == 0L) {
                     // Caught up, commit now!

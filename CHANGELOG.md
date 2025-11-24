@@ -1,5 +1,12 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.2.0
+
+- General improvements:
+    - `FusekiProjector` now uses batch size in bytes as a triggering mechanism for committing a batch irregardless of
+      what batching mode is in use, previously this was only used for high volume batching mode.
+    - `FusekiProjector` now logs informative configuration on startup
+
 ## 2.1.1
 
 - General improvements:
