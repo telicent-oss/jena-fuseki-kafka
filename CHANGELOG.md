@@ -6,6 +6,14 @@
     - `FusekiProjector` now uses batch size in bytes as a triggering mechanism for committing a batch irregardless of
       what batching mode is in use, previously this was only used for high volume batching mode.
     - `FusekiProjector` now logs informative configuration on startup
+- Build and test improvements:
+    - Apache Commons IO upgraded to 2.21.0
+    - Apache Commons Lang upgraded to 3.20.0
+    - Apache Jena upgraded to 5.6.0
+    - Log4j upgraded to 2.25.2
+    - Lombok upgraded to 1.18.42
+    - Smart Caches Core upgraded to 0.32.1
+    - Various build and test dependencies upgraded to latest available
 
 ## 2.1.1
 
