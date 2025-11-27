@@ -243,7 +243,7 @@ public class TestFusekiOffsetStore {
         Assertions.assertEquals(1234L, (Long) copied.loadOffset("test"));
     }
 
-    private static @NotNull File createLargeFile(int targetSize) throws IOException {
+    private static File createLargeFile(int targetSize) throws IOException {
         File stateFile = Files.createTempFile("state", ".json").toFile();
         try (FileWriter fw = new FileWriter(stateFile)) {
             fw.write("{");

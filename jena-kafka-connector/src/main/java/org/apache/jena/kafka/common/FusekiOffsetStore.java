@@ -293,8 +293,9 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
      * remove it.
      * </p>
      * <p>
-     * Note that {@link #readStateFile()} will use the temporary and backup files to recover the state file should it
-     * find the provided state file to be corrupted, or exceed constraints on the file size.
+     * Note that should the write operation get interrupted for any reason then these temporary files will be left on
+     * the file system and {@link #readStateFile()} may use these to recover the state file should it find the provided
+     * state file to be corrupted, or exceed constraints on the file size.
      * </p>
      *
      * @param file State file
@@ -332,6 +333,8 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
             LOGGER.debug("Moving temporary state file to {}", file.toPath());
             Files.move(tempStateFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             LOGGER.debug("Moved state file to {}", file.toPath());
+            LOGGER.info("Updated state file {} (size on disk {})", file.getAbsolutePath(),
+                        FusekiProjector.byteCountToDisplaySize(file.length()));
 
             // Finally remove the backup state file
             if (backupStateFile != null) {
