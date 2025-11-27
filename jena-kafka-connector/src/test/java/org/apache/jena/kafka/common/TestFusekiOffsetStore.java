@@ -5,6 +5,7 @@ import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.sys.JenaSystem;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,8 +13,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -98,8 +101,12 @@ public class TestFusekiOffsetStore {
 
     private File createStateFile(Map<String, Object> state) throws IOException {
         File stateFile = Files.createTempFile("state", ".json").toFile();
-        this.mapper.writeValue(stateFile, state);
+        writeStateFile(state, stateFile);
         return stateFile;
+    }
+
+    private void writeStateFile(Map<String, Object> state, File stateFile) throws IOException {
+        this.mapper.writeValue(stateFile, state);
     }
 
     @Test
@@ -197,6 +204,18 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
+    public void givenNonWritableDirectory_whenSavingStore_thenError() throws IOException {
+        // Given
+        File tempDir = Files.createTempDirectory("test").toFile();
+        tempDir.setWritable(false);
+        File stateFile = new File(tempDir, "state.json");
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+        Assertions.assertThrows(JenaKafkaException.class, () -> store.flush());
+    }
+
+    @Test
     public void givenOffsetStore_whenCopyingToSameFile_thenIllegalArgument() throws IOException {
         // Given
         File stateFile = Files.createTempFile("state", ".json").toFile();
@@ -222,5 +241,99 @@ public class TestFusekiOffsetStore {
         Assertions.assertNotEquals(0, copy.length());
         FusekiOffsetStore copied = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(copy).build();
         Assertions.assertEquals(1234L, (Long) copied.loadOffset("test"));
+    }
+
+    private static @NotNull File createLargeFile(int targetSize) throws IOException {
+        File stateFile = Files.createTempFile("state", ".json").toFile();
+        try (FileWriter fw = new FileWriter(stateFile)) {
+            fw.write("{");
+            String oneKb = StringUtils.repeat(" ", 1024);
+            for (int i = 0; i < targetSize; i += 1024) {
+                fw.write(oneKb);
+            }
+        }
+        return stateFile;
+    }
+
+    @Test
+    public void givenTooLargeStateFile_whenReadingStore_thenDiscarded() throws IOException {
+        // Given
+        File stateFile = createLargeFile(10 * 1024 * 1024);
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // Then
+        File discarded = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.DISCARDED_EXTENSION);
+        Assertions.assertFalse(stateFile.exists());
+        Assertions.assertTrue(discarded.exists());
+        Assertions.assertFalse(store.hasOffset("test"));
+    }
+
+    @Test
+    public void givenTooLargeStateFileWithBackupAvailable_whenReadingStore_thenBackupRestored() throws IOException {
+        // Given
+        File stateFile = createLargeFile(10 * 1024 * 1024);
+        File backupStateFile = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.BACKUP_EXTENSION);
+        Map<String, Object> backupState =
+                Map.of(FusekiOffsetStore.FIELD_DATASET, "/ds", FusekiOffsetStore.FIELD_OFFSETS, Map.of("test", 345L));
+        writeStateFile(backupState, backupStateFile);
+        Assertions.assertTrue(backupStateFile.exists());
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // Then
+        File discarded = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.DISCARDED_EXTENSION);
+        Assertions.assertTrue(stateFile.exists());
+        Assertions.assertTrue(discarded.exists());
+        Assertions.assertEquals(345L, (Long) store.loadOffset("test"));
+    }
+
+    @Test
+    public void givenTooLargeStateFileWithTempAvailable_whenReadingStore_thenTempRestored() throws IOException {
+        // Given
+        File stateFile = createLargeFile(10 * 1024 * 1024);
+        File tempStateFile = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.TEMP_EXTENSION);
+        Map<String, Object> backupState =
+                Map.of(FusekiOffsetStore.FIELD_DATASET, "/ds", FusekiOffsetStore.FIELD_OFFSETS, Map.of("test", 345L));
+        writeStateFile(backupState, tempStateFile);
+        Assertions.assertTrue(tempStateFile.exists());
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // Then
+        verifyDiscardFileExists(stateFile, FusekiOffsetStore.DISCARDED_EXTENSION);
+        Assertions.assertTrue(stateFile.exists());
+        Assertions.assertEquals(345L, (Long) store.loadOffset("test"));
+    }
+
+    private static void verifyDiscardFileExists(File stateFile, String expectedExtension) {
+        File discarded = new File(stateFile.getAbsolutePath() + expectedExtension);
+        Assertions.assertTrue(discarded.exists());
+    }
+
+    @Test
+    public void givenTooLargeStateFileWithTooLargeBackupAndTempFiles_whenReadingStore_thenDiscarded() throws
+            IOException {
+        // Given
+        File stateFile = createLargeFile(10 * 1024 * 1024);
+        Files.copy(stateFile.toPath(),
+                   new File(stateFile.getAbsolutePath() + FusekiOffsetStore.BACKUP_EXTENSION).toPath(),
+                   StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(stateFile.toPath(),
+                   new File(stateFile.getAbsolutePath() + FusekiOffsetStore.TEMP_EXTENSION).toPath(),
+                   StandardCopyOption.REPLACE_EXISTING);
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // Then
+        verifyDiscardFileExists(stateFile, FusekiOffsetStore.DISCARDED_EXTENSION);
+        verifyDiscardFileExists(stateFile, FusekiOffsetStore.DISCARDED_EXTENSION + "-1");
+        verifyDiscardFileExists(stateFile, FusekiOffsetStore.DISCARDED_EXTENSION + "-2");
+        Assertions.assertFalse(stateFile.exists());
+        Assertions.assertFalse(store.hasOffset("test"));
     }
 }

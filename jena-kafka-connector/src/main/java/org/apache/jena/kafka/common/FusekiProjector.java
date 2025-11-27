@@ -509,7 +509,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @param sizeInBytes Size in bytes
      * @return Human-readable form of byte count
      */
-    private static String byteCountToDisplaySize(long sizeInBytes) {
+    static String byteCountToDisplaySize(long sizeInBytes) {
         Pair<Double, String> parsed = RuntimeInfo.parseMemory(sizeInBytes);
         return String.format("%.2f %s", parsed.getLeft(), parsed.getRight());
     }
