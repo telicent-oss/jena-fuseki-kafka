@@ -1,5 +1,14 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.3.0
+
+- State file bug fixes:
+    - Defensively protect against corrupted state files by refusing to read overly large state files and proactively
+      moving them to a safe location for later analysis
+    - During state file write use defensive write approaches to write backup and temporary files prior to overwriting
+      the state file to reduce the possibility of corruption
+    - Attempt to auto-recover temporary/backup state files as appropriate if primary state file isn't readable
+
 ## 2.2.0
 
 - General improvements:
