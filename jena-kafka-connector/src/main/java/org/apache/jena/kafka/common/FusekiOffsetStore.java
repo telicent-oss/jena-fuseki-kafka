@@ -136,8 +136,11 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
                     LOGGER.warn("Discarded state file available at {} for manual inspection",
                                 discardFile.getAbsolutePath());
 
-                    tryRecoverStateFile();
+                    // Attempt to recover from the temporary/backup files if available
+                    tryRecoverStateFile(true);
 
+                    // Note that tryRecoverStateFile() calls back into this method so no need to continue execution here
+                    // as if a valid recovery file is found and used one of those method calls will have run to success
                     return;
                 }
 
@@ -171,15 +174,23 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
 
                 LOGGER.info("State file {} loaded successfully with {} offsets present",
                             this.stateFile.getAbsolutePath(), this.offsets.size());
-            } else {
+
+            } else if (!tryRecoverStateFile(false)) {
+                // State file could be missing if a write operation was aborted prior to moving the original file back
+                // into place, in which case attempt to recover it.
+                // It could also be legitimately not be present if this is the first time this state file is used so
+                // don't issue a warning if no recovery files are found
                 LOGGER.info("No pre-existing state file {} to load", this.stateFile.getAbsolutePath());
             }
         } catch (IOException e) {
             try {
-                tryRecoverStateFile();
-            } catch (IOException e2) {
+                // In the event of an IO error try to see if we can recover from temporary/backup files (if present)
+                // Since something is going wrong here do issue the warning if recovery is not possible
+                tryRecoverStateFile(true);
+            } catch (IOException | JenaKafkaException e2) {
                 // If recovery fails log the error and throw the first IO error that originally got us here
                 LOGGER.warn("IO error trying to recover state files: {}", e2.getMessage());
+                e.addSuppressed(e2);
             }
 
             throw new JenaKafkaException("Error reading state file", e);
@@ -239,22 +250,40 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         }
     }
 
-    private void tryRecoverStateFile() throws IOException {
+    /**
+     * Attempts to recover the state file from the temporary or backup file if they exist on disk
+     * <p>
+     * See {@link #writeStateFile(File)} for details of these files.
+     * </p>
+     *
+     * @param issueWarning Whether to issue a warning if no files are found to recover from
+     * @return True if a state file is recovered, false otherwise
+     * @throws IOException Thrown if recovery fails, i.e. a file exists but is unrecoverable
+     */
+    private boolean tryRecoverStateFile(boolean issueWarning) throws IOException {
         // Due to how writeStateFile() now functions with defensively writing both backup and temporary
         // files we may be able to recover one of those if they still exist
         File tempStateFile = getFileWithAdditionalExtension(this.stateFile, TEMP_EXTENSION);
         File backupStateFile = getFileWithAdditionalExtension(this.stateFile, BACKUP_EXTENSION);
         if (tempStateFile.exists()) {
-            tryRecoverStateFile(tempStateFile);
+            return tryRecoverStateFile(tempStateFile);
         } else if (backupStateFile.exists()) {
-            tryRecoverStateFile(backupStateFile);
-        } else {
+            return tryRecoverStateFile(backupStateFile);
+        } else if (issueWarning) {
             LOGGER.warn(
                     "No temporary/backup state file found to recover from, as a result data loading may now re-process previously loaded data depending on your other Kafka connector options");
         }
+        return false;
     }
 
-    private void tryRecoverStateFile(File recoveryFile) throws IOException {
+    /**
+     * Tries to recover a specific state file
+     *
+     * @param recoveryFile State file to attempt recovery from
+     * @return True if successfully recovered, false otherwise
+     * @throws IOException Thrown if recovery fails, i.e. a file exists but is unrecoverable
+     */
+    private boolean tryRecoverStateFile(File recoveryFile) throws IOException {
         LOGGER.info("Attempting to recover state file from {}", recoveryFile.getAbsolutePath());
         Files.move(recoveryFile.toPath(), stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         LOGGER.info("Recovered state file to {}, attempting to read recovered state file...",
@@ -263,8 +292,16 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         // trigger this function with the same file again
         readStateFile();
         LOGGER.info("Successfully recovered state file from {}", recoveryFile.getAbsolutePath());
+        return true;
     }
 
+    /**
+     * Given a filename appends an additional extension to it
+     *
+     * @param file      Base file
+     * @param extension Extension to add
+     * @return Extended filename
+     */
     private File getFileWithAdditionalExtension(File file, String extension) {
         return new File(file.getAbsolutePath() + extension);
     }
@@ -287,15 +324,16 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
      * Writes the offsets, and associated sanity checking metadata to the given state file
      * <p>
      * In order to reduce risk from losing the state file due to partial write/disk corruption/etc. we take a defensive
-     * approach to writing out the state files.  We firstly take a backup of the existing state file if it exists, then
-     * we write the current state to a temporary file, and if that succeeds we move the temporary file to the actual
-     * state file location provided.  Finally, if we created a backup file at the start of the write process we now
-     * remove it.
+     * approach to writing out the state files.  We firstly take a backup of the existing state file if it exists
+     * ({@code <state-file>.backup}), then we write the current state to a temporary file ({@code <state-file>.temp}),
+     * and if that succeeds we move the temporary file to the actual state file location provided.  Finally, if we
+     * created a backup file at the start of the write process we now remove it.
      * </p>
      * <p>
-     * Note that should the write operation get interrupted for any reason then these temporary files will be left on
-     * the file system and {@link #readStateFile()} may use these to recover the state file should it find the provided
-     * state file to be corrupted, or exceed constraints on the file size.
+     * Note that should the write operation get interrupted for any reason then these temporary files may be left on the
+     * file system and {@link #readStateFile()} may use these to recover the state file should it find the provided
+     * state file to be corrupted, or exceed constraints on the file size.  See {@link #tryRecoverStateFile(boolean)}
+     * for implementation of that logic.
      * </p>
      *
      * @param file State file

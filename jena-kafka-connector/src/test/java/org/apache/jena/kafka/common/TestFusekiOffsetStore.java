@@ -53,6 +53,37 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
+    public void givenNonExistentStateFile_whenCreatingStore_thenNothingLoaded() {
+        // Given
+        File noSuchFile = new File("no-such-file.json");
+        Assertions.assertFalse(noSuchFile.exists());
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(noSuchFile).build();
+
+        // Then
+        Assertions.assertTrue(store.offsets().isEmpty());
+    }
+
+    @Test
+    public void givenMissingStateFileWithBackupAvailable_whenCreatingStore_thenBackupRecovered() throws IOException {
+        // Given
+        File stateFile = Files.createTempFile("state", ".json").toFile();
+        writeStateFile(Map.of(FusekiOffsetStore.FIELD_DATASET, DATASET_NAME, FusekiOffsetStore.FIELD_OFFSETS,
+                              Map.of("test", 559L)), stateFile);
+        Files.move(stateFile.toPath(),
+                   new File(stateFile.getAbsolutePath() + FusekiOffsetStore.BACKUP_EXTENSION).toPath(),
+                   StandardCopyOption.REPLACE_EXISTING);
+
+        // When
+        FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
+
+        // Then
+        Assertions.assertFalse(store.offsets().isEmpty());
+        Assertions.assertEquals(559L, (Long) store.loadOffset("test"));
+    }
+
+    @Test
     public void givenLegacyStateFile_whenCreatingStore_thenConvertedOk() throws IOException {
         // Given
         String datasetName = DATASET_NAME;
@@ -335,5 +366,25 @@ public class TestFusekiOffsetStore {
         verifyDiscardFileExists(stateFile, FusekiOffsetStore.DISCARDED_EXTENSION + "-2");
         Assertions.assertFalse(stateFile.exists());
         Assertions.assertFalse(store.hasOffset("test"));
+    }
+
+    @Test
+    public void givenCorruptedStateFileWithCorruptedBackupFile_whenReadingStore_thenDiscarded() throws
+            IOException {
+        // Given
+        File stateFile = Files.createTempFile("corrupted", ".json").toFile();
+        try (FileWriter fw = new FileWriter(stateFile)) {
+            fw.write("{ \"dataset\": \"/ds\", \"offsets\": {");
+        }
+        Files.copy(stateFile.toPath(),
+                   new File(stateFile.getAbsolutePath() + FusekiOffsetStore.BACKUP_EXTENSION).toPath(),
+                   StandardCopyOption.REPLACE_EXISTING);
+
+        // When and Then
+        Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
+                                                                                 .datasetName(DATASET_NAME)
+                                                                                 .stateFile(stateFile)
+                                                                                 .build());
+
     }
 }
