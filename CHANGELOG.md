@@ -1,5 +1,13 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.3.1
+
+- Build and test improvements:
+    - CVE-2025-12183:
+        - Excluded vulnerable `lz4-java` library from `kafka-clients` dependencies
+        - Added alternative fork of `lz4-java` library with fix
+    - Upgraded Smart Caches Core to 0.32.3
+
 ## 2.3.0
 
 - State file bug fixes:
