@@ -95,7 +95,7 @@
         <dependency.kafka>3.9.1</dependency.kafka>
         <dependency.log4j2>2.25.2</dependency.log4j2>
         <dependency.lombok>1.18.42</dependency.lombok>
-        <dependency.lz4>1.8.1</dependency.lz4>
+        <dependency.lz4>1.10.1</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
 
