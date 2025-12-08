@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.3.2
+
+- Build improvements:
+    - Upgraded `lz4-java` to 1.10.1
+    - Upgraded Smart Caches Core to 0.32.4
+
 ## 2.3.1
 
 - Build and test improvements:
