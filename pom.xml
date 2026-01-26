@@ -95,7 +95,7 @@
         <dependency.kafka>3.9.1</dependency.kafka>
         <dependency.log4j2>2.25.3</dependency.log4j2>
         <dependency.lombok>1.18.42</dependency.lombok>
-        <dependency.lz4>1.10.2</dependency.lz4>
+        <dependency.lz4>1.10.3</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
 
@@ -103,11 +103,11 @@
         <dependency.awaitility>4.3.0</dependency.awaitility>
         <dependency.junit5>6.0.2</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
-        <dependency.logback>1.5.25</dependency.logback>
+        <dependency.logback>1.5.26</dependency.logback>
         <dependency.log4j2>2.25.3</dependency.log4j2>
         <dependency.mockito>5.21.0</dependency.mockito>
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
-        <dependency.testng>7.11.0</dependency.testng>
+        <dependency.testng>7.12.0</dependency.testng>
 
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
