@@ -84,7 +84,7 @@
         <plugin.surefire>3.5.4</plugin.surefire>
 
         <!-- Internal dependencies -->
-        <dependency.jena>5.6.0</dependency.jena>
+        <dependency.jena>6.0.0</dependency.jena>
         <dependency.smart-caches>0.35.0</dependency.smart-caches>
 
         <!-- External dependencies -->
