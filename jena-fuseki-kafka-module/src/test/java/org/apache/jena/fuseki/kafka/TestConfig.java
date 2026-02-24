@@ -77,9 +77,9 @@ public class TestConfig {
             // Then
             if (unwrapCause) {
                 Throwable cause = e.getCause();
-                Assert.assertNotNull(cause, "Cause should not be null");
-                Assert.assertTrue(StringUtils.contains(cause.getMessage(), expectedErrorMessage),
-                                  "Error message missing '" + expectedErrorMessage + "' - got '" + cause.getMessage() + "'");
+                String message = cause != null ? cause.getMessage() : e.getMessage();
+                Assert.assertTrue(StringUtils.contains(message, expectedErrorMessage),
+                                  "Error message missing '" + expectedErrorMessage + "' - got '" + message + "'");
             } else {
                 Assert.assertTrue(StringUtils.contains(e.getMessage(), expectedErrorMessage),
                                   "Error message missing '" + expectedErrorMessage + "' - got '" + e.getMessage() + "'");

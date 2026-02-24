@@ -32,6 +32,6 @@ jobs:
       # Want SNAPSHOTs to be published from main
       PUBLISH_SNAPSHOTS: true
       MAIN_BRANCH: main
-      JAVA_VERSION: 17
+      JAVA_VERSION: 21
       CHANGELOG_FILE: CHANGELOG.md
     secrets: inherit
