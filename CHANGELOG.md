@@ -1,5 +1,57 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 2.3.2
+
+- Build improvements:
+    - Upgraded `lz4-java` to 1.10.1
+    - Upgraded Smart Caches Core to 0.32.4
+
+## 2.3.1
+
+- Build and test improvements:
+    - CVE-2025-12183:
+        - Excluded vulnerable `lz4-java` library from `kafka-clients` dependencies
+        - Added alternative fork of `lz4-java` library with fix
+    - Upgraded Smart Caches Core to 0.32.3
+
+## 2.3.0
+
+- State file bug fixes:
+    - Defensively protect against corrupted state files by refusing to read overly large state files and proactively
+      moving them to a safe location for later analysis
+    - During state file write use defensive write approaches to write backup and temporary files prior to overwriting
+      the state file to reduce the possibility of corruption
+    - Attempt to auto-recover temporary/backup state files as appropriate if primary state file isn't readable
+
+## 2.2.0
+
+- General improvements:
+    - `FusekiProjector` now uses batch size in bytes as a triggering mechanism for committing a batch irregardless of
+      what batching mode is in use, previously this was only used for high volume batching mode.
+    - `FusekiProjector` now logs informative configuration on startup
+- Build and test improvements:
+    - Apache Commons IO upgraded to 2.21.0
+    - Apache Commons Lang upgraded to 3.20.0
+    - Apache Jena upgraded to 5.6.0
+    - Log4j upgraded to 2.25.2
+    - Lombok upgraded to 1.18.42
+    - Smart Caches Core upgraded to 0.32.1
+    - Various build and test dependencies upgraded to latest available
+
+## 2.1.1
+
+- General improvements:
+    - `FusekiProjector` calculates batch size in bytes more efficiently when needed
+    - `ProjectorDriver` instances now configured with topic name log label to make log output from multiple running
+      connectors easier to interpret
+- Build and test improvements:
+    - Apache Commons Lang upgraded to 3.19.0
+    - Log4j upgraded to 2.25.2
+    - Logback upgraded to 1.5.19
+    - Lombok upgraded to 1.18.42
+    - Smart Caches Core upgraded to 0.30.1
+    - Various build and test dependencies upgraded to latest available
+
 ## 2.1.0
 
 - `FusekiProjector` batching improvements:

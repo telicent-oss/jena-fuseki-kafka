@@ -22,6 +22,7 @@ import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -125,10 +126,10 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
         // Then
         Assertions.assertFalse(projector.isHighLagDetected());
-        verify(dsg, times(1)).begin((TxnType) any());
+        verify(dsg, atLeast(1)).begin((TxnType) any());
 
         // And
-        verify(dsg, times(1)).commit();
+        verify(dsg, atLeast(1)).commit();
     }
 
     @Test

@@ -18,6 +18,12 @@ concurrency:
 jobs:
   maven-build:
     uses: Telicent-oss/shared-workflows/.github/workflows/parallel-maven.yml@main
+    permissions:
+      contents: write
+      id-token: write
+      issues: write
+      packages: write
+      pull-requests: write
     with:
       # Docker based tests in this repository
       USES_DOCKERHUB_IMAGES: true
