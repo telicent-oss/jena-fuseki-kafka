@@ -171,13 +171,6 @@
     </dependency>
 
 
-    <!-- CVE Fixes -->
-    <!-- CVE-2025-48734 -->
-    <dependency>
-      <groupId>commons-beanutils</groupId>
-      <artifactId>commons-beanutils</artifactId>
-      <version>${dependency.commons-beanutils}</version>
-    </dependency>
   </dependencies>
 
   <build>
