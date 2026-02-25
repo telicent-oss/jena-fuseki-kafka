@@ -64,6 +64,7 @@ public class FKS {
      */
     private static final int DEFAULT_POLL_MONITOR_INTERVAL_SECONDS = 60;
     private static final Duration TOPIC_CHECK_TIMEOUT = Duration.ofSeconds(5);
+    private static final long TOPIC_CHECK_RETRY_MILLIS = 100;
 
     /**
      * Add a connector to a server and starts the polling.
@@ -137,6 +138,14 @@ public class FKS {
     }
 
     private static void checkTopicsExistAtStartup(KConnectorDesc conn, String topicNames) {
+        checkTopicsExistAtStartup(conn, topicNames, TOPIC_CHECK_TIMEOUT, TOPIC_CHECK_RETRY_MILLIS,
+                                  props -> new TopicExistenceChecker(AdminClient.create(props),
+                                                                     conn.getBootstrapServers(), conn.getTopics(), LOG));
+    }
+
+    static void checkTopicsExistAtStartup(KConnectorDesc conn, String topicNames, Duration timeout,
+                                          long retrySleepMillis,
+                                          Function<Properties, TopicExistenceChecker> checkerFactory) {
         if (!conn.isCheckTopicAtStartUp()) {
             // Only check if configured to do so
             return;
@@ -148,9 +157,8 @@ public class FKS {
             props.putAll(conn.getKafkaConsumerProps());
             props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, conn.getBootstrapServers());
 
-            checker = new TopicExistenceChecker(AdminClient.create(props), conn.getBootstrapServers(), conn.getTopics(),
-                                                LOG);
-            long endNanos = System.nanoTime() + TOPIC_CHECK_TIMEOUT.toNanos();
+            checker = checkerFactory.apply(props);
+            long endNanos = System.nanoTime() + timeout.toNanos();
             boolean allTopicsExist = false;
             while (!allTopicsExist) {
                 long remainingNanos = endNanos - System.nanoTime();
@@ -160,7 +168,7 @@ public class FKS {
 
                 allTopicsExist = checker.allTopicsExist(Duration.ofNanos(remainingNanos));
                 if (!allTopicsExist) {
-                    Thread.sleep(100);
+                    Thread.sleep(retrySleepMillis);
                 }
             }
             if (!allTopicsExist) {

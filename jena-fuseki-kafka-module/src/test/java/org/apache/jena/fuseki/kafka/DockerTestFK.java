@@ -196,14 +196,24 @@ public class DockerTestFK {
     }
 
     private FusekiServer startFuseki(FusekiOffsetStore offsets, Properties consumerProps) {
+        return startFuseki(offsets, consumerProps, List.of(KafkaTestCluster.DEFAULT_TOPIC), true);
+    }
+
+    private FusekiServer startFuseki(FusekiOffsetStore offsets, Properties consumerProps, List<String> topics,
+                                     boolean replayTopic) {
+        return startFuseki(offsets, consumerProps, topics, replayTopic, false);
+    }
+
+    private FusekiServer startFuseki(FusekiOffsetStore offsets, Properties consumerProps, List<String> topics,
+                                     boolean replayTopic, boolean checkTopicAtStartup) {
         // Automatic
         FusekiServer server = FusekiServer.create().port(0)
                                           //.verbose(true)
                                           .fusekiModules(FusekiModules.create(new FMod_FusekiKafka()))
                                           .add(DSG_NAME, DSG).build();
         KConnectorDesc conn =
-                new KConnectorDesc(List.of(KafkaTestCluster.DEFAULT_TOPIC), this.kafka.getBootstrapServers(), DSG_NAME,
-                                   null, false, true, null, consumerProps);
+                new KConnectorDesc(topics, this.kafka.getBootstrapServers(), DSG_NAME,
+                                   null, false, replayTopic, checkTopicAtStartup, null, consumerProps);
         // Manual call to set up the server.
         FKS.addConnectorToServer(conn, server, offsets, null);
         server.start();
@@ -224,5 +234,31 @@ public class DockerTestFK {
 
         // When and Then
         FKS.addConnectorToServer(conn, server, offsets, null);
+    }
+
+    @Test(retryAnalyzer = FlakyKafkaTest.class)
+    public void givenStartupTopicChecksEnabledAndTopicExists_whenAddingConnector_thenSucceeds() {
+        // Given
+        FusekiOffsetStore offsets = createNonPersistentState();
+
+        // When
+        FusekiServer server = startFuseki(offsets, consumerProps(), List.of(KafkaTestCluster.DEFAULT_TOPIC), true,
+                                          true);
+        try {
+            // Then
+            String URL = "http://localhost:" + server.getHttpPort() + DSG_NAME;
+            DockerTestConfigFK.waitForDataCount(URL, 2);
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test(expectedExceptions = FusekiKafkaException.class, expectedExceptionsMessageRegExp = ".*Strict startup checks are enabled.*", retryAnalyzer = FlakyKafkaTest.class)
+    public void givenStartupTopicChecksEnabledAndTopicMissing_whenAddingConnector_thenFails() {
+        // Given
+        FusekiOffsetStore offsets = createNonPersistentState();
+
+        // When and Then
+        startFuseki(offsets, consumerProps(), List.of("missing-topic-" + System.nanoTime()), true, true);
     }
 }
