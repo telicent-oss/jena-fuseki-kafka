@@ -120,6 +120,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
      */
     public static Node pSyncTopic = NodeFactory.createURI(NS + "syncTopic");
     /**
+     * Enable strict startup checks?
+     */
+    public static Node pStartupTopicCheck = NodeFactory.createURI(NS + "startupTopicCheck");
+    /**
      * Replay whole topic on startup?
      */
     private static final Node pReplayTopic = NodeFactory.createURI(NS + "replayTopic");
@@ -133,6 +137,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     // Default values.
     private static final boolean DEFAULT_SYNC_TOPIC = true;
     private static final boolean DEFAULT_REPLAY_TOPIC = false;
+    private static final boolean DEFAULT_STARTUP_TOPIC_CHECK = false;
     public static final String DEFAULT_CONSUMER_GROUP_ID = "JenaFusekiKafka";
 
     public static Resource getType() {
@@ -189,6 +194,9 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
         boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, DEFAULT_SYNC_TOPIC, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, DEFAULT_REPLAY_TOPIC, errorException);
+        boolean startupTopicCheck =
+                Assem2.getBooleanOrDft(graph, node, pStartupTopicCheck, DEFAULT_STARTUP_TOPIC_CHECK,
+                                       errorException);
 
         String stateFile = getConfigurationValue(graph, node, pStateFile, errorException);
         // The file name can be a relative file name as a string or a
@@ -210,8 +218,8 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
         // ----
         Properties kafkaConsumerProps = kafkaConsumerProps(graph, node, bootstrapServers, groupId);
-        return new KConnectorDesc(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic, dlqTopic,
-                                  kafkaConsumerProps);
+        return new KConnectorDesc(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic,
+                                  startupTopicCheck, dlqTopic, kafkaConsumerProps);
     }
 
     private Properties kafkaConsumerProps(Graph graph, Node node, String bootstrapServers, String groupId) {

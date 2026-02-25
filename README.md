@@ -59,6 +59,11 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     #    fk:replayTopic      true;
     #    fk:syncTopic        true;
 
+    # Optionally enforce strict startup checks for configured topics.
+    # When true, startup fails if one/more configured topic(s) do not yet exist.
+    # Default is false.
+    # fk:startupTopicCheck true;
+
     # Optionally configure a Dead Letter Queue (DLQ) topic
     # 
     # When configured any malformed events are forwarded here
@@ -93,6 +98,9 @@ receive any RDF.
 
 The `fk:topic` property on a connector is used to configure one/more topics to which a Kafka connector will subscribe.
 You **MUST** specify this property at least once per connector, and **MAY** specify it multiple times if you wish.
+
+If you need startup to fail until all configured topics exist, set `fk:startupTopicCheck true` on your connector.
+By default this is `false` which allows deploying configuration before topics are created.
 
 The partitioning strategy for input topics depends on the RDF you are intending to apply.  If your incoming RDF events
 are only additive, i.e. you only ever add new triples, then you can have as many partitions as you want since the set

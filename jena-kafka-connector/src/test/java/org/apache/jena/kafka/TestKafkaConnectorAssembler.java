@@ -90,6 +90,7 @@ public class TestKafkaConnectorAssembler {
         Assertions.assertEquals(BOOTSTRAP_SERVERS, connector.getBootstrapServers());
         Assertions.assertEquals(SERVICE_NAME, connector.getDatasetName());
         Assertions.assertEquals(STATE_FILE, connector.getStateFile());
+        Assertions.assertFalse(connector.isCheckTopicAtStartUp());
         return connector;
     }
 
@@ -103,6 +104,23 @@ public class TestKafkaConnectorAssembler {
                    config.createLiteral(SERVICE_NAME));
         config.add(resource, config.createProperty(KafkaConnectorAssembler.pStateFile.getURI()),
                    config.createLiteral(STATE_FILE));
+    }
+
+    @Test
+    public void givenStrictStartupChecksConfig_whenAssemblingConnector_thenEnabled() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource resource = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, resource);
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pStartupTopicCheck.getURI()),
+                   config.createTypedLiteral(true));
+
+        // When
+        Object assembled = assembler.open(resource);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        Assertions.assertTrue(((KConnectorDesc) assembled).isCheckTopicAtStartUp());
     }
 
     @Test
