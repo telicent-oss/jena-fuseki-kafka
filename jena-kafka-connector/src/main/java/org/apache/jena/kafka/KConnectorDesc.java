@@ -66,6 +66,7 @@ public class KConnectorDesc {
 
     private final boolean syncTopic;
     private final boolean replayTopic;
+    private final boolean checkTopicAtStartUp;
 
     // State tracking.
     private final String stateFile;
@@ -87,6 +88,26 @@ public class KConnectorDesc {
      */
     public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName, String stateFile,
                           boolean syncTopic, boolean replayTopic, String dlqTopic, Properties kafkaConsumerProps) {
+        this(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic, false, dlqTopic,
+             kafkaConsumerProps);
+    }
+
+    /**
+     * Creates a new connector descriptor
+     *
+     * @param topics               Topic(s) to connect to
+     * @param bootstrapServers     Bootstrap servers to use
+     * @param datasetName          Dataset name
+     * @param stateFile            State file
+     * @param syncTopic            Whether to synchronise data with the input topics
+     * @param replayTopic          Whether to replay data from the input topics
+     * @param checkTopicAtStartUp  Whether missing topics should fail startup
+     * @param dlqTopic             Optional dead letter queue (DLQ) topic to use for malformed events
+     * @param kafkaConsumerProps   Additional Kafka configuration properties
+     */
+    public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName, String stateFile,
+                          boolean syncTopic, boolean replayTopic, boolean checkTopicAtStartUp, String dlqTopic,
+                          Properties kafkaConsumerProps) {
         this.topics = Objects.requireNonNull(topics, "topics cannot be null");
         if (this.topics.isEmpty()) {
             throw new IllegalArgumentException("topics cannot be empty");
@@ -100,6 +121,7 @@ public class KConnectorDesc {
         this.datasetName = datasetName;
         this.syncTopic = syncTopic;
         this.replayTopic = replayTopic;
+        this.checkTopicAtStartUp = checkTopicAtStartUp;
         this.stateFile = stateFile;
         this.kafkaConsumerProps = Objects.requireNonNullElse(kafkaConsumerProps, new Properties());
 

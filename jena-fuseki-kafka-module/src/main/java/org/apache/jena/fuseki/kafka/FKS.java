@@ -18,6 +18,7 @@ package org.apache.jena.fuseki.kafka;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Function;
@@ -31,6 +32,7 @@ import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicy;
 import io.telicent.smart.cache.sources.kafka.serializers.RdfPayloadSerializer;
 import io.telicent.smart.cache.sources.kafka.sinks.KafkaSink;
+import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -42,6 +44,8 @@ import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
 import org.apache.jena.kafka.common.FusekiSink;
 import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
 
@@ -59,6 +63,7 @@ public class FKS {
      * Default check interval for the poll monitor thread in seconds
      */
     private static final int DEFAULT_POLL_MONITOR_INTERVAL_SECONDS = 60;
+    private static final Duration TOPIC_CHECK_TIMEOUT = Duration.ofSeconds(5);
 
     /**
      * Add a connector to a server and starts the polling.
@@ -82,6 +87,7 @@ public class FKS {
         Objects.requireNonNull(offsets);
 
         String topicNames = StringUtils.join(conn.getTopics(), ", ");
+        checkTopicsExistAtStartup(conn, topicNames);
 
         // NOTES
         //
@@ -128,6 +134,55 @@ public class FKS {
                     "No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
         }
         startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
+    }
+
+    private static void checkTopicsExistAtStartup(KConnectorDesc conn, String topicNames) {
+        if (!conn.isCheckTopicAtStartUp()) {
+            // Only check if configured to do so
+            return;
+        }
+
+        TopicExistenceChecker checker = null;
+        try {
+            Properties props = new Properties();
+            props.putAll(conn.getKafkaConsumerProps());
+            props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, conn.getBootstrapServers());
+
+            checker = new TopicExistenceChecker(AdminClient.create(props), conn.getBootstrapServers(), conn.getTopics(),
+                                                LOG);
+            long endNanos = System.nanoTime() + TOPIC_CHECK_TIMEOUT.toNanos();
+            boolean allTopicsExist = false;
+            while (!allTopicsExist) {
+                long remainingNanos = endNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    break;
+                }
+
+                allTopicsExist = checker.allTopicsExist(Duration.ofNanos(remainingNanos));
+                if (!allTopicsExist) {
+                    Thread.sleep(100);
+                }
+            }
+            if (!allTopicsExist) {
+                throw new FusekiKafkaException(
+                        String.format("[%s] Strict startup checks are enabled but one/more configured topic(s) do not currently exist on Kafka server %s",
+                                      topicNames, conn.getBootstrapServers()));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FusekiKafkaException(
+                    String.format("[%s] Interrupted while performing strict startup topic checks", topicNames), e);
+        } catch (RuntimeException e) {
+            if (e instanceof FusekiKafkaException) {
+                throw e;
+            }
+            throw new FusekiKafkaException(
+                    String.format("[%s] Failed while performing strict startup topic checks", topicNames), e);
+        } finally {
+            if (checker != null) {
+                checker.close();
+            }
+        }
     }
 
     /**
