@@ -42,7 +42,7 @@ public class DockerTestFK {
     }
 
     private static final String DSG_NAME = "/ds";
-    private static final DatasetGraph DSG = DatasetGraphFactory.createTxnMem();
+    private DatasetGraph DSG;
     private static final AtomicInteger counter = new AtomicInteger(0);
     /**
      * Intentionally protected so derived test classes can inject alternative Kafka cluster implementations for testing
@@ -63,6 +63,7 @@ public class DockerTestFK {
         // Start Kafka Test Cluster
         this.kafka = createTestCluster();
         kafka.setup();
+        this.DSG = DatasetGraphFactory.createTxnMem();
 
         // Inject test data to Kafka
         String DIR = "src/test/files";
@@ -75,6 +76,7 @@ public class DockerTestFK {
         FKS.resetPollThreads();
         this.kafka.teardown();
         this.kafka = null;
+        this.DSG = null;
     }
 
     Properties consumerProps() {
