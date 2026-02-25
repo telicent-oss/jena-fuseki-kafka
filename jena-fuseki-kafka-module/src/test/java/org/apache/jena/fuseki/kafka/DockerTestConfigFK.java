@@ -313,7 +313,7 @@ public class DockerTestConfigFK {
         KafkaEventSource<Bytes, Bytes> source = KafkaEventSource.<Bytes, Bytes>create()
                                                                 .topic("bad-rdf")
                                                                 .bootstrapServers(this.kafka.getBootstrapServers())
-                                                                .consumerGroup("bad-rdf-check-1")
+                                                                .consumerGroup("bad-rdf-check-" + System.nanoTime())
                                                                 .consumerConfig(this.kafka.getClientProperties())
                                                                 .keyDeserializer(BytesDeserializer.class)
                                                                 .valueDeserializer(BytesDeserializer.class)
@@ -334,7 +334,7 @@ public class DockerTestConfigFK {
             // Given
             System.setProperty("TEST_BOOTSTRAP_SERVER", this.kafka.getBootstrapServers());
             System.clearProperty("TEST_KAFKA_TOPIC");
-            System.setProperty("TEST_CONSUMER_GROUP", "connector-6-" + System.currentTimeMillis());
+            System.setProperty("TEST_GROUP_ID", "connector-6-" + System.nanoTime());
             Graph graph = loadConfiguration("/config-connector-env.ttl");
 
             // When
@@ -352,6 +352,7 @@ public class DockerTestConfigFK {
             System.clearProperty("TEST_BOOTSTRAP_SERVER");
             System.clearProperty("TEST_KAFKA_TOPIC");
             System.clearProperty("TEST_CONSUMER_GROUP");
+            System.clearProperty("TEST_GROUP_ID");
         }
     }
 

@@ -186,8 +186,8 @@ public class FKS {
 
     // All the static fields for managing the Kafka polling threads
     private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
-            new HashMap<>();
-    private static final List<Future<?>> ACTIVE_DRIVERS = new ArrayList<>();
+            new ConcurrentHashMap<>();
+    private static final List<Future<?>> ACTIVE_DRIVERS = new CopyOnWriteArrayList<>();
     private static PollThreadMonitor MONITOR;
     private static ExecutorService EXECUTOR = threadExecutor();
 
@@ -269,7 +269,7 @@ public class FKS {
 
         // Submit for execution, and register for cancellation
         Future<?> future = EXECUTOR.submit(driver);
-        DRIVERS.computeIfAbsent(connector.getDatasetName(), x -> new ArrayList<>()).add(driver);
+        DRIVERS.computeIfAbsent(connector.getDatasetName(), x -> new CopyOnWriteArrayList<>()).add(driver);
 
         // Wait briefly for the projector driver thread to spin up
         try {
@@ -278,7 +278,7 @@ public class FKS {
             // Ignored
         } catch (ExecutionException e) {
             // If the projector driver fails in the startup phase we should bail out immediately
-            DRIVERS.getOrDefault(connector.getDatasetName(), new ArrayList<>()).remove(driver);
+            DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
             throw new FusekiKafkaException("Connector failed to start up", e);
         } catch (TimeoutException e) {
             // Ignore, we can safely assume the projector driver thread started up cleanly
