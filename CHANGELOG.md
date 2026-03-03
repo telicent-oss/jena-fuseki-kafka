@@ -1,5 +1,19 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.0
+
+- Added optional missing topic checks during startup
+- Build improvements:
+    - **BREAKING** Minimum Java version is now 21
+    - Improved test isolation and resiliency
+    - Upgraded Apache Jena to 6.0.0
+    - Upgraded Apache Kafka to 3.9.2
+    - Upgraded Log4j to 2.25.3
+    - Upgraded LZ4 Java to 1.10.3
+    - Upgraded Smart Caches Core to 0.36.1
+    - Various build and test dependencies upgraded to latest available
+
+
 ## 2.3.2
 
 - Build improvements:
