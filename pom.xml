@@ -77,8 +77,8 @@
         <plugin.jacoco>0.8.14</plugin.jacoco>
         <plugin.jar>3.5.0</plugin.jar>
         <plugin.javadoc>3.12.0</plugin.javadoc>
-        <plugin.resources>3.4.0</plugin.resources>
-        <plugin.shade>3.6.1</plugin.shade>
+        <plugin.resources>3.5.0</plugin.resources>
+        <plugin.shade>3.6.2</plugin.shade>
         <plugin.site>3.21.0</plugin.site>
         <plugin.source>3.4.0</plugin.source>
         <plugin.surefire>3.5.5</plugin.surefire>
@@ -95,7 +95,7 @@
         <dependency.kafka>3.9.2</dependency.kafka>
         <dependency.log4j2>2.25.3</dependency.log4j2>
         <dependency.lombok>1.18.42</dependency.lombok>
-        <dependency.lz4>1.10.3</dependency.lz4>
+        <dependency.lz4>1.10.4</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.17</dependency.slf4j>
 
