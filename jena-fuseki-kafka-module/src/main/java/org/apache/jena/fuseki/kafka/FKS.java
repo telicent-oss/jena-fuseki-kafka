@@ -255,7 +255,7 @@ public class FKS {
     private static ExecutorService EXECUTOR = threadExecutor();
 
     private static ExecutorService threadExecutor() {
-        ExecutorService executor = Executors.newCachedThreadPool();
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
         // Start a new poll thread monitor whenever we create a new thread pool
         MONITOR = new PollThreadMonitor(ACTIVE_DRIVERS, DEFAULT_POLL_MONITOR_INTERVAL_SECONDS);

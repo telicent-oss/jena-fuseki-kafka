@@ -109,8 +109,11 @@
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
         <dependency.testng>7.12.0</dependency.testng>
 
+        <!-- CVE Patches -->
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
+        <!-- CVE-2026-1605 -->
+        <dependency.jetty>12.1.7</dependency.jetty>
 
     </properties>
 
@@ -331,6 +334,35 @@
                 <version>${dependency.mockito}</version>
                 <scope>test</scope>
             </dependency>
+
+
+            <!-- CVE-2026-1605 patch block start-->
+            <dependency>
+                <groupId>org.eclipse.jetty.ee11</groupId>
+                <artifactId>jetty-ee11-servlet</artifactId>
+                <version>${dependency.jetty}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.ee11</groupId>
+                <artifactId>jetty-ee11-servlets</artifactId>
+                <version>${dependency.jetty}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-security</artifactId>
+                <version>${dependency.jetty}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-server</artifactId>
+                <version>${dependency.jetty}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-xml</artifactId>
+                <version>${dependency.jetty}</version>
+            </dependency>
+            <!-- CVE-2026-1605 patch block end-->
         </dependencies>
     </dependencyManagement>
 
