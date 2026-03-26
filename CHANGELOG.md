@@ -1,5 +1,14 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.1
+
+- Build improvements:
+    - Jetty upgraded to 12.1.7
+    - Lombok upgraded to 1.18.44
+    - LZ4 Java upgraded to 1.10.4
+    - Smart Caches Core upgraded to 0.36.2
+    - Various build and test dependencies upgraded to latest available
+
 ## 3.0.0
 
 - Added optional missing topic checks during startup
