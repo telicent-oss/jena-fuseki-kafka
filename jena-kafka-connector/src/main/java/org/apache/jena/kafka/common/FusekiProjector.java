@@ -139,6 +139,10 @@ import java.util.stream.Stream;
  */
 public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayload>, Event<Bytes, RdfPayload>> {
 
+    private static final String DEAD_LETTER_EXCEPTION_CLASS = "Dead-Letter-Exception-Class";
+    private static final String DEAD_LETTER_ROOT_CAUSE = "Dead-Letter-Root-Cause";
+    private static final String DEAD_LETTER_ROOT_CAUSE_CLASS = "Dead-Letter-Root-Cause-Class";
+
     @Getter
     private final KConnectorDesc connector;
     @Getter
@@ -257,13 +261,19 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @return True if sent to DLQ successfully, false otherwise
      */
     protected final boolean sendToDlq(Event<Bytes, RdfPayload> event, Throwable e) {
+        Throwable rootCause = FusekiSink.rootCause(e);
+        String reason = buildReason(e, rootCause);
+
         // Log the error
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
             ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
-            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {}", record.topic(), record.partition(),
-                                  record.offset(), e.getMessage());
+            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                                  record.topic(), record.partition(), record.offset(), reason,
+                                  e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
         } else {
-            FusekiKafka.LOG.error("[{}] Malformed Event: {}", topicNames, event);
+            FusekiKafka.LOG.error("[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                                  topicNames, event, reason, e.getClass().getName(), rootCause.getClass().getName(),
+                                  rootCause.getMessage(), e);
         }
 
         // Try to send to DLQ if configured
@@ -272,12 +282,46 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         }
 
         try {
-            this.dlq.send(event.addHeaders(Stream.of(new Header(TelicentHeaders.DEAD_LETTER_REASON, e.getMessage()))));
+            this.dlq.send(event.addHeaders(Stream.of(
+                    new Header(TelicentHeaders.DEAD_LETTER_REASON, reason),
+                    new Header(DEAD_LETTER_EXCEPTION_CLASS, e.getClass().getName()),
+                    new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)),
+                    new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()))));
             return true;
         } catch (Throwable dlqError) {
             FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ: {}", this.topicNames, dlqError.getMessage());
         }
         return false;
+    }
+
+    private static String buildReason(Throwable error, Throwable rootCause) {
+        String topLevelMessage = error.getMessage();
+        StringBuilder message = new StringBuilder();
+        if (StringUtils.isNotBlank(topLevelMessage)) {
+            message.append(topLevelMessage);
+        } else {
+            message.append(error.getClass().getSimpleName());
+        }
+
+        if (rootCause != error && !reasonIncludesRootCause(topLevelMessage, rootCause)) {
+            FusekiSink.appendRootCause(message, rootCause);
+        }
+        return message.toString();
+    }
+
+    private static boolean reasonIncludesRootCause(String reason, Throwable rootCause) {
+        if (StringUtils.isBlank(reason)) {
+            return false;
+        }
+
+        String rootCauseMessage = rootCause.getMessage();
+        return reason.contains(rootCause.getClass().getSimpleName()) ||
+               reason.contains(rootCause.getClass().getName()) ||
+               StringUtils.isNotBlank(rootCauseMessage) && reason.contains(rootCauseMessage);
+    }
+
+    private static String rootCauseMessage(Throwable rootCause) {
+        return StringUtils.defaultIfBlank(rootCause.getMessage(), rootCause.getClass().getSimpleName());
     }
 
     /**

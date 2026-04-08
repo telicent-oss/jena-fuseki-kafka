@@ -1,6 +1,7 @@
 package org.apache.jena.kafka.common;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.kafka.JenaKafkaException;
@@ -10,12 +11,14 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sys.JenaSystem;
+import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -107,6 +110,27 @@ public class TestFusekiSink {
             Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(
                     new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(data))));
         }
+    }
+
+    @Test
+    public void givenNestedFailure_whenUsingSink_thenErrorIncludesRootCause() {
+        // Given
+        Event<Bytes, RdfPayload> event =
+                new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(createSimpleDatasetPayload()));
+        FusekiSink<DatasetGraph> sink = new FusekiSink<>(DatasetGraphFactory.createTxnMem()) {
+            @Override
+            protected void applyDatasetEvent(Event<Bytes, RdfPayload> event) {
+                throw new IllegalStateException("Write batch failed", new RuntimeException("No space left on device"));
+            }
+        };
+
+        // When
+        JenaKafkaException ex = assertThrows(JenaKafkaException.class, () -> sink.send(event));
+
+        // Then
+        assertTrue(ex.getMessage().contains("Failed to apply Dataset payload"));
+        assertTrue(ex.getMessage().contains("RuntimeException"));
+        assertTrue(ex.getMessage().contains("No space left on device"));
     }
 
     public static DatasetGraph createSimpleDatasetPayload() {
