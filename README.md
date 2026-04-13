@@ -219,8 +219,11 @@ events to be discarded and not applied potentially leading to data loss.
 
 For robust error handling we strongly recommend that you use the new `fk:dlqTopic` property to specify a Dead Letter
 Queue (DLQ) topic to which malformed/misapplied events will be written.  A `Dead-Letter-Reason` header will be added to
-those events indicating why they were considered malformed, or failed to apply.  When an error occurs the event is
-written to the DLQ, and Fuseki Kafka guarantees to apply all prior events in the [batch](#batching) before proceeding.
+those events indicating why they were considered malformed, or failed to apply.  Where possible this now includes the
+root cause rather than only the top level wrapper exception.  Additional `Dead-Letter-Exception-Class`,
+`Dead-Letter-Root-Cause` and `Dead-Letter-Root-Cause-Class` headers are also added to make downstream debugging easier.
+When an error occurs the event is written to the DLQ, and Fuseki Kafka guarantees to apply all prior events in the
+[batch](#batching) before proceeding.
 
 Note that the DLQ topic **MUST NOT** be a topic that is used as an input topic for a connector as otherwise that would
 create an error loop where bad events are injected back into the input topic.

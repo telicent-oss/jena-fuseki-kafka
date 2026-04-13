@@ -6,6 +6,7 @@ import io.telicent.smart.cache.projectors.SinkException;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
+import io.telicent.smart.cache.sources.TelicentHeaders;
 import io.telicent.smart.cache.sources.kafka.KafkaEvent;
 import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
 import io.telicent.smart.cache.sources.memory.SimpleEvent;
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
@@ -337,6 +339,38 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
         // When and Then
         verifyFusekiSinkProjection(source, projector, dsg, 0, 0, 0);
         verifyNoTransactions(dsg);
+    }
+
+    @Test
+    public void givenProjectorWithDlq_whenSinkFails_thenDlqIncludesRootCauseHeaders() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        List<Event<Bytes, RdfPayload>> dlqEvents = new ArrayList<>();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, dlqEvents::add);
+        Event<Bytes, RdfPayload> event =
+                new KafkaEvent<>(new ConsumerRecord<>("test", 0, 42L, Bytes.wrap(new byte[0]),
+                                                      RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload())),
+                                 null);
+        Sink<Event<Bytes, RdfPayload>> sink = x -> {
+            throw new JenaKafkaException("Failed to apply RDF Patch payload",
+                                         new IllegalStateException("No space left on device"));
+        };
+
+        // When
+        projector.project(event, sink);
+
+        // Then
+        Assertions.assertEquals(1, dlqEvents.size());
+        Event<Bytes, RdfPayload> dlqEvent = dlqEvents.get(0);
+        Assertions.assertEquals("Failed to apply RDF Patch payload: IllegalStateException: No space left on device",
+                                dlqEvent.lastHeader(TelicentHeaders.DEAD_LETTER_REASON));
+        Assertions.assertEquals("org.apache.jena.kafka.JenaKafkaException",
+                                dlqEvent.lastHeader("Dead-Letter-Exception-Class"));
+        Assertions.assertEquals("No space left on device", dlqEvent.lastHeader("Dead-Letter-Root-Cause"));
+        Assertions.assertEquals("java.lang.IllegalStateException",
+                                dlqEvent.lastHeader("Dead-Letter-Root-Cause-Class"));
     }
 
     @Test

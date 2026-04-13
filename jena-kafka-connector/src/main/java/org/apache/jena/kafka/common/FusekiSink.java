@@ -25,6 +25,8 @@ import org.apache.kafka.common.utils.Bytes;
 @ToString
 public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, RdfPayload>> {
 
+    static final String ROOT_CAUSE_SEPARATOR = ": ";
+
     /**
      * The dataset this sink is writing to
      */
@@ -43,8 +45,11 @@ public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, Rdf
             }
 
         } catch (Throwable e) {
-            throw new JenaKafkaException(
-                    "Failed to apply " + (event.value().isPatch() ? "RDF Patch" : "Dataset") + " payload", e);
+            Throwable rootCause = rootCause(e);
+            String payloadType = event.value().isPatch() ? "RDF Patch" : "Dataset";
+            StringBuilder message = new StringBuilder("Failed to apply ").append(payloadType).append(" payload");
+            appendRootCause(message, rootCause);
+            throw new JenaKafkaException(message.toString(), e);
         }
     }
 
@@ -76,5 +81,35 @@ public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, Rdf
         if (this.dataset.isInTransaction()) {
             this.dataset.commit();
         }
+    }
+
+    static Throwable rootCause(Throwable error) {
+        Throwable current = error;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    static void appendRootCause(StringBuilder message, Throwable rootCause) {
+        if (rootCause == null) {
+            return;
+        }
+
+        String rootCauseClass = rootCause.getClass().getSimpleName();
+        String rootCauseMessage = rootCause.getMessage();
+        if (rootCauseMessage == null || rootCauseMessage.isBlank()) {
+            if (!rootCauseClass.isBlank()) {
+                message.append(ROOT_CAUSE_SEPARATOR).append(rootCauseClass);
+            }
+            return;
+        }
+
+        if (!rootCauseClass.isBlank()) {
+            message.append(ROOT_CAUSE_SEPARATOR).append(rootCauseClass).append(ROOT_CAUSE_SEPARATOR);
+        } else {
+            message.append(ROOT_CAUSE_SEPARATOR);
+        }
+        message.append(rootCauseMessage);
     }
 }
