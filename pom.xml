@@ -88,7 +88,6 @@
         <dependency.smart-caches>0.36.3</dependency.smart-caches>
 
         <!-- External dependencies -->
-        <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <dependency.commons-io>2.21.0</dependency.commons-io>
         <dependency.commons-lang>3.20.0</dependency.commons-lang>
         <dependency.commons-math>3.6.1</dependency.commons-math>
@@ -109,10 +108,7 @@
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
         <dependency.testng>7.12.0</dependency.testng>
 
-        <!-- CVE Patches -->
-        <!-- CVE-2025-48734 -->
-        <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
-        <!-- CVE-2026-1605 -->
+        <!-- CVE-2026-2332, CVE-2026-1605 -->
         <dependency.jetty>12.1.8</dependency.jetty>
 
     </properties>
@@ -192,18 +188,6 @@
                 <groupId>org.apache.jena</groupId>
                 <artifactId>jena-fuseki-main</artifactId>
                 <version>${dependency.jena}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-beanutils</groupId>
-                        <artifactId>commons-beanutils</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-
-            <dependency>
-                <groupId>commons-beanutils</groupId>
-                <artifactId>commons-beanutils</artifactId>
-                <version>${dependency.commons-beanutils}</version>
             </dependency>
 
             <!-- The combined jar for Fuseki main -->

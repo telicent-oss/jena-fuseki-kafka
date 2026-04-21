@@ -68,12 +68,6 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-fuseki-main</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-beanutils</groupId>
-          <artifactId>commons-beanutils</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.jena</groupId>
@@ -81,12 +75,6 @@
     </dependency>
 
     <!-- External dependencies -->
-
-    <dependency>
-      <groupId>commons-beanutils</groupId>
-      <artifactId>commons-beanutils</artifactId>
-      <version>${dependency.commons-beanutils}</version>
-    </dependency>
 
     <dependency>
       <groupId>org.projectlombok</groupId>
