@@ -80,7 +80,7 @@ public class RemainingVolumeSource implements EventSource<Bytes, RdfPayload> {
     }
 
     @Override
-    public void processed(Collection<Event> collection) {
+    public void processed(Collection<Event<?,?>> collection) {
 
     }
 }

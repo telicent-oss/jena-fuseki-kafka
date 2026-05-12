@@ -153,7 +153,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     @Getter
     private final Duration maxTransactionDuration;
     private long lastCommitTime = -1L;
-    private final List<Event<Bytes, RdfPayload>> eventsSinceLastCommit = new ArrayList<>();
+    private final List<Event<?, ?>> eventsSinceLastCommit = new ArrayList<>();
     private long currentBatchSizeBytes = 0L;
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
@@ -334,6 +334,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      *
      * @param sink The destination sink
      */
+    @SuppressWarnings("unchecked")
     protected final void abortAndReplay(Sink<Event<Bytes, RdfPayload>> sink) {
         abort();
 
@@ -343,8 +344,8 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             startTransactionIfNeeded();
             FusekiKafka.LOG.info("[{}] Replaying {} uncommitted events", this.topicNames,
                                  this.eventsSinceLastCommit.size());
-            for (Event<Bytes, RdfPayload> event : this.eventsSinceLastCommit) {
-                sink.send(event);
+            for (Event<?, ?> event : this.eventsSinceLastCommit) {
+                sink.send((Event<Bytes, RdfPayload>) event);
             }
         }
 
@@ -485,7 +486,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * Commits the current transaction and updates our internal state used by {@link #commitTransactionIfNeeded(Event)}
      * to decide if this method should be called.
      */
-    @SuppressWarnings("rawtypes")
     protected final void commit() {
         // Commit changes to the dataset
         this.lastCommitTime = System.currentTimeMillis();
@@ -497,11 +497,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         // Assuming that succeeds tell the event source that the events were processed, this will cause any offsets to
         // be committed
-        source.processed(this.eventsSinceLastCommit.stream().map(e -> (Event) e).toList());
+        source.processed(this.eventsSinceLastCommit);
 
         // Log where we've got to with Kafka offsets when applicable
         Map<TopicPartition, OffsetAndMetadata> committedOffsets = KafkaEventSource.determineCommitOffsetsFromEvents(
-                this.eventsSinceLastCommit.stream().map(e -> (Event) e).toList());
+                this.eventsSinceLastCommit);
         if (MapUtils.isNotEmpty(committedOffsets)) {
             StringBuilder offsetLogMessage = new StringBuilder();
             offsetLogMessage.append("[").append(this.topicNames).append("] Processed up to offsets: ");
