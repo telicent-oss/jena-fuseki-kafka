@@ -9,6 +9,7 @@ import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.offsets.MemoryOffsetStore;
 import lombok.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,7 +168,10 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
                 }
 
                 // Configuration sanity checks
-                if (!this.datasetName.equals(datasetName)) {
+                // NB - To allow graceful migration if the stored datasetName has trailing URL segments vs the currently
+                // configured one then permit this
+                if (!this.datasetName.equals(datasetName) && !Strings.CS.startsWith(datasetName, this.datasetName + (
+                        this.datasetName.endsWith("/") ? "" : "/"))) {
                     throw new JenaKafkaException(
                             "Dataset name does not match: this=" + this.datasetName + " / read=" + datasetName);
                 }
