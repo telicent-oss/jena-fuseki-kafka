@@ -112,7 +112,7 @@ public class TestFusekiOffsetStore {
             IOException {
         // Given
         String datasetName = DATASET_NAME;
-        Map<String, Object> legacyState = Map.of(FusekiOffsetStore.FIELD_DATASET, datasetName + "/upload",
+        Map<String, Object> legacyState = Map.of(FusekiOffsetStore.FIELD_DATASET, "/other",
                                                  FusekiOffsetStore.LEGACY_FIELD_ENDPOINT, "foo",
                                                  FusekiOffsetStore.LEGACY_FIELD_TOPIC, "test",
                                                  FusekiOffsetStore.LEGACY_FIELD_OFFSET, 1234L);
@@ -130,10 +130,45 @@ public class TestFusekiOffsetStore {
         Assertions.assertTrue(StringUtils.contains(e.getMessage(), "Dataset name does not match"));
     }
 
+    @Test
+    public void givenLegacyStateFileWithPrefixDatasetName_whenCreatingStore_thenConversionSucceeds_andAfterSavePrefixIsRemoved() throws
+            IOException {
+        // Given
+        String datasetName = DATASET_NAME;
+        Map<String, Object> legacyState = Map.of(FusekiOffsetStore.FIELD_DATASET, datasetName + "/upload",
+                                                 FusekiOffsetStore.LEGACY_FIELD_ENDPOINT, "foo",
+                                                 FusekiOffsetStore.LEGACY_FIELD_TOPIC, "test",
+                                                 FusekiOffsetStore.LEGACY_FIELD_OFFSET, 1234L);
+        File stateFile = createStateFile(legacyState);
+
+        // When and Then
+        FusekiOffsetStore store = FusekiOffsetStore.builder()
+                                                   .datasetName(
+                                                           datasetName)
+                                                   .stateFile(
+                                                           stateFile)
+                                                   .consumerGroup(
+                                                           "example")
+                                                   .build();
+        Assertions.assertNotNull(store);
+        Assertions.assertEquals(datasetName, store.getDatasetName());
+
+        // And
+        store.close();
+        Map<String, Object> convertedState = loadStateFile(stateFile);
+        Assertions.assertEquals(datasetName, convertedState.get(FusekiOffsetStore.FIELD_DATASET));
+
+    }
+
     private File createStateFile(Map<String, Object> state) throws IOException {
         File stateFile = Files.createTempFile("state", ".json").toFile();
         writeStateFile(state, stateFile);
         return stateFile;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> loadStateFile(File stateFile) throws IOException {
+        return this.mapper.readValue(stateFile, Map.class);
     }
 
     private void writeStateFile(Map<String, Object> state, File stateFile) throws IOException {
