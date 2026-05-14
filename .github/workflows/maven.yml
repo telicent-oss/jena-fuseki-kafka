@@ -27,6 +27,8 @@ jobs:
     with:
       # Docker based tests in this repository
       USES_DOCKERHUB_IMAGES: true
+      PUBLIC_IMAGES: |
+        confluentinc/cp-kafka:7.7.1
       # Parallel tests are not reliable on resource constrained GitHub Actions workers
       MAVEN_ARGS: -Dtest.maxForks=1
       # Want SNAPSHOTs to be published from main

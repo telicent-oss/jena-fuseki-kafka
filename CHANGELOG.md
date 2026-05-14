@@ -1,5 +1,12 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.3
+
+- Build improvements:
+    - Change Maven Central plugin to waitUntil validated rather than published to avoid timing out builds when Maven
+      Central is overloaded or experiences publishing outages
+    - Add Docker Image caching to GitHub Actions workflow to speed up builds
+
 ## 3.0.2
 
 - Error handling improvements:
