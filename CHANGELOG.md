@@ -1,5 +1,22 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.2
+
+- Error handling improvements:
+    - When events are sent to the DLQ improve the detail of the error messages added to the `Dead-Letter-Reason` header
+- State file handling improvements:
+    - Relaxed checks on matching dataset names to allowing pre-2.x state files that may have used names that included
+      URI path segments beyond the dataset name to be gracefully migrated to using plain dataset names
+- Build improvements:
+    - Apache Commons IO upgraded to 2.22.0
+    - Apache Jena upgraded to 6.1.0
+    - Jetty upgraded to 12.1.9
+    - Log4j upgraded to 2.26.0
+    - Lombok upgraded to 1.18.46
+    - LZ4 Java upgraded to 1.11.0
+    - SLF4J upgraded to 2.0.18
+    - Smart Caches Core upgraded to 0.38.0
+
 ## 3.0.1
 
 - Build improvements:
