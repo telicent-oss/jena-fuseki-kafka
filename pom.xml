@@ -22,7 +22,7 @@
     <groupId>io.telicent.jena</groupId>
     <artifactId>jena-kafka</artifactId>
     <packaging>pom</packaging>
-    <version>3.0.2-SNAPSHOT</version>
+    <version>3.0.3-SNAPSHOT</version>
 
     <name>Apache Jena Fuseki-Kafka Connector</name>
     <description>Fuseki Module : Kafka Connector</description>
@@ -59,7 +59,7 @@
         <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.outputTimestamp>2026-03-26T09:57:04Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-05-14T08:21:06Z</project.build.outputTimestamp>
         <coverage.minimum>0.8</coverage.minimum>
         <test.maxForks>2</test.maxForks>
 
@@ -85,7 +85,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.1.0</dependency.jena>
-        <dependency.smart-caches>0.37.0</dependency.smart-caches>
+        <dependency.smart-caches>0.38.0</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
@@ -97,14 +97,13 @@
         <dependency.lombok>1.18.46</dependency.lombok>
         <dependency.lz4>1.11.0</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
-        <dependency.slf4j>2.0.17</dependency.slf4j>
+        <dependency.slf4j>2.0.18</dependency.slf4j>
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
         <dependency.junit5>6.0.3</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
         <dependency.logback>1.5.32</dependency.logback>
-        <dependency.log4j2>2.25.4</dependency.log4j2>
         <dependency.mockito>5.23.0</dependency.mockito>
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
         <dependency.testng>7.12.0</dependency.testng>
@@ -620,7 +619,7 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
-                    <waitUntil>published</waitUntil>
+                    <waitUntil>validated</waitUntil>
                 </configuration>
             </plugin>
 
