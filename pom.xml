@@ -70,7 +70,7 @@
         <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
         <plugin.dependency>3.10.0</plugin.dependency>
         <plugin.deploy>3.1.4</plugin.deploy>
-        <plugin.enforcer>3.6.2</plugin.enforcer>
+        <plugin.enforcer>3.6.3</plugin.enforcer>
         <plugin.exec>3.6.3</plugin.exec>
         <plugin.gpg>3.2.8</plugin.gpg>
         <plugin.install>3.1.4</plugin.install>
