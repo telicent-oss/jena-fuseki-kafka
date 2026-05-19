@@ -159,8 +159,40 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
     private boolean lowVolumeDetected = false, highLagDetected = false;
+    /**
+     * One-way latch that flips to {@code true} the first time this projector observes zero
+     * lag (i.e. it has fully caught up with its Kafka topic(s) at least once since startup).
+     * <p>
+     * Stays {@code true} for the lifetime of the projector even if new events later arrive
+     * and lag grows again — the semantics are deliberately "has the initial Kafka replay
+     * completed?" rather than "is the projector currently caught up?".
+     * <p>
+     * Consumed by the SCG readiness gate so that the HTTP server reports NOT_READY until the
+     * initial backlog has been drained — preventing query requests (and, more importantly,
+     * restore requests) from racing the startup catch-up window.
+     * <p>
+     * Marked {@code volatile} so the readiness probe thread observes the latest value
+     * without a lock.
+     */
     @Getter
     private volatile boolean initialLoadComplete = false;
+
+    /**
+     * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} /
+     * {@link #awaitResumeIfPaused()}.
+     * <p>
+     * {@code paused} is the request flag (set from another thread, e.g. the SCG restore
+     * handler). {@code atPausePoint} reports whether the projector thread has actually
+     * reached the pause point and is currently blocked — used by {@link FusekiProjector} to
+     * tell {@code FKS.waitForPause(...)} when it is safe to begin a restore.
+     * <p>
+     * Both are read without locking; {@code pauseMonitor} guards the wait/notify of the
+     * projector thread while it is blocked.
+     */
+    private final Object pauseMonitor = new Object();
+    private volatile boolean paused = false;
+    @Getter
+    private volatile boolean atPausePoint = false;
     private final DescriptiveStatistics recentBatchSizes;
     @Getter
     private final long batchSizeBytes, highLagThreshold;
@@ -215,6 +247,12 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
     @Override
     public void project(Event<Bytes, RdfPayload> event, Sink<Event<Bytes, RdfPayload>> sink) {
+        // Block here if an external caller (e.g. SCG's restore handler) has requested a pause.
+        // The pause point is between events so no partial event is ever applied; any in-flight
+        // batch is committed first by awaitResumeIfPaused() so the dataset is idle (no open
+        // Jena transaction, no events in flight) while the projector is blocked.
+        awaitResumeIfPaused();
+
         try {
             // If this is our first projected event then treat the current point in time as our last commit point, this
             // is used for determining if we've exceeded our maximum transaction duration.
@@ -580,6 +618,77 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     "[{}] Committing due to stall, either no new events are currently available for these topic(s) or the connection to Kafka was lost",
                     this.topicNames);
             this.commit();
+        }
+
+        // Stall is also the point at which a paused projector with no events flowing notices
+        // the pause request — without this, a quiet topic would leave the projector idle in
+        // the driver's poll loop and waitForPause() would have to wait for a poll timeout. The
+        // commit above ensures there is no in-flight transaction before we block.
+        awaitResumeIfPaused();
+    }
+
+    /**
+     * Requests that the projector pause at its next safe point (between events).
+     * <p>
+     * Non-blocking. The projector will commit any in-flight batch and then block on
+     * {@link #pauseMonitor} until {@link #requestResume()} is called. Use
+     * {@link #isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the projector to
+     * actually reach the pause point.
+     * <p>
+     * Calling this from a thread other than the projector thread is required — the projector
+     * thread itself is the one that observes the flag.
+     */
+    public void requestPause() {
+        synchronized (pauseMonitor) {
+            this.paused = true;
+            pauseMonitor.notifyAll();
+        }
+        FusekiKafka.LOG.info("[{}] Pause requested", this.topicNames);
+    }
+
+    /**
+     * Releases a previously requested pause. The projector resumes processing from where it
+     * was blocked at the pause point. Idempotent — safe to call when not paused.
+     */
+    public void requestResume() {
+        synchronized (pauseMonitor) {
+            this.paused = false;
+            pauseMonitor.notifyAll();
+        }
+        FusekiKafka.LOG.info("[{}] Resume requested", this.topicNames);
+    }
+
+    /**
+     * Called by the projector thread on entry to {@link #project(Event, Sink)} and
+     * {@link #stalled(Sink)}. If a pause has been requested, commits any in-flight Jena
+     * transaction so the dataset is idle, then blocks until resumed.
+     */
+    private void awaitResumeIfPaused() {
+        if (!this.paused) return;
+
+        // Commit any in-flight batch BEFORE blocking so that callers (typically a restore
+        // handler) see an idle dataset with no open Jena transaction.
+        if (this.dataset.isInTransaction()) {
+            FusekiKafka.LOG.info("[{}] Committing in-flight batch before entering pause",
+                                 this.topicNames);
+            commit();
+        }
+
+        synchronized (pauseMonitor) {
+            this.atPausePoint = true;
+            try {
+                FusekiKafka.LOG.info("[{}] Projector paused; waiting for resume", this.topicNames);
+                while (this.paused) {
+                    pauseMonitor.wait();
+                }
+                FusekiKafka.LOG.info("[{}] Projector resuming after pause", this.topicNames);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                FusekiKafka.LOG.warn("[{}] Projector pause-wait interrupted; resuming",
+                                     this.topicNames);
+            } finally {
+                this.atPausePoint = false;
+            }
         }
     }
 }
