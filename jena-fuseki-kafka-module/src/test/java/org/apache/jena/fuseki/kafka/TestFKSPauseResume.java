@@ -223,49 +223,6 @@ public class TestFKSPauseResume {
     }
 
     // -----------------------------------------------------------------------------------
-    // isInitialLoadComplete
-    // -----------------------------------------------------------------------------------
-
-    @Test
-    public void givenUnknownDataset_whenIsInitialLoadComplete_thenReturnsTrue() {
-        // No Kafka ingest registered for this dataset => nothing to wait for => ready.
-        Assert.assertTrue(FKS.isInitialLoadComplete("/unknown-dataset"));
-    }
-
-    @Test
-    public void givenEmptyDriverList_whenIsInitialLoadComplete_thenReturnsTrue() {
-        registerDrivers(DATASET);
-        Assert.assertTrue(FKS.isInitialLoadComplete(DATASET));
-    }
-
-    @Test
-    public void givenAllProjectorsCaughtUp_whenIsInitialLoadComplete_thenReturnsTrue() {
-        // Given
-        FusekiProjector p1 = mock(FusekiProjector.class);
-        when(p1.isInitialLoadComplete()).thenReturn(true);
-        FusekiProjector p2 = mock(FusekiProjector.class);
-        when(p2.isInitialLoadComplete()).thenReturn(true);
-        registerDrivers(DATASET, mockDriverFor(p1), mockDriverFor(p2));
-
-        // When/Then
-        Assert.assertTrue(FKS.isInitialLoadComplete(DATASET));
-    }
-
-    @Test
-    public void givenOneProjectorNotCaughtUp_whenIsInitialLoadComplete_thenReturnsFalse() {
-        // Given -- the AND semantics matter: a single lagging projector should hold the
-        // readiness gate closed even if everything else has caught up.
-        FusekiProjector p1 = mock(FusekiProjector.class);
-        when(p1.isInitialLoadComplete()).thenReturn(true);
-        FusekiProjector p2 = mock(FusekiProjector.class);
-        when(p2.isInitialLoadComplete()).thenReturn(false);
-        registerDrivers(DATASET, mockDriverFor(p1), mockDriverFor(p2));
-
-        // When/Then
-        Assert.assertFalse(FKS.isInitialLoadComplete(DATASET));
-    }
-
-    // -----------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------
 

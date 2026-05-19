@@ -448,23 +448,6 @@ public class FKS {
     }
 
     /**
-     * Returns true if every Fuseki Projector attached to this dataset has completed
-     * its initial Kafka load.
-     *
-     * @param datasetName Dataset name
-     */
-    public static boolean isInitialLoadComplete(String datasetName) {
-        List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers = DRIVERS.get(datasetName);
-        if (drivers == null || drivers.isEmpty()) return true;
-        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
-            if (driver.getProjector() instanceof FusekiProjector fp) {
-                if (!fp.isInitialLoadComplete()) return false;
-            }
-        }
-        return true;
-    }
-
-    /**
      * Forces all currently active event sources
      *
      * @param datasetName relevant dataset
