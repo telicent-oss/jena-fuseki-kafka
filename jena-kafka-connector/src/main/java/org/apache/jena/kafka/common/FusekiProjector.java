@@ -159,23 +159,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
     private boolean lowVolumeDetected = false, highLagDetected = false;
-    /**
-     * One-way latch that flips to {@code true} the first time this projector observes zero
-     * lag (i.e. it has fully caught up with its Kafka topic(s) at least once since startup).
-     * <p>
-     * Stays {@code true} for the lifetime of the projector even if new events later arrive
-     * and lag grows again — the semantics are deliberately "has the initial Kafka replay
-     * completed?" rather than "is the projector currently caught up?".
-     * <p>
-     * Consumed by the SCG readiness gate so that the HTTP server reports NOT_READY until the
-     * initial backlog has been drained — preventing query requests (and, more importantly,
-     * restore requests) from racing the startup catch-up window.
-     * <p>
-     * Marked {@code volatile} so the readiness probe thread observes the latest value
-     * without a lock.
-     */
-    @Getter
-    private volatile boolean initialLoadComplete = false;
 
     /**
      * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} /
@@ -467,13 +450,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     // Caught up, commit now!
                     FusekiKafka.LOG.info("[{}] Completely up to date with Kafka topic(s)", this.topicNames);
                     commit();
-
-                    // First time we hit zero lag, mark load as complete.
-                    if (!this.initialLoadComplete) {
-                        this.initialLoadComplete = true;
-                        FusekiKafka.LOG.info("[{}] Initial Kafka load complete; projector is now ready",
-                                             this.topicNames);
-                    }
 
                     // Reset high lag detection state if we've caught up
                     if (this.highLagDetected) {
