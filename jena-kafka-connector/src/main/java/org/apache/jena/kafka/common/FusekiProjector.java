@@ -159,6 +159,8 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
     private boolean lowVolumeDetected = false, highLagDetected = false;
+    @Getter
+    private volatile boolean initialLoadComplete = false;
     private final DescriptiveStatistics recentBatchSizes;
     @Getter
     private final long batchSizeBytes, highLagThreshold;
@@ -427,6 +429,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     // Caught up, commit now!
                     FusekiKafka.LOG.info("[{}] Completely up to date with Kafka topic(s)", this.topicNames);
                     commit();
+
+                    // First time we hit zero lag, mark load as complete.
+                    if (!this.initialLoadComplete) {
+                        this.initialLoadComplete = true;
+                        FusekiKafka.LOG.info("[{}] Initial Kafka load complete; projector is now ready",
+                                             this.topicNames);
+                    }
 
                     // Reset high lag detection state if we've caught up
                     if (this.highLagDetected) {
