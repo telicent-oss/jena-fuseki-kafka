@@ -367,6 +367,87 @@ public class FKS {
     }
 
     /**
+     * Requests that every Fuseki Projector attached to the given dataset pause at its
+     * next safe point (between events).
+     *
+     * @param datasetName Dataset name
+     */
+    public static void pauseProjectors(String datasetName) {
+        forEachFusekiProjector(datasetName, FusekiProjector::requestPause);
+    }
+
+    /**
+     * Releases a previously requested pause for every Fuseki Projector attached to the
+     * given dataset.
+     *
+     * @param datasetName Dataset name
+     */
+    public static void resumeProjectors(String datasetName) {
+        forEachFusekiProjector(datasetName, FusekiProjector::requestResume);
+    }
+
+    /**
+     * Blocks until every {@link FusekiProjector} attached to the given dataset has reached
+     * its pause point.
+     *
+     * @param datasetName Dataset name
+     * @param timeout     Maximum time to wait
+     * @return true if all projectors paused within the timeout; false otherwise
+     */
+    public static boolean waitForPause(String datasetName, Duration timeout) {
+        List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers = DRIVERS.get(datasetName);
+        if (drivers == null || drivers.isEmpty()) {
+            // Nothing to wait for.
+            return true;
+        }
+        long deadlineNanos = System.nanoTime() + timeout.toNanos();
+        long pollIntervalMillis = 50L;
+        while (true) {
+            if (allProjectorsAtPausePoint(drivers)) {
+                LOG.info("All projectors for dataset {} have reached the pause point", datasetName);
+                return true;
+            }
+            if (System.nanoTime() >= deadlineNanos) {
+                LOG.warn("Timed out after {} waiting for projectors on dataset {} to pause", timeout,
+                         datasetName);
+                return false;
+            }
+            try {
+                Thread.sleep(pollIntervalMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while waiting for projectors on dataset {} to pause", datasetName);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Iterates through the Projector Drivers registered for a dataset and applies the supplied
+     * action to each.
+     */
+    private static void forEachFusekiProjector(String datasetName,
+                                               java.util.function.Consumer<FusekiProjector> action) {
+        List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers = DRIVERS.get(datasetName);
+        if (drivers == null) return;
+        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
+            if (driver.getProjector() instanceof FusekiProjector fp) {
+                action.accept(fp);
+            }
+        }
+    }
+
+    private static boolean allProjectorsAtPausePoint(
+            List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers) {
+        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
+            if (driver.getProjector() instanceof FusekiProjector fp) {
+                if (!fp.isAtPausePoint()) return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Forces all currently active event sources
      *
      * @param datasetName relevant dataset
