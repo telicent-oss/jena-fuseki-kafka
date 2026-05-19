@@ -35,15 +35,6 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 
-/**
- * Tests for {@link FusekiProjector}'s readiness signal ({@code initialLoadComplete}) and the
- * cooperative pause/resume primitives ({@code requestPause}, {@code requestResume},
- * {@code isAtPausePoint}).
- * <p>
- * These features back SCG's restore-handler and readiness-gate coordination — they're tested
- * here at the projector level. The end-to-end "restore during Kafka replay" behaviour is
- * verified by the SCG integration test once that's in place.
- */
 public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
 
     // -----------------------------------------------------------------------------------
