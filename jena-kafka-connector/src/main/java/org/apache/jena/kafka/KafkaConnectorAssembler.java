@@ -48,6 +48,7 @@ import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.RowSet;
+import org.apache.jena.system.G;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +82,29 @@ import org.slf4j.LoggerFactory;
  *   fk:stateFile           "Databases/RDF.state";
  *    .
  * </pre>
+ * <p>
+ * Common Kafka settings can be declared once on a shared {@code fk:Cluster} and reused by multiple connectors via
+ * {@code fk:cluster}, avoiding duplication between connectors:
+ * </p>
+ * <pre>
+ * &lt;#cluster&gt; rdf:type fk:Cluster ;
+ *   fk:bootstrapServers  "localhost:9092" ;
+ *   fk:config            ( "security.protocol" "SSL" ) ;
+ *   fk:configFile        "/app/kafka.properties" .
+ *
+ * &lt;#connector1&gt; rdf:type fk:Connector ;
+ *   fk:cluster           &lt;#cluster&gt; ;
+ *   fk:topic             "example" ;
+ *   fk:fusekiServiceName "/s1" ;
+ *   fk:stateFile         "/data/s1.state" .
+ * </pre>
+ * <p>
+ * Only the connection-level settings are inherited from the cluster: {@code fk:bootstrapServers}, {@code fk:config}
+ * and {@code fk:configFile}.  Everything else - including {@code fk:topic}, {@code fk:fusekiServiceName},
+ * {@code fk:stateFile} and {@code fk:groupId} - remains per-connector.  In particular {@code fk:groupId} is
+ * deliberately not inherited because each connector requires its own unique Kafka consumer group.  Where a setting is
+ * present on both the connector and its cluster, the connector's value takes precedence.
+ * </p>
  */
 public class KafkaConnectorAssembler extends AssemblerBase implements Assembler {
 
@@ -93,6 +117,12 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
      * RDF Type for Kafka connectors
      */
     public static Resource tKafkaConnector = ResourceFactory.createResource(NS + "Connector");
+
+    /**
+     * RDF Type for a shared Kafka cluster configuration that connectors may reference (via {@link #pCluster}) to
+     * inherit common connection settings
+     */
+    public static Resource tKafkaCluster = ResourceFactory.createResource(NS + "Cluster");
 
     // Preferred:   "fusekiServiceName"
 
@@ -129,6 +159,11 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static final Node pReplayTopic = NodeFactory.createURI(NS + "replayTopic");
 
     // Kafka cluster
+    /**
+     * Links a connector to a shared {@link #tKafkaCluster} whose common Kafka settings (bootstrap servers and
+     * {@code config}/{@code configFile} properties) the connector inherits
+     */
+    public static Node pCluster = NodeFactory.createURI(NS + "cluster");
     public static Node pKafkaProperty = NodeFactory.createURI(NS + "config");
     public static Node pKafkaPropertyFile = NodeFactory.createURI(NS + "configFile");
     public static Node pKafkaBootstrapServers = NodeFactory.createURI(NS + "bootstrapServers");
@@ -190,7 +225,21 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String datasetName = datasetName(graph, node);
         datasetName = /*DataAccessPoint.*/canonical(datasetName);
 
-        String bootstrapServers = getConfigurationValue(graph, node, pKafkaBootstrapServers, errorException);
+        // A connector may reference a shared cluster definition (fk:cluster) to inherit common Kafka settings.  Only
+        // the connection-level settings - bootstrap servers and the config/configFile properties - are inherited;
+        // everything else (topic, service name, state file, group id, etc.) remains per-connector by design.  In
+        // particular the Kafka consumer group id is deliberately NOT inherited as each connector requires its own
+        // unique consumer group.
+        Node cluster = G.getZeroOrOneSP(graph, node, pCluster);
+
+        // Bootstrap servers: use the connector's value if present, otherwise fall back to the cluster's value.
+        String bootstrapServers =
+                getInheritedConfigurationValue(graph, node, cluster, pKafkaBootstrapServers, errorException);
+        if (StringUtils.isBlank(bootstrapServers)) {
+            throw onError(node, pKafkaBootstrapServers,
+                          "No bootstrap servers configured on the connector or its referenced fk:cluster",
+                          errorException);
+        }
 
         boolean syncTopic = Assem2.getBooleanOrDft(graph, node, pSyncTopic, DEFAULT_SYNC_TOPIC, errorException);
         boolean replayTopic = Assem2.getBooleanOrDft(graph, node, pReplayTopic, DEFAULT_REPLAY_TOPIC, errorException);
@@ -217,16 +266,39 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         String dlqTopic = getConfigurationValueOrDefault(graph, node, pDlqTopic, null, errorException);
 
         // ----
-        Properties kafkaConsumerProps = kafkaConsumerProps(graph, node, bootstrapServers, groupId);
+        Properties kafkaConsumerProps = kafkaConsumerProps(graph, node, cluster, bootstrapServers, groupId);
         return new KConnectorDesc(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic,
                                   startupTopicCheck, dlqTopic, kafkaConsumerProps);
     }
 
-    private Properties kafkaConsumerProps(Graph graph, Node node, String bootstrapServers, String groupId) {
+    private Properties kafkaConsumerProps(Graph graph, Node node, Node cluster, String bootstrapServers,
+                                          String groupId) {
         Properties props = SysJenaKafka.consumerProperties(bootstrapServers);
         // "group.id"
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
 
+        // Layer configuration in increasing order of precedence so that a connector can override its cluster:
+        //   1. shared cluster inline config   (fk:config on the cluster)
+        //   2. shared cluster config file(s)  (fk:configFile on the cluster)
+        //   3. connector inline config        (fk:config on the connector)
+        //   4. connector config file(s)       (fk:configFile on the connector)
+        // Within each level the config file is applied after the inline pairs, so a file overrides inline values; this
+        // matches the long-standing single-connector behaviour.
+        if (cluster != null) {
+            applyInlineKafkaConfig(graph, cluster, props);
+            applyKafkaConfigFiles(graph, cluster, props);
+        }
+        applyInlineKafkaConfig(graph, node, props);
+        applyKafkaConfigFiles(graph, node, props);
+
+        return props;
+    }
+
+    /**
+     * Applies inline Kafka configuration declared as {@code fk:config} {@code (key value)} RDF list pairs on the given
+     * node to the supplied properties.
+     */
+    private void applyInlineKafkaConfig(Graph graph, Node node, Properties props) {
         // Optional Kafka configuration as pairs of (key-value) as RDF lists.
         String queryString = StrUtils.strjoinNL("PREFIX ja: <" + JA.getURI() + ">", "SELECT ?k ?v { ?X ?P (?k ?v) }");
 
@@ -244,8 +316,13 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                     props.setProperty(key, value);
                 });
         }
+    }
 
-        // External Kafka Properties File
+    /**
+     * Applies external Kafka properties file(s) declared as {@code fk:configFile} on the given node to the supplied
+     * properties.
+     */
+    private void applyKafkaConfigFiles(Graph graph, Node node, Properties props) {
         graph.stream(node, pKafkaPropertyFile, Node.ANY).map(Triple::getObject).forEach(propertyFile -> {
             if (propertyFile.isURI()) {
                 if (propertyFile.getURI().startsWith("file:")) {
@@ -261,8 +338,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
                 badPropertiesFileValue(node);
             }
         });
-
-        return props;
     }
 
     private static void badPropertiesFileValue(Node node) {
@@ -359,6 +434,30 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     static String getConfigurationValue(Graph graph, Node node, Node property, Assem2.OnError errorException) {
         String configurationValue = Assem2.getString(graph, node, property, errorException);
         configurationValue = checkForEnvironmentVariableValue(property.getURI(), configurationValue);
+        return configurationValue;
+    }
+
+    /**
+     * Gets a single configuration value from the connector node, falling back to the referenced cluster node (if any)
+     * when the connector does not set it.  Any environment variable indirection is resolved.  Returns {@code null} if
+     * the value is set in neither place.
+     *
+     * @param graph          Configuration graph
+     * @param node           Connector node
+     * @param cluster        Referenced cluster node, or {@code null} if the connector references no cluster
+     * @param property       Property to read
+     * @param errorException Error generator
+     * @return Resolved value, or {@code null} if absent from both connector and cluster
+     */
+    static String getInheritedConfigurationValue(Graph graph, Node node, Node cluster, Node property,
+                                                 Assem2.OnError errorException) {
+        String configurationValue = Assem2.getStringOrDft(graph, node, property, null, errorException);
+        if (configurationValue == null && cluster != null) {
+            configurationValue = Assem2.getStringOrDft(graph, cluster, property, null, errorException);
+        }
+        if (configurationValue != null) {
+            configurationValue = checkForEnvironmentVariableValue(property.getURI(), configurationValue);
+        }
         return configurationValue;
     }
 

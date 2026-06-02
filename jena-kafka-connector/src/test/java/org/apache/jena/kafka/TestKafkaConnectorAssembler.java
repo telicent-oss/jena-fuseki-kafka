@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 public class TestKafkaConnectorAssembler {
 
     private static final String TEST_URI = "https://example.org/connector#1";
+    private static final String TEST_CLUSTER_URI = "https://example.org/cluster#1";
     private static final String TOPIC = "test";
     private static final String BOOTSTRAP_SERVERS = "localhost:9092";
     private static final String SERVICE_NAME = "/ds";
@@ -383,5 +384,153 @@ public class TestKafkaConnectorAssembler {
 
         // Then
         Assertions.assertEquals(expected, canonical);
+    }
+
+    private static void createConnectorWithoutBootstrap(Model config, Resource resource) {
+        config.add(resource, RDF.type, KafkaConnectorAssembler.tKafkaConnector);
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaTopic.getURI()),
+                   config.createLiteral(TOPIC));
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pFusekiServiceName.getURI()),
+                   config.createLiteral(SERVICE_NAME));
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pStateFile.getURI()),
+                   config.createLiteral(STATE_FILE));
+    }
+
+    private static Resource createCluster(Model config) {
+        Resource cluster = config.createResource(TEST_CLUSTER_URI);
+        config.add(cluster, RDF.type, KafkaConnectorAssembler.tKafkaCluster);
+        return cluster;
+    }
+
+    private static void addBootstrapServers(Model config, Resource resource, String value) {
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaBootstrapServers.getURI()),
+                   config.createLiteral(value));
+    }
+
+    private static void addConfigPair(Model config, Resource resource, String key, String value) {
+        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaProperty.getURI()),
+                   config.createList(config.createLiteral(key), config.createLiteral(value)));
+    }
+
+    private static void linkCluster(Model config, Resource connector, Resource cluster) {
+        config.add(connector, config.createProperty(KafkaConnectorAssembler.pCluster.getURI()), cluster);
+    }
+
+    @Test
+    public void givenConnectorReferencingCluster_whenAssembling_thenInheritsBootstrapAndConfig() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createConnectorWithoutBootstrap(config, connector);
+        Resource cluster = createCluster(config);
+        addBootstrapServers(config, cluster, BOOTSTRAP_SERVERS);
+        addConfigPair(config, cluster, "max.poll.records", "100");
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        KConnectorDesc desc = (KConnectorDesc) assembled;
+        Assertions.assertEquals(BOOTSTRAP_SERVERS, desc.getBootstrapServers());
+        Assertions.assertEquals("100", desc.getKafkaConsumerProps().getProperty("max.poll.records"));
+    }
+
+    @Test
+    public void givenBootstrapOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, connector);
+        Resource cluster = createCluster(config);
+        addBootstrapServers(config, cluster, "cluster-host:9092");
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        Assertions.assertEquals(BOOTSTRAP_SERVERS, ((KConnectorDesc) assembled).getBootstrapServers());
+    }
+
+    @Test
+    public void givenConfigPropertyOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createMinimalConfiguration(config, connector);
+        addConfigPair(config, connector, "max.poll.records", "200");
+        Resource cluster = createCluster(config);
+        addConfigPair(config, cluster, "max.poll.records", "100");
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        Assertions.assertEquals("200", ((KConnectorDesc) assembled).getKafkaConsumerProps()
+                                                                   .getProperty("max.poll.records"));
+    }
+
+    @Test
+    public void givenClusterConfigFile_whenAssembling_thenInheritsFileProperties() throws IOException {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createConnectorWithoutBootstrap(config, connector);
+        Resource cluster = createCluster(config);
+        addBootstrapServers(config, cluster, BOOTSTRAP_SERVERS);
+        File propsFile = prepareExternalPropertiesFile(createTestProperties());
+        config.add(cluster, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
+                   config.createLiteral(propsFile.getAbsolutePath()));
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        verifyTestProperties((KConnectorDesc) assembled);
+    }
+
+    @Test
+    public void givenNoBootstrapOnConnectorOrCluster_whenAssembling_thenNotLoaded() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createConnectorWithoutBootstrap(config, connector);
+        Resource cluster = createCluster(config);
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNull(assembled);
+    }
+
+    @Test
+    public void givenGroupIdOnCluster_whenAssembling_thenNotInherited() {
+        // Given
+        Model config = ModelFactory.createDefaultModel();
+        Resource connector = config.createResource(TEST_URI);
+        createConnectorWithoutBootstrap(config, connector);
+        Resource cluster = createCluster(config);
+        addBootstrapServers(config, cluster, BOOTSTRAP_SERVERS);
+        config.add(cluster, config.createProperty(KafkaConnectorAssembler.pKafkaGroupId.getURI()),
+                   config.createLiteral("shared-group"));
+        linkCluster(config, connector, cluster);
+
+        // When
+        Object assembled = assembler.open(connector);
+
+        // Then
+        Assertions.assertNotNull(assembled);
+        // The group id is deliberately per-connector and must not be inherited from the cluster
+        Assertions.assertEquals(KafkaConnectorAssembler.DEFAULT_CONSUMER_GROUP_ID,
+                                ((KConnectorDesc) assembled).getConsumerGroupId());
     }
 }

@@ -79,6 +79,49 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
     .
 ```
 
+### Shared Cluster Configuration
+
+When you have multiple connectors that all talk to the same Kafka cluster, the connection settings (bootstrap servers
+and any `fk:config`/`fk:configFile` properties) would otherwise have to be repeated on every connector.  Instead you can
+declare them once on a shared `fk:Cluster` and have each connector reference it via `fk:cluster`:
+
+```
+<#cluster> rdf:type fk:Cluster ;
+    fk:bootstrapServers  "localhost:9092" ;
+    fk:config            ( "security.protocol" "SSL" ) ;
+    fk:configFile        "/app/kafka.properties" .
+
+<#connector1> rdf:type fk:Connector ;
+    fk:cluster           <#cluster> ;
+    fk:topic             "example" ;
+    fk:fusekiServiceName "/s1" ;
+    fk:stateFile         "/data/s1.state" .
+
+<#connector2> rdf:type fk:Connector ;
+    fk:cluster           <#cluster> ;
+    fk:topic             "another" ;
+    fk:fusekiServiceName "/s2" ;
+    fk:stateFile         "/data/s2.state" .
+```
+
+The following design choices apply:
+
+- **Only connection settings are inherited.** A connector inherits `fk:bootstrapServers`, `fk:config` and
+  `fk:configFile` from its cluster. Everything else (`fk:topic`, `fk:fusekiServiceName`, `fk:stateFile`, `fk:dlqTopic`,
+  the sync/replay flags, etc.) is always declared per-connector.
+- **The connector wins.** If the same setting is declared on both the connector and its cluster, the connector's value
+  takes precedence. For the `fk:config`/`fk:configFile` properties the values are merged, with the connector's entries
+  overriding the cluster's on a per-key basis. The effective precedence order, lowest to highest, is: cluster
+  `fk:config`, cluster `fk:configFile`, connector `fk:config`, connector `fk:configFile`.
+- **The consumer group is never inherited.** `fk:groupId` is deliberately *not* inheritable from the cluster, because
+  every connector requires its own unique Kafka consumer group (see the note on `fk:groupId` above). Declare it on each
+  connector if you need a non-default value.
+- **Bootstrap servers are required somewhere.** If neither the connector nor its cluster supplies
+  `fk:bootstrapServers`, the connector fails to load with a clear error.
+- **Environment variables still work.** Values declared on the cluster support the same `env:` indirection as values
+  declared directly on a connector.
+- A connector may reference at most one cluster, and different connectors may reference different clusters.
+
 ### Kafka Read Behaviour
 
 Note that the Fuseki Kafka Module by default starts the Kafka connectors prior to the Fuseki HTTP Server starting,
