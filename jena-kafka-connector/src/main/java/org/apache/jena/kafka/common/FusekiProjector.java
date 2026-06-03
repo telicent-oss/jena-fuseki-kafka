@@ -142,6 +142,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private static final String DEAD_LETTER_EXCEPTION_CLASS = "Dead-Letter-Exception-Class";
     private static final String DEAD_LETTER_ROOT_CAUSE = "Dead-Letter-Root-Cause";
     private static final String DEAD_LETTER_ROOT_CAUSE_CLASS = "Dead-Letter-Root-Cause-Class";
+    private static final Header DLQ_EXEC_PATH_HEADER = new Header(TelicentHeaders.EXEC_PATH, "smart-cache-graph");
 
     @Getter
     private final KConnectorDesc connector;
@@ -306,6 +307,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         try {
             this.dlq.send(event.addHeaders(Stream.of(
+                    DLQ_EXEC_PATH_HEADER,
                     new Header(TelicentHeaders.DEAD_LETTER_REASON, reason),
                     new Header(DEAD_LETTER_EXCEPTION_CLASS, e.getClass().getName()),
                     new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)),
