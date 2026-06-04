@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.4
+- Build improvements:
+    - Common Kafka connection configuration can now be declared once on a shared `fk:Cluster` and reused by multiple
+      connectors via `fk:cluster`. See the "Shared Cluster Configuration" section of the README.
+    - Add app name to DQL messages
+
 ## 3.0.3
 
 - Build improvements:
