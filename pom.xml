@@ -74,7 +74,7 @@
         <plugin.exec>3.6.3</plugin.exec>
         <plugin.gpg>3.2.8</plugin.gpg>
         <plugin.install>3.1.4</plugin.install>
-        <plugin.jacoco>0.8.14</plugin.jacoco>
+        <plugin.jacoco>0.8.15</plugin.jacoco>
         <plugin.jar>3.5.0</plugin.jar>
         <plugin.javadoc>3.12.0</plugin.javadoc>
         <plugin.resources>3.5.0</plugin.resources>
