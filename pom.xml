@@ -64,10 +64,10 @@
         <test.maxForks>2</test.maxForks>
 
         <!-- Maven Plugin versions -->
-        <plugin.central>0.10.0</plugin.central>
+        <plugin.central>0.11.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
         <plugin.compiler>3.15.0</plugin.compiler>
-        <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
+        <plugin.cyclonedx>2.9.2</plugin.cyclonedx>
         <plugin.dependency>3.11.0</plugin.dependency>
         <plugin.deploy>3.1.4</plugin.deploy>
         <plugin.enforcer>3.6.3</plugin.enforcer>
@@ -85,7 +85,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.1.0</dependency.jena>
-        <dependency.smart-caches>0.40.1</dependency.smart-caches>
+        <dependency.smart-caches>0.40.2</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
