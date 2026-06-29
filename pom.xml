@@ -85,7 +85,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.1.0</dependency.jena>
-        <dependency.smart-caches>0.40.2</dependency.smart-caches>
+        <dependency.smart-caches>0.40.3</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
@@ -101,9 +101,9 @@
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
-        <dependency.junit5>6.1.0</dependency.junit5>
+        <dependency.junit5>6.1.1</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
-        <dependency.logback>1.5.34</dependency.logback>
+        <dependency.logback>1.5.37</dependency.logback>
         <dependency.mockito>5.23.0</dependency.mockito>
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
         <dependency.testng>7.12.0</dependency.testng>
