@@ -620,6 +620,7 @@
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
                     <waitUntil>validated</waitUntil>
+                    <deploymentName>Fuseki Kafka Connector ${project.version}</deploymentName>
                 </configuration>
             </plugin>
 
