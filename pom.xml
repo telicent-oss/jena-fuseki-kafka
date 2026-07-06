@@ -62,6 +62,12 @@
         <project.build.outputTimestamp>2026-06-04T12:58:50Z</project.build.outputTimestamp>
         <coverage.minimum>0.8</coverage.minimum>
         <test.maxForks>2</test.maxForks>
+        <!--
+        Defaults to disabling test JARs
+
+        Can be set to false in individual modules if they need to publish test JARs for downstreamn consumers
+        -->
+        <skip.testJars>true</skip.testJars>
 
         <!-- Maven Plugin versions -->
         <plugin.central>0.11.0</plugin.central>
@@ -401,6 +407,7 @@
                             <goal>test-jar</goal>
                         </goals>
                         <configuration>
+                            <skip>${skip.testJars}</skip>
                             <classifier>tests</classifier>
                         </configuration>
                     </execution>
@@ -429,6 +436,9 @@
                         <goals>
                             <goal>test-jar-no-fork</goal>
                         </goals>
+                        <configuration>
+                            <skipSource>${skip.testJars}</skipSource>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -593,6 +603,7 @@
                 <configuration>
                     <outputName>${project.artifactId}-${project.version}-bom</outputName>
                     <skipNotDeployed>false</skipNotDeployed>
+                    <outputFormat>json</outputFormat>
                 </configuration>
             </plugin>
 
@@ -620,6 +631,8 @@
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
                     <waitUntil>validated</waitUntil>
+                    <deploymentName>Fuseki Kafka Connector ${project.version}</deploymentName>
+                    <checksums>required</checksums>
                 </configuration>
             </plugin>
 
