@@ -22,14 +22,12 @@ import java.time.Duration;
 public class FKConst {
 
     /**
-     * Time to wait when pinging Kafka. Used to check Kafka available.
-     * See {@link FKS#checkKafkaTopicConnection}.
+     * Time to wait when pinging Kafka during startup topic-availability checks.
      */
     public static final Duration checkKafkaDuration = Duration.ofMillis(500);
 
     /**
-     * Length of the wait when polling Kafka regularly.
-     * See {@link FKS#topicPoll}.
+     * Length of the regular Kafka poll wait.
      */
     public static final Duration pollingWaitDuration = Duration.ofMillis(10_000);
 
@@ -37,7 +35,7 @@ public class FKConst {
      * Kafka has a default message of 500 for consumer.poll
      * <p>
      * This setting is the number of times to loop per
-     * receiver cycle calling {@link FKBatchProcessor#receiverStep}.
+     * receiver cycle while processing polled records.
      * That is, the number of 500 message units to process in one polling loop.
      */
     public static final int MAX_LOOPS_PER_CYCLE = 10;

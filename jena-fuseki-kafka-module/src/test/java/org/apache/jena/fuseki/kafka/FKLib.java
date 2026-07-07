@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.jena.atlas.io.IO;
-import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.riot.Lang;
@@ -56,9 +55,9 @@ public class FKLib {
     public static String ctForFile(String fn) {
         String ct = null;
         String ext = FileUtils.getFilenameExt(fn);
-        if (Lib.equals("ru", ext)) {
+        if ("ru".equals(ext)) {
             ct = WebContent.contentTypeSPARQLUpdate;
-        } else if (Lib.equals("rdfp", ext)) {
+        } else if ("rdfp".equals(ext)) {
             ct = WebContent.contentTypePatch;
         } else {
             Lang lang = RDFLanguages.filenameToLang(fn);
