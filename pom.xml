@@ -85,7 +85,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.1.0</dependency.jena>
-        <dependency.smart-caches>0.40.2</dependency.smart-caches>
+        <dependency.smart-caches>0.40.3</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
@@ -93,9 +93,9 @@
         <dependency.commons-lang>3.20.0</dependency.commons-lang>
         <dependency.commons-math>3.6.1</dependency.commons-math>
         <dependency.kafka>3.9.2</dependency.kafka>
-        <dependency.log4j2>2.26.0</dependency.log4j2>
+        <dependency.log4j2>2.26.1</dependency.log4j2>
         <dependency.lombok>1.18.46</dependency.lombok>
-        <dependency.lz4>1.11.0</dependency.lz4>
+        <dependency.lz4>1.11.1</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.18</dependency.slf4j>
 
