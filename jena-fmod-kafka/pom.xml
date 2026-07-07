@@ -104,6 +104,9 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>module-info.class</exclude>
+                <exclude>META-INF/versions/*/module-info.class</exclude>
+                <exclude>module-info.java</exclude>
+                <exclude>logback.xml</exclude>
               </excludes>
             </filter>
           </filters>
