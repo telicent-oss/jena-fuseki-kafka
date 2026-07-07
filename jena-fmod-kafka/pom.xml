@@ -30,7 +30,11 @@
     <artifactId>jena-kafka</artifactId>
     <version>3.0.5-SNAPSHOT</version>
     <relativePath>..</relativePath>
-  </parent> 
+  </parent>
+
+  <properties>
+    <skipPublishing>true</skipPublishing>
+  </properties>
 
   <dependencies>
 

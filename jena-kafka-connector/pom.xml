@@ -199,6 +199,16 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skip.testJars}</skip>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
 
