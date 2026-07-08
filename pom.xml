@@ -119,6 +119,9 @@
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <!-- CVE-2026-1605 -->
         <dependency.jetty>12.1.10</dependency.jetty>
+        <!-- CVE-2026-54512 -->
+        <dependency.bcprov>1.84</dependency.bcprov>
+
 
     </properties>
 
@@ -368,6 +371,14 @@
                 <version>${dependency.jetty}</version>
             </dependency>
             <!-- CVE-2026-1605 patch block end-->
+
+            <!-- CVE-2026-54512 -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${dependency.bcprov}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 

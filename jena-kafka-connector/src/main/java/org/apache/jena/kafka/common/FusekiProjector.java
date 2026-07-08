@@ -610,7 +610,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * <p>
      * Non-blocking. The projector will commit any in-flight batch and then block on
      * {@link #pauseMonitor} until {@link #requestResume()} is called. Use
-     * {@link #isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the projector to
+     * {@code isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the projector to
      * actually reach the pause point.
      * <p>
      * Calling this from a thread other than the projector thread is required — the projector

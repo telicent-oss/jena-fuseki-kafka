@@ -40,7 +40,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
  * Transaction management and handling is done by {@link org.apache.jena.kafka.common.FusekiProjector}, a number of
  * methods on the connector provide advanced configuration tuning for this.  The values returned by these methods are
  * driven from custom Fuseki Kafka configuration properties supplied as part of the Kafka configuration properties
- * available via {@link #getKafkaConsumerProps()}.  See individual methods for what configuration properties to use, and
+ * available via {@code kafkaConsumerProps}.  See individual methods for what configuration properties to use, and
  * the defaults used if not explicitly configured.
  * </p>
  */
@@ -195,7 +195,7 @@ public class KConnectorDesc {
      * Gets the maximum poll records as configured for the connector
      * <p>
      * May be configured via the standard Kafka configuration property {@value ConsumerConfig#MAX_POLL_RECORDS_CONFIG},
-     * default is {@value SysJenaKafka#KAFKA_FETCH_POLL_SIZE} records.
+     * default is the current {@link SysJenaKafka#KAFKA_FETCH_POLL_SIZE} value.
      * </p>
      *
      * @return Maximum poll records
@@ -210,10 +210,10 @@ public class KConnectorDesc {
      * <ol>
      *     <li>The custom Fuseki Kafka configuration property {@value SysJenaKafka#FUSEKI_KAFKA_BATCH_SIZE}</li>
      *     <li>The Kafka configuration property {@value ConsumerConfig#MAX_POLL_RECORDS_CONFIG}</li>
-     *     <li>The Fuseki Kafka default {@value SysJenaKafka#KAFKA_FETCH_POLL_SIZE}</li>
+     *     <li>The Fuseki Kafka default {@link SysJenaKafka#KAFKA_FETCH_POLL_SIZE}</li>
      * </ol>
      * <p>
-     * Default is {@value SysJenaKafka#DEFAULT_BATCH_SIZE} events.
+     * Default is {@link SysJenaKafka#DEFAULT_BATCH_SIZE} events.
      * </p>
      *
      * @return Batch size, in number of events, to use
@@ -230,11 +230,11 @@ public class KConnectorDesc {
      *     <li>The custom Fuseki Kafka configuration property {@value SysJenaKafka#FUSEKI_KAFKA_BATCH_SIZE_BYTES}</li>
      *     <li>The Kafka configuration property {@value ConsumerConfig#FETCH_MAX_BYTES_CONFIG}</li>
      *     <li>The Kafka configuration property {@value ConsumerConfig#MAX_PARTITION_FETCH_BYTES_CONFIG}</li>
-     *     <li>The Fuseki Kafka default {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD}</li>
+     *     <li>The Fuseki Kafka default {@link SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD}</li>
      * </ol>
      * <p>
      * Note that this configuration is only used when the {@link #getHighLagThreshold()} is exceeded.  Default is
-     * {@value SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} bytes.
+     * {@link SysJenaKafka#DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD} bytes.
      * </p>
      *
      * @return Batch size, in number of bytes, to use
