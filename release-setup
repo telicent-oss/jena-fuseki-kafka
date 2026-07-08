@@ -13,21 +13,31 @@ TAG="v$VER"
 
 ## Set release and next version.
 ## If not set, mvn release:prepare will ask for them.
-MVN_VER="-DreleaseVersion=$VER -DdevelopmentVersion=$VER_NEXT -Dtag=$TAG"
+MVN_VER_ARGS=(
+  "-DreleaseVersion=$VER"
+  "-DdevelopmentVersion=$VER_NEXT"
+  "-Dtag=$TAG"
+)
 
 ## Code artifact 429s
-MVN_EXTRA="-Daether.connector.basic.parallelPut=false"
+MVN_EXTRA_ARGS=(
+  "-Daether.connector.basic.parallelPut=false"
+)
 
-export MVN_ARGS="$MVN_VER $MVN_EXTRA"
+MVN_ARGS=("${MVN_VER_ARGS[@]}" "${MVN_EXTRA_ARGS[@]}")
+
+release_mvn() {
+  mvn "${MVN_ARGS[@]}" "$@"
+}
 
 ## Extras:
 ## Different local repo for release build:
 ##REPO="-Dmaven.repo.local=..separate maven local repo ..
 ## If signing artifacts
 ##export KEY="-Darguments=-Dgpg.keyname=SIGNATURE"
-##export MVN_ARGS="$REPO $KEY $MVN_VER"
+##release_mvn -Dmaven.repo.local=... -Darguments=-Dgpg.keyname=SIGNATURE ...
 
 echo "Release: $VER, next development: $VER_NEXT, tagged: $TAG"
-echo "MVN_ARGS=$MVN_ARGS"
+printf 'MVN_ARGS=%s\n' "${MVN_ARGS[*]}"
 echo "## Dry run release"
-echo "  mvn \$MVN_ARGS -DdryRun=true release:clean release:prepare"
+echo "  release_mvn -DdryRun=true release:clean release:prepare"
