@@ -1,5 +1,9 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.0.5
+- Build improvements:
+  - various dependency updates
+
 ## 3.0.4
 - Build improvements:
     - Common Kafka connection configuration can now be declared once on a shared `fk:Cluster` and reused by multiple
