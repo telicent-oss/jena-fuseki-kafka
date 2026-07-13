@@ -107,9 +107,9 @@
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
-        <dependency.junit5>6.1.1</dependency.junit5>
+        <dependency.junit5>6.1.2</dependency.junit5>
         <dependency.junit5-platform>1.10.1</dependency.junit5-platform>
-        <dependency.logback>1.5.37</dependency.logback>
+        <dependency.logback>1.5.38</dependency.logback>
         <dependency.mockito>5.23.0</dependency.mockito>
         <dependency.testcontainers>1.21.4</dependency.testcontainers>
         <dependency.testng>7.12.0</dependency.testng>
@@ -118,9 +118,9 @@
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <!-- CVE-2026-1605 -->
-        <dependency.jetty>12.1.10</dependency.jetty>
+        <dependency.jetty>12.1.11</dependency.jetty>
         <!-- CVE-2026-54512 -->
-        <dependency.bcprov>1.84</dependency.bcprov>
+        <dependency.bcprov>1.85</dependency.bcprov>
 
 
     </properties>
