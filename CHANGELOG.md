@@ -1,8 +1,13 @@
 # Kafka Connector for Apache Jena Fuseki
 
-## 3.0.5
+## 3.1.0
+
 - Build improvements:
-  - various dependency updates
+    - Disable publishing unnecessary test JARs
+    - Apache Log4j upgraded to 2.26.1
+    - LZ4 Java upgraded to 1.11.1
+    - Smart Caches Core upgraded to 1.0.3
+    - Various build and test dependencies upgraded to latest available  
 
 ## 3.0.4
 - Build improvements:
