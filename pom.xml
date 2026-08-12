@@ -69,6 +69,9 @@
         -->
         <skip.testJars>true</skip.testJars>
 
+        <!-- SonarQube analysis, invoked from CI via mvn sonar:sonar -->
+        <sonar.projectKey>telicent-oss_jena-fuseki-kafka</sonar.projectKey>
+
         <!-- Maven Plugin versions -->
         <plugin.central>0.11.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
@@ -88,6 +91,7 @@
         <plugin.site>3.22.0</plugin.site>
         <plugin.source>3.4.0</plugin.source>
         <plugin.surefire>3.5.6</plugin.surefire>
+        <plugin.sonar>5.7.0.6970</plugin.sonar>
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
@@ -590,6 +594,12 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
                 <version>${plugin.site}</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${plugin.sonar}</version>
             </plugin>
 
             <plugin>
