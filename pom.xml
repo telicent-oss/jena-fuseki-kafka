@@ -91,7 +91,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
-        <dependency.smart-caches>1.1.0</dependency.smart-caches>
+        <dependency.smart-caches>1.2.0</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
