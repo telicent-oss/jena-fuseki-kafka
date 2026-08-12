@@ -140,7 +140,8 @@ public class FKS {
     private static void checkTopicsExistAtStartup(KConnectorDesc conn, String topicNames) {
         checkTopicsExistAtStartup(conn, topicNames, TOPIC_CHECK_TIMEOUT, TOPIC_CHECK_RETRY_MILLIS,
                                   props -> new TopicExistenceChecker(AdminClient.create(props),
-                                                                     conn.getBootstrapServers(), conn.getTopics(), LOG));
+                                                                     conn.getBootstrapServers(), conn.getTopics(),
+                                                                     LOG));
     }
 
     static void checkTopicsExistAtStartup(KConnectorDesc conn, String topicNames, Duration timeout,
@@ -173,8 +174,9 @@ public class FKS {
             }
             if (!allTopicsExist) {
                 throw new FusekiKafkaException(
-                        String.format("[%s] Strict startup checks are enabled but one/more configured topic(s) do not currently exist on Kafka server %s",
-                                      topicNames, conn.getBootstrapServers()));
+                        String.format(
+                                "[%s] Strict startup checks are enabled but one/more configured topic(s) do not currently exist on Kafka server %s",
+                                topicNames, conn.getBootstrapServers()));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -367,8 +369,8 @@ public class FKS {
     }
 
     /**
-     * Requests that every Fuseki Projector attached to the given dataset pause at its
-     * next safe point (between events).
+     * Requests that every Fuseki Projector attached to the given dataset pause at its next safe point (between
+     * events).
      *
      * @param datasetName Dataset name
      */
@@ -377,8 +379,7 @@ public class FKS {
     }
 
     /**
-     * Releases a previously requested pause for every Fuseki Projector attached to the
-     * given dataset.
+     * Releases a previously requested pause for every Fuseki Projector attached to the given dataset.
      *
      * @param datasetName Dataset name
      */
@@ -387,8 +388,7 @@ public class FKS {
     }
 
     /**
-     * Blocks until every {@link FusekiProjector} attached to the given dataset has reached
-     * its pause point.
+     * Blocks until every {@link FusekiProjector} attached to the given dataset has reached its pause point.
      *
      * @param datasetName Dataset name
      * @param timeout     Maximum time to wait
@@ -423,8 +423,7 @@ public class FKS {
     }
 
     /**
-     * Iterates through the Projector Drivers registered for a dataset and applies the supplied
-     * action to each.
+     * Iterates through the Projector Drivers registered for a dataset and applies the supplied action to each.
      */
     private static void forEachFusekiProjector(String datasetName,
                                                java.util.function.Consumer<FusekiProjector> action) {
@@ -521,7 +520,11 @@ public class FKS {
                     } catch (ExecutionException e) {
                         // This means something fatal has happened on the polling thread to cause it to exit with an
                         // exception, log an error for this
-                        LOG.error("Polling thread failed: {}", e.getCause().getMessage());
+                        // NB - We intentionally log the error directly, and thus its full stack trace here.  As this is
+                        // an error on a ProjectorDriver thread and the ProjectorDriver will only log the basic error
+                        // message.  If we don't log the stack trace we have zero visibility into what the system was
+                        // doing when the error occurred making it difficult to debug.
+                        LOG.error("Polling thread failed: ", e.getCause());
                     } catch (InterruptedException | CancellationException e) {
                         // Ignore, we could be cancelled/interrupted for a legitimate reason like JVM shutdown so no
                         // point doing anything about those here.  If the poll thread continues to run then it'll check
