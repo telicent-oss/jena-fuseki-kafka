@@ -28,7 +28,7 @@
   <parent>
     <groupId>io.telicent.jena</groupId>
     <artifactId>jena-kafka</artifactId>
-    <version>3.1.1-SNAPSHOT</version>
+    <version>3.1.1</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -42,7 +42,7 @@
     <dependency>
       <groupId>io.telicent.jena</groupId>
       <artifactId>jena-fuseki-kafka-module</artifactId>
-      <version>3.1.1-SNAPSHOT</version>
+      <version>3.1.1</version>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
