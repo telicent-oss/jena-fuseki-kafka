@@ -14,7 +14,6 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 
@@ -40,7 +39,7 @@ public class TestFusekiSink {
     @Test
     public void givenDatasetNotInTransaction_whenClosing_thenNoOp() {
         // Given
-        DatasetGraph dsg = Mockito.mock(DatasetGraph.class);
+        DatasetGraph dsg = mock(DatasetGraph.class);
         when(dsg.isInTransaction()).thenReturn(false);
 
         // When

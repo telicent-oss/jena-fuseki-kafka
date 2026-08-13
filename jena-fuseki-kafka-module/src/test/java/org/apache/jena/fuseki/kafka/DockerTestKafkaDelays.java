@@ -34,7 +34,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import static org.apache.jena.fuseki.kafka.DockerTestConfigFK.configuration;
 
-
+@SuppressWarnings({"java:S117", "java:S3577"})
 public class DockerTestKafkaDelays {
 
     static {

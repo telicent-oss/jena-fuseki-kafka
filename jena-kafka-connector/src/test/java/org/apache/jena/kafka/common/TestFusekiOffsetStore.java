@@ -5,7 +5,6 @@ import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.sys.JenaSystem;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -264,7 +263,7 @@ public class TestFusekiOffsetStore {
 
         // When
         FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
-        Assertions.assertThrows(JenaKafkaException.class, () -> store.flush());
+        Assertions.assertThrows(JenaKafkaException.class, store::flush);
     }
 
     @Test
@@ -276,7 +275,7 @@ public class TestFusekiOffsetStore {
 
         // When
         FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
-        Assertions.assertThrows(JenaKafkaException.class, () -> store.flush());
+        Assertions.assertThrows(JenaKafkaException.class, store::flush);
     }
 
     @Test

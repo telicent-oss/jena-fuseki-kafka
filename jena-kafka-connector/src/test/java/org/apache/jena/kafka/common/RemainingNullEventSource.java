@@ -5,6 +5,7 @@ import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
 
 import java.util.Collection;
 
+@SuppressWarnings("java:S119")
 public class RemainingNullEventSource<TKey, TValue> extends InMemoryEventSource<TKey, TValue> {
     /**
      * Creates a new in-memory event source

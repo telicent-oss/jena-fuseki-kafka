@@ -107,6 +107,7 @@ import org.slf4j.LoggerFactory;
  * </p>
  */
 public class KafkaConnectorAssembler extends AssemblerBase implements Assembler {
+    private static final String DATASET_PATH_SEPARATOR = Character.toString('/');
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectorAssembler.class);
 
@@ -415,15 +416,15 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             return datasetPath;
         }
         if (datasetPath.isEmpty()) {
-            return "/";
+            return DATASET_PATH_SEPARATOR;
         }
-        if (datasetPath.equals("/")) {
+        if (datasetPath.equals(DATASET_PATH_SEPARATOR)) {
             return datasetPath;
         }
-        if (!datasetPath.startsWith("/")) {
-            datasetPath = "/" + datasetPath;
+        if (!datasetPath.startsWith(DATASET_PATH_SEPARATOR)) {
+            datasetPath = DATASET_PATH_SEPARATOR + datasetPath;
         }
-        if (datasetPath.endsWith("/")) {
+        if (datasetPath.endsWith(DATASET_PATH_SEPARATOR)) {
             datasetPath = datasetPath.substring(0, datasetPath.length() - 1);
         }
         return datasetPath;

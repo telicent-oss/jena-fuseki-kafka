@@ -42,7 +42,7 @@ public class AbstractDockerTests {
     private static int GENERATED = 0;
 
     @BeforeAll
-    public static void setup() throws InterruptedException {
+    public static void setup() {
         KAFKA.setup();
         KAFKA.resetTestTopic();
 

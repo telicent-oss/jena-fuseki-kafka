@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.nio.file.Files;
 
+@SuppressWarnings("java:S3577")
 public class DockerTestFusekiProjectorTdb2 extends AbstractDockerTests {
 
     @MethodSource("batchSizes")

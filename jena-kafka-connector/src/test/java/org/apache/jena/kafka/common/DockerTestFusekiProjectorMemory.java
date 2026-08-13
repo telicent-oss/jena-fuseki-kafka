@@ -5,6 +5,7 @@ import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+@SuppressWarnings("java:S3577")
 public class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
 
     @MethodSource("batchSizes")

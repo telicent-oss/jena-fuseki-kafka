@@ -159,7 +159,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
-    private boolean lowVolumeDetected = false, highLagDetected = false;
+    private boolean lowVolumeDetected = false;
+    @Getter
+    private boolean highLagDetected = false;
 
     /**
      * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} /
@@ -179,9 +181,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private volatile boolean atPausePoint = false;
     private final DescriptiveStatistics recentBatchSizes;
     @Getter
-    private final long batchSizeBytes, highLagThreshold;
+    private final long batchSizeBytes;
     @Getter
-    private final int recentBatchSizeWindow, lowVolumeBatchSizeThreshold;
+    private final long highLagThreshold;
+    @Getter
+    private final int recentBatchSizeWindow;
+    @Getter
+    private final int lowVolumeBatchSizeThreshold;
 
     /**
      * Creates a new projector

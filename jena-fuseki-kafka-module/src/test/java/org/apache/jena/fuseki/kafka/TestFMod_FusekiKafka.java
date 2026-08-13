@@ -2,11 +2,12 @@ package org.apache.jena.fuseki.kafka;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Set;
+
+import static org.mockito.Mockito.mock;
 
 public class TestFMod_FusekiKafka {
 
@@ -32,7 +33,7 @@ public class TestFMod_FusekiKafka {
         FMod_FusekiKafka module = createInstance();
 
         // When
-        module.prepare(Mockito.mock(FusekiServer.Builder.class), Set.of("test"), null);
+        module.prepare(mock(FusekiServer.Builder.class), Set.of("test"), null);
 
         // Then
         Assert.assertTrue(module.connectors().isEmpty());

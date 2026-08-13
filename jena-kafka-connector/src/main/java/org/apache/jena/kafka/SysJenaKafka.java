@@ -114,7 +114,7 @@ public class SysJenaKafka {
      * partition. See also {@link ConsumerConfig#FETCH_MAX_BYTES_CONFIG} which has a Kafka default of
      * {@value ConsumerConfig#DEFAULT_FETCH_MAX_BYTES}.
      */
-    public static int KAFKA_FETCH_BYTE_SIZE = 50 * 1024 * 1024;
+    public static int KAFKA_FETCH_BYTE_SIZE = (int) (50L * 1024 * 1024);
 
     /**
      * Size in messages per {@link org.apache.kafka.clients.consumer.KafkaConsumer#poll(Duration)} in a system.
