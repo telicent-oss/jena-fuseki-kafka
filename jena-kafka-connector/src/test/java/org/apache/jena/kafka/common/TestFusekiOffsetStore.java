@@ -32,8 +32,9 @@ public class TestFusekiOffsetStore {
     @Test
     public void givenNullDatasetName_whenCreatingStore_thenIllegalArgument() {
         // Given, When and Then
+        FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder().datasetName(null);
         Assertions.assertThrows(IllegalArgumentException.class,
-                                () -> FusekiOffsetStore.builder().datasetName(null).build());
+                                builder::build);
     }
 
     @Test
@@ -119,14 +120,11 @@ public class TestFusekiOffsetStore {
         File stateFile = createStateFile(legacyState);
 
         // When and Then
-        JenaKafkaException e = Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
-                                                                                                        .datasetName(
-                                                                                                                datasetName)
-                                                                                                        .stateFile(
-                                                                                                                stateFile)
-                                                                                                        .consumerGroup(
-                                                                                                                "example")
-                                                                                                        .build());
+        FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder()
+                                                                              .datasetName(datasetName)
+                                                                              .stateFile(stateFile)
+                                                                              .consumerGroup("example");
+        JenaKafkaException e = Assertions.assertThrows(JenaKafkaException.class, builder::build);
         Assertions.assertTrue(StringUtils.contains(e.getMessage(), "Dataset name does not match"));
     }
 
@@ -238,10 +236,10 @@ public class TestFusekiOffsetStore {
         File stateFile = createStateFile(malformedState);
 
         // When and Then
-        Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
-                                                                                 .datasetName(DATASET_NAME)
-                                                                                 .stateFile(stateFile)
-                                                                                 .build());
+        FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder()
+                                                                              .datasetName(DATASET_NAME)
+                                                                              .stateFile(stateFile);
+        Assertions.assertThrows(JenaKafkaException.class, builder::build);
 
     }
 
@@ -252,10 +250,10 @@ public class TestFusekiOffsetStore {
         stateFile.setReadable(false);
 
         // When and Then
-        Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
-                                                                                 .datasetName(DATASET_NAME)
-                                                                                 .stateFile(stateFile)
-                                                                                 .build());
+        FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder()
+                                                                              .datasetName(DATASET_NAME)
+                                                                              .stateFile(stateFile);
+        Assertions.assertThrows(JenaKafkaException.class, builder::build);
     }
 
     @Test
@@ -416,10 +414,10 @@ public class TestFusekiOffsetStore {
                    StandardCopyOption.REPLACE_EXISTING);
 
         // When and Then
-        Assertions.assertThrows(JenaKafkaException.class, () -> FusekiOffsetStore.builder()
-                                                                                 .datasetName(DATASET_NAME)
-                                                                                 .stateFile(stateFile)
-                                                                                 .build());
+        FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder()
+                                                                              .datasetName(DATASET_NAME)
+                                                                              .stateFile(stateFile);
+        Assertions.assertThrows(JenaKafkaException.class, builder::build);
 
     }
 }

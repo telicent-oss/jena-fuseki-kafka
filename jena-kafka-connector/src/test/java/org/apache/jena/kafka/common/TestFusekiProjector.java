@@ -37,7 +37,8 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     @Test
     public void givenNoParameters_whenBuildingProjector_thenNPE() {
         // Given, When and Then
-        Assertions.assertThrows(NullPointerException.class, () -> FusekiProjector.builder().build());
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder();
+        Assertions.assertThrows(NullPointerException.class, builder::build);
     }
 
     @Test
@@ -46,8 +47,9 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
         KConnectorDesc connector = createTestConnector();
 
         // When and Then
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder().connector(connector);
         Assertions.assertThrows(NullPointerException.class,
-                                () -> FusekiProjector.builder().connector(connector).build());
+                                builder::build);
     }
 
     @Test
@@ -57,8 +59,11 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
 
         // When and Then
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder()
+                                                                        .connector(connector)
+                                                                        .source(source);
         Assertions.assertThrows(NullPointerException.class,
-                                () -> FusekiProjector.builder().connector(connector).source(source).build());
+                                builder::build);
     }
 
     @Test

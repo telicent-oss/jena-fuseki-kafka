@@ -33,7 +33,8 @@ public class TestFusekiSink {
         DatasetGraph dsg = null;
 
         // When and Then
-        assertThrows(NullPointerException.class, () -> FusekiSink.builder().dataset(dsg).build());
+        FusekiSink.FusekiSinkBuilder<DatasetGraph> builder = FusekiSink.builder();
+        assertThrows(NullPointerException.class, () -> builder.dataset(dsg));
     }
 
     @Test
@@ -94,8 +95,9 @@ public class TestFusekiSink {
 
         // When
         try (FusekiSink sink = FusekiSink.builder().dataset(DatasetGraphFactory.createTxnMem()).build()) {
-            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(
-                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(patch.getRDFPatch()))));
+            Event<Bytes, RdfPayload> event =
+                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(patch.getRDFPatch()));
+            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(event));
         }
     }
 
@@ -107,8 +109,9 @@ public class TestFusekiSink {
 
         // When
         try (FusekiSink sink = FusekiSink.builder().dataset(dsg).build()) {
-            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(
-                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(data))));
+            Event<Bytes, RdfPayload> event =
+                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(data));
+            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(event));
         }
     }
 

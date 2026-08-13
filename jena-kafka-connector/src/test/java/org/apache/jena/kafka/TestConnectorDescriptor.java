@@ -79,7 +79,9 @@ public class TestConnectorDescriptor {
     @Test
     public void givenNoDataset_whenConstructingConnector_thenJenaKafkaError() {
         // Given, When and Then
-        Assertions.assertThrows(JenaKafkaException.class, () -> new KConnectorDesc(List.of("test"), "test", null, null, true, false, null, null));
+        List<String> topics = List.of("test");
+        Assertions.assertThrows(JenaKafkaException.class,
+                                () -> new KConnectorDesc(topics, "test", null, null, true, false, null, null));
     }
 
     @Test
