@@ -67,6 +67,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
     }
 
     public FMod_FusekiKafka() {
+        // Required public no-arg constructor for Fuseki's service/module loading.
     }
 
     // The Fuseki modules build lifecycle is same-thread.
