@@ -106,10 +106,14 @@ public class FKS {
         // If replay is true ignore topic state and start at beginning.
         // If sync is true continue from previous offsets.
         // If neither is true continue from latest offsets
-        KafkaReadPolicy<Bytes, RdfPayload> readPolicy = conn.isReplayTopic() ? KafkaReadPolicies.fromBeginning() :
-                                                        (conn.isSyncTopic() ?
-                                                         KafkaReadPolicies.fromExternalOffsets(offsets, 0) :
-                                                         KafkaReadPolicies.fromLatest());
+        KafkaReadPolicy<Bytes, RdfPayload> readPolicy;
+        if (conn.isReplayTopic()) {
+            readPolicy = KafkaReadPolicies.fromBeginning();
+        } else if (conn.isSyncTopic()) {
+            readPolicy = KafkaReadPolicies.fromExternalOffsets(offsets, 0);
+        } else {
+            readPolicy = KafkaReadPolicies.fromLatest();
+        }
         FmtLog.info(LOG, "[%s] Selected read policy (replay: %s, sync: %s) is %s", topicNames, conn.isReplayTopic(),
                     conn.isSyncTopic(), readPolicy.getClass().getSimpleName());
 
