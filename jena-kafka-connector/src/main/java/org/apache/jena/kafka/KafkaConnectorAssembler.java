@@ -374,9 +374,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         }
     }
 
-    private static final String PREFIXES =
-            StrUtils.strjoinNL("PREFIX ja:     <" + JA.getURI() + ">", "PREFIX fk:     <" + NS + ">", "");
-
     private String datasetName(Graph graph, Node node) {
         String queryString = """
                 SELECT ?n {
