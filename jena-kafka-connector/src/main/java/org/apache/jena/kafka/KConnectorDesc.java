@@ -163,7 +163,7 @@ public class KConnectorDesc {
                     FusekiKafka.LOG.warn("Kafka Configuration property {} had an invalid value: {}", key, value);
                     return defaultValue;
                 }
-            } catch (Throwable e) {
+            } catch (RuntimeException e) {
                 FusekiKafka.LOG.warn("Kafka Configuration property {} had a non-parseable value: {}", key, rawValue);
                 return defaultValue;
             }
