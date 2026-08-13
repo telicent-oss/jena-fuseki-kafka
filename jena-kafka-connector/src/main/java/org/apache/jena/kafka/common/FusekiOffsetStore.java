@@ -88,7 +88,7 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         //@formatter:off
         StreamReadConstraints readConstraints =
                 StreamReadConstraints.builder()
-                                     .maxDocumentLength(5 * 1024 * 1024)
+                                     .maxDocumentLength(5L * 1024 * 1024)
                                      .maxNestingDepth(3)
                                      .build();
         //@formatter:on

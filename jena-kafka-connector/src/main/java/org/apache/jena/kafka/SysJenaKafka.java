@@ -74,7 +74,7 @@ public class SysJenaKafka {
      * based leads to more predictable and stable batch sizes when catching up on high lag.
      * </p>
      */
-    public static final long DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD = 50 * 1024 * 1024;
+    public static final long DEFAULT_HIGH_LAG_BATCH_BYTE_THRESHOLD = 50L * 1024 * 1024;
     /**
      * Custom Fuseki Kafka configuration property used for {@link KConnectorDesc#getBatchSize()}
      */
