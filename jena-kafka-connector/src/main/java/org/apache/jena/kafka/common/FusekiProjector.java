@@ -444,8 +444,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         }
 
         // We've exceeded the batch size bytes threshold
-        FusekiKafka.LOG.debug("[{}] Committing due to exceeding max batch size in bytes threshold ({})",
-                              this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
+        if (FusekiKafka.LOG.isDebugEnabled()) {
+            FusekiKafka.LOG.debug("[{}] Committing due to exceeding max batch size in bytes threshold ({})",
+                                  this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
+        }
         this.commit();
         return true;
     }

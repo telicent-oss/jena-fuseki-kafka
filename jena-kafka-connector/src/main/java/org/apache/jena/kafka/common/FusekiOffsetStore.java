@@ -123,8 +123,10 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
     }
 
     private void loadExistingStateFile() throws IOException {
-        LOGGER.info("Attempting to load state file {} (size on disk {})...", this.stateFile.getAbsolutePath(),
-                    FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Attempting to load state file {} (size on disk {})...", this.stateFile.getAbsolutePath(),
+                        FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
+        }
 
         Optional<Map<String, Object>> stateMap = tryReadStateMap();
         if (stateMap.isEmpty()) {
@@ -396,8 +398,10 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
             LOGGER.debug("Moving temporary state file to {}", file.toPath());
             Files.move(tempStateFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             LOGGER.debug("Moved state file to {}", file.toPath());
-            LOGGER.info("Updated state file {} (size on disk {})", file.getAbsolutePath(),
-                        FusekiProjector.byteCountToDisplaySize(file.length()));
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Updated state file {} (size on disk {})", file.getAbsolutePath(),
+                            FusekiProjector.byteCountToDisplaySize(file.length()));
+            }
 
             // Finally remove the backup state file
             if (backupStateFile != null) {
