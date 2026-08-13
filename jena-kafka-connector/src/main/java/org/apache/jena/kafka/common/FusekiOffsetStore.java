@@ -110,15 +110,25 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
      * </p>
      */
     private void readStateFile() {
+        IOException readFailure = attemptReadStateFile();
+        if (readFailure == null) {
+            return;
+        }
+
+        handleReadStateFileFailure(readFailure);
+        throw new JenaKafkaException("Error reading state file", readFailure);
+    }
+
+    private IOException attemptReadStateFile() {
         try {
             if (this.stateFile.exists() && this.stateFile.length() > 0) {
                 loadExistingStateFile();
             } else if (!tryRecoverStateFile(false)) {
                 logNoPreExistingStateFile();
             }
+            return null;
         } catch (IOException e) {
-            recoverFromReadFailure(e);
-            throw new JenaKafkaException("Error reading state file", e);
+            return e;
         }
     }
 
@@ -212,15 +222,24 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         LOGGER.info("No pre-existing state file {} to load", this.stateFile.getAbsolutePath());
     }
 
-    private void recoverFromReadFailure(IOException e) {
+    private void handleReadStateFileFailure(IOException readFailure) {
+        Exception recoveryFailure = attemptReadFailureRecovery();
+        if (recoveryFailure == null) {
+            return;
+        }
+
+        LOGGER.warn("IO error trying to recover state files: {}", recoveryFailure.getMessage());
+        readFailure.addSuppressed(recoveryFailure);
+    }
+
+    private Exception attemptReadFailureRecovery() {
         try {
             // In the event of an IO error try to see if we can recover from temporary/backup files (if present)
             // Since something is going wrong here do issue the warning if recovery is not possible
             tryRecoverStateFile(true);
+            return null;
         } catch (IOException | JenaKafkaException e2) {
-            // If recovery fails log the error and throw the first IO error that originally got us here
-            LOGGER.warn("IO error trying to recover state files: {}", e2.getMessage());
-            e.addSuppressed(e2);
+            return e2;
         }
     }
 
