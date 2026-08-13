@@ -32,17 +32,17 @@ import java.util.stream.Stream;
 
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjector extends AbstractFusekiProjectorTests {
+class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
     @Test
-    public void givenNoParameters_whenBuildingProjector_thenNPE() {
+    void givenNoParameters_whenBuildingProjector_thenNPE() {
         // Given, When and Then
         FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder();
         Assertions.assertThrows(NullPointerException.class, builder::build);
     }
 
     @Test
-    public void givenOnlyConnector_whenBuildingProjector_thenNPE() {
+    void givenOnlyConnector_whenBuildingProjector_thenNPE() {
         // Given
         KConnectorDesc connector = createTestConnector();
 
@@ -53,7 +53,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenConnectorAndSource_whenBuildingProjector_thenNPE() {
+    void givenConnectorAndSource_whenBuildingProjector_thenNPE() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -67,7 +67,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenMinimalConfig_whenBuildingProjector_thenOk() {
+    void givenMinimalConfig_whenBuildingProjector_thenOk() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -88,7 +88,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
     @ParameterizedTest
     @MethodSource(value = "badMaxDurations")
-    public void givenMinimalConfigAndBadMaxTransactionDuration_whenBuildingProjector_thenDefaultMaxTransactionDurationIsUsed(
+    void givenMinimalConfigAndBadMaxTransactionDuration_whenBuildingProjector_thenDefaultMaxTransactionDurationIsUsed(
             Duration badMax) {
         // Given
         KConnectorDesc connector = createTestConnector();
@@ -111,7 +111,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenFullConfig_whenBuildingProjector_thenOk() {
+    void givenFullConfig_whenBuildingProjector_thenOk() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -126,7 +126,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenNonBatchingProjector_whenProjectingSingleEvent_thenProjectedWithSingleTransaction() {
+    void givenNonBatchingProjector_whenProjectingSingleEvent_thenProjectedWithSingleTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(createTestDatasetEvent()));
@@ -150,7 +150,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
     @ParameterizedTest
     @MethodSource("projectionBatchingScenarios")
-    public void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
+    void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
             List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount, int expectedTransactionCount,
             int expectedCommitCount) {
         // Given
@@ -164,7 +164,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenBatchingProjector_whenProjectingFewerEventsThanBatchSizeFromSourceWithNullRemaining_thenNoCommit() {
+    void givenBatchingProjector_whenProjectingFewerEventsThanBatchSizeFromSourceWithNullRemaining_thenNoCommit() {
         // Given
         KConnectorDesc connector = createTestConnector();
         SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
@@ -177,7 +177,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingPatchThatCommitsTheTransaction_thenNoAdditionalCommits() {
+    void givenProjector_whenProjectingPatchThatCommitsTheTransaction_thenNoAdditionalCommits() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -193,7 +193,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingPatchThatLeavesTransactionOpen_thenCommitted() {
+    void givenProjector_whenProjectingPatchThatLeavesTransactionOpen_thenCommitted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -211,7 +211,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
+    void givenProjector_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = badNestedTransactionPatch();
@@ -230,7 +230,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
+    void givenProjectorWithDlq_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = badNestedTransactionPatch();
@@ -255,7 +255,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -271,7 +271,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -288,7 +288,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithBrokenDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjectorWithBrokenDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -306,7 +306,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjectorWithDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -321,7 +321,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenSinkFails_thenDlqIncludesRootCauseHeaders() {
+    void givenProjectorWithDlq_whenSinkFails_thenDlqIncludesRootCauseHeaders() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -353,7 +353,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingValidFollowedByInvalidEvent_thenValidEventsAreCommitted() {
+    void givenProjectorWithDlq_whenProjectingValidFollowedByInvalidEvent_thenValidEventsAreCommitted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -373,7 +373,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenIdleProjector_whenStalling_thenNothingIsCommited() {
+    void givenIdleProjector_whenStalling_thenNothingIsCommited() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();

@@ -21,13 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiSink {
+class TestFusekiSink {
     static {
         JenaSystem.init();
     }
 
     @Test
-    public void givenNullDataset_whenBuildingSink_thenNPE() {
+    void givenNullDataset_whenBuildingSink_thenNPE() {
         // Given
         DatasetGraph dsg = null;
 
@@ -37,7 +37,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenDatasetNotInTransaction_whenClosing_thenNoOp() {
+    void givenDatasetNotInTransaction_whenClosing_thenNoOp() {
         // Given
         DatasetGraph dsg = mock(DatasetGraph.class);
         when(dsg.isInTransaction()).thenReturn(false);
@@ -51,7 +51,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenDatasetPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
+    void givenDatasetPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
         // Given
         DatasetGraph destination = DatasetGraphFactory.createTxnMem();
         DatasetGraph data = createSimpleDatasetPayload();
@@ -67,7 +67,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenPatchPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
+    void givenPatchPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
         // Given
         DatasetGraph destination = DatasetGraphFactory.createTxnMem();
         RDFChangesCollector patch = new RDFChangesCollector();
@@ -85,7 +85,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenFailingPatch_whenUsingSink_thenFails() {
+    void givenFailingPatch_whenUsingSink_thenFails() {
         // Given
         RDFChangesCollector patch = new RDFChangesCollector();
         patch.txnBegin();
@@ -101,7 +101,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenNonWritableDataset_whenUsingSink_thenFails() {
+    void givenNonWritableDataset_whenUsingSink_thenFails() {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.empty();
         DatasetGraph data = createSimpleDatasetPayload();
@@ -115,7 +115,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenNestedFailure_whenUsingSink_thenErrorIncludesRootCause() {
+    void givenNestedFailure_whenUsingSink_thenErrorIncludesRootCause() {
         // Given
         Event<Bytes, RdfPayload> event =
                 new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(createSimpleDatasetPayload()));
@@ -135,7 +135,7 @@ public class TestFusekiSink {
         assertTrue(ex.getMessage().contains("No space left on device"));
     }
 
-    public static DatasetGraph createSimpleDatasetPayload() {
+    static DatasetGraph createSimpleDatasetPayload() {
         DatasetGraph data = DatasetGraphFactory.create();
         data.add(Quad.defaultGraphIRI, NodeFactory.createURI("https://example.org/s"),
                  NodeFactory.createURI("https://example.org/p"), NodeFactory.createLiteralString("object"));

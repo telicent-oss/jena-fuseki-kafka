@@ -18,7 +18,7 @@ import java.nio.file.Files;
 import java.util.Properties;
 import java.util.stream.Stream;
 
-public class TestKafkaConnectorAssembler {
+class TestKafkaConnectorAssembler {
 
     private static final String TEST_URI = "https://example.org/connector#1";
     private static final String TEST_CLUSTER_URI = "https://example.org/cluster#1";
@@ -34,7 +34,7 @@ public class TestKafkaConnectorAssembler {
     private final KafkaConnectorAssembler assembler = new KafkaConnectorAssembler();
 
     @Test
-    public void givenNoConfig_whenAssemblingConnector_thenNotLoaded() {
+    void givenNoConfig_whenAssemblingConnector_thenNotLoaded() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -59,7 +59,7 @@ public class TestKafkaConnectorAssembler {
             "bad-assem-dlq-topic-also-input-topic.ttl"
     })
     @ParameterizedTest
-    public void givenMalformedConfig_whenAssemblingConnector_thenNotLoaded(String filename) {
+    void givenMalformedConfig_whenAssemblingConnector_thenNotLoaded(String filename) {
         // Given and When
         KConnectorDesc desc = TestConnectorDescriptor.connectorByType(filename);
 
@@ -68,7 +68,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenMinimalConfig_whenAssemblingConnector_thenSuccess_andConfigAsExpected() {
+    void givenMinimalConfig_whenAssemblingConnector_thenSuccess_andConfigAsExpected() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -108,7 +108,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenStrictStartupChecksConfig_whenAssemblingConnector_thenEnabled() {
+    void givenStrictStartupChecksConfig_whenAssemblingConnector_thenEnabled() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -125,7 +125,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraConfig_whenAssemblingConnector_thenSuccess_andConfigAsExpected() {
+    void givenExtraConfig_whenAssemblingConnector_thenSuccess_andConfigAsExpected() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -148,7 +148,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraExternalConfigUri_whenAssemblingConnector_thenSuccess_andConfigAsExpected() throws
+    void givenExtraExternalConfigUri_whenAssemblingConnector_thenSuccess_andConfigAsExpected() throws
             IOException {
         // Given
         Model config = ModelFactory.createDefaultModel();
@@ -185,7 +185,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraExternalConfigLiteral_whenAssemblingConnector_thenSuccess_andConfigAsExpected() throws
+    void givenExtraExternalConfigLiteral_whenAssemblingConnector_thenSuccess_andConfigAsExpected() throws
             IOException {
         // Given
         Model config = ModelFactory.createDefaultModel();
@@ -216,7 +216,7 @@ public class TestKafkaConnectorAssembler {
 
     @ValueSource(strings = { "KAFKA_CONFIG_FILE_PATH", "KAFKA_PROPERTIES_FILE", "SOME_RANDOM_VAR" })
     @ParameterizedTest
-    public void givenExtraExternalConfigEnvVar_whenAssemblingConnector_thenSuccess_andConfigAsExpected(
+    void givenExtraExternalConfigEnvVar_whenAssemblingConnector_thenSuccess_andConfigAsExpected(
             String envVar) throws
             IOException {
         // Given
@@ -255,7 +255,7 @@ public class TestKafkaConnectorAssembler {
 
     @MethodSource("badExternalConfigSources")
     @ParameterizedTest
-    public void givenBadExternalConfigSource_whenAssemblingConnector_thenNotLoaded(String source) {
+    void givenBadExternalConfigSource_whenAssemblingConnector_thenNotLoaded(String source) {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -275,7 +275,7 @@ public class TestKafkaConnectorAssembler {
             "env:{NO_SUCH_ENV_VAR: }"
     })
     @ParameterizedTest
-    public void givenExtraExternalConfigEmptyPath_whenAssemblingConnector_thenLoaded_andNoExtraConfig(String source) {
+    void givenExtraExternalConfigEmptyPath_whenAssemblingConnector_thenLoaded_andNoExtraConfig(String source) {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -295,7 +295,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraExternalConfigBadBlankNode_whenAssemblingConnector_thenNotLoaded() {
+    void givenExtraExternalConfigBadBlankNode_whenAssemblingConnector_thenNotLoaded() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -311,7 +311,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraExternalConfigEmptyFile_whenAssemblingConnector_thenLoaded_andNoExtraConfig() throws
+    void givenExtraExternalConfigEmptyFile_whenAssemblingConnector_thenLoaded_andNoExtraConfig() throws
             IOException {
         // Given
         Model config = ModelFactory.createDefaultModel();
@@ -333,7 +333,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenExtraExternalConfigNonReadableFile_whenAssemblingConnector_thenNotLoaded() throws IOException {
+    void givenExtraExternalConfigNonReadableFile_whenAssemblingConnector_thenNotLoaded() throws IOException {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
@@ -350,7 +350,7 @@ public class TestKafkaConnectorAssembler {
         Assertions.assertNull(assembled);
     }
 
-    public static Stream<Arguments> datasetNames() {
+    static Stream<Arguments> datasetNames() {
         //@formatter:off
         return Stream.of(Arguments.of((String)null, (String)null),
                          Arguments.of("", "/"),
@@ -362,7 +362,7 @@ public class TestKafkaConnectorAssembler {
 
     @ParameterizedTest
     @MethodSource("datasetNames")
-    public void givenDatasetName_whenCanonicalising_thenExpectedResult(String name, String expected) {
+    void givenDatasetName_whenCanonicalising_thenExpectedResult(String name, String expected) {
         // Given and When
         String canonical = KafkaConnectorAssembler.canonical(name);
 
@@ -401,7 +401,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenConnectorReferencingCluster_whenAssembling_thenInheritsBootstrapAndConfig() {
+    void givenConnectorReferencingCluster_whenAssembling_thenInheritsBootstrapAndConfig() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);
@@ -422,7 +422,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenBootstrapOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
+    void givenBootstrapOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);
@@ -440,7 +440,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenConfigPropertyOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
+    void givenConfigPropertyOnConnectorAndCluster_whenAssembling_thenConnectorValueWins() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);
@@ -460,7 +460,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenClusterConfigFile_whenAssembling_thenInheritsFileProperties() throws IOException {
+    void givenClusterConfigFile_whenAssembling_thenInheritsFileProperties() throws IOException {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);
@@ -481,7 +481,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenNoBootstrapOnConnectorOrCluster_whenAssembling_thenNotLoaded() {
+    void givenNoBootstrapOnConnectorOrCluster_whenAssembling_thenNotLoaded() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);
@@ -497,7 +497,7 @@ public class TestKafkaConnectorAssembler {
     }
 
     @Test
-    public void givenGroupIdOnCluster_whenAssembling_thenNotInherited() {
+    void givenGroupIdOnCluster_whenAssembling_thenNotInherited() {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource connector = config.createResource(TEST_URI);

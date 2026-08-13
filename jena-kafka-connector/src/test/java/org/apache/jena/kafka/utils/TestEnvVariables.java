@@ -24,12 +24,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
-public class TestEnvVariables {
+class TestEnvVariables {
 
     private static final String TEST_ENV_VAR = "TEST_ENV_VAR";
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         System.clearProperty(TEST_ENV_VAR);
     }
 
@@ -38,21 +38,21 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testPlainValue() {
+    void testPlainValue() {
         // given, when, then
         String result = EnvVariables.checkForEnvironmentVariableValue("testConfig", "plainValue");
         assertEquals("plainValue", result);
     }
 
     @Test
-    public void testNullValue() {
+    void testNullValue() {
         // given, when, then
         String result = EnvVariables.checkForEnvironmentVariableValue("testConfig", null);
         assertNull(result);
     }
 
     @Test
-    public void testEnvValue() {
+    void testEnvValue() {
         // given
         String envVarValue = "envValue";
         setEnv(envVarValue);
@@ -63,7 +63,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testEnvValueWithBraces() {
+    void testEnvValueWithBraces() {
         // given
         String envVarValue = "envValue";
         setEnv(envVarValue);
@@ -74,7 +74,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testEnvValueWithDefault() {
+    void testEnvValueWithDefault() {
         // given
         String envVarName = "TEST_ENV_VAR_DEFAULT";
         String defaultValue = "defaultValue";
@@ -85,7 +85,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testEnvValueWithEmptyDefault() {
+    void testEnvValueWithEmptyDefault() {
         // given
         String envVarName = "TEST_ENV_VAR_DEFAULT";
         String defaultValue = "";
@@ -96,7 +96,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testEnvValueWithDefaultAndEnvSet() {
+    void testEnvValueWithDefaultAndEnvSet() {
         // given
         String envVarName = "TEST_ENV_VAR";
         String envVarValue = "envValue";
@@ -110,7 +110,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testEnvValueNotSet() {
+    void testEnvValueNotSet() {
         String envVarName = "MISSING_TEST_ENV_VAR";
         assertThrows(JenaException.class, () -> {
             EnvVariables.checkForEnvironmentVariableValue("testConfig", "env:{" + envVarName + "}");
@@ -118,7 +118,7 @@ public class TestEnvVariables {
     }
 
     @Test
-    public void testInvalidEnvExpression() {
+    void testInvalidEnvExpression() {
         assertThrows(JenaException.class, () -> {
             EnvVariables.checkForEnvironmentVariableValue("testConfig", "env:{INVALID_EXPRESSION");
         });

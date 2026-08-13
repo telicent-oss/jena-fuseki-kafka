@@ -31,7 +31,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 @SuppressWarnings("java:S2187")
-public class AbstractDockerTests {
+class AbstractDockerTests {
     static {
         JenaSystem.init();
     }
@@ -42,7 +42,7 @@ public class AbstractDockerTests {
     private static int GENERATED = 0;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         KAFKA.setup();
         KAFKA.resetTestTopic();
 
@@ -75,7 +75,7 @@ public class AbstractDockerTests {
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         KAFKA.teardown();
     }
 
@@ -103,7 +103,7 @@ public class AbstractDockerTests {
         return props;
     }
 
-    public static Stream<Arguments> batchSizes() {
+    static Stream<Arguments> batchSizes() {
         return Stream.of(Arguments.of(500), Arguments.of(5000));
     }
 

@@ -26,7 +26,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
-public class TestConnectorDescriptor {
+class TestConnectorDescriptor {
     public static String DIR = "src/test/files";
 
     static {
@@ -35,7 +35,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenSimpleConfiguration_whenAssemblingConnector_thenAsExpected() {
+    void givenSimpleConfiguration_whenAssemblingConnector_thenAsExpected() {
         // Given and When
         KConnectorDesc conn = connectorByType("assem-connector-1.ttl");
 
@@ -50,7 +50,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenFullConfiguration_whenAssemblingConnector_thenAsExpected() {
+    void givenFullConfiguration_whenAssemblingConnector_thenAsExpected() {
         // Given and When
         KConnectorDesc conn = connectorByType("assem-connector-2.ttl");
 
@@ -66,18 +66,18 @@ public class TestConnectorDescriptor {
         Assertions.assertEquals("State.state", conn.getStateFile());
     }
 
-    public static KConnectorDesc connectorByType(String filename) {
+    static KConnectorDesc connectorByType(String filename) {
         return (KConnectorDesc) AssemblerUtils.build(DIR + "/" + filename, KafkaConnectorAssembler.getType());
     }
 
     @Test
-    public void givenNoTopics_whenConstructingConnector_thenIllegalArgument() {
+    void givenNoTopics_whenConstructingConnector_thenIllegalArgument() {
         // Given, When and Then
         Assertions.assertThrows(IllegalArgumentException.class, () -> new KConnectorDesc(List.of(), null, null, null, true, false, null, null));
     }
 
     @Test
-    public void givenNoDataset_whenConstructingConnector_thenJenaKafkaError() {
+    void givenNoDataset_whenConstructingConnector_thenJenaKafkaError() {
         // Given, When and Then
         List<String> topics = List.of("test");
         Assertions.assertThrows(JenaKafkaException.class,
@@ -85,7 +85,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenKafkaProperties_whenQueryingConsumerGroup_thenCorrectValueReturned() {
+    void givenKafkaProperties_whenQueryingConsumerGroup_thenCorrectValueReturned() {
         // Given
         Properties properties = new Properties();
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "example");
@@ -99,7 +99,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenCustomFusekiKafkaProperties_whenGettingAdvancedConfiguration_thenAsExpected() {
+    void givenCustomFusekiKafkaProperties_whenGettingAdvancedConfiguration_thenAsExpected() {
         // Given
         Properties properties = new Properties();
         properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "100000");
@@ -120,7 +120,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenCustomFusekiKafkaPropertiesWithNonParseableValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
+    void givenCustomFusekiKafkaPropertiesWithNonParseableValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
         // Given
         Properties properties = new Properties();
         properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "foo");
@@ -141,7 +141,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenCustomFusekiKafkaPropertiesWithOutOfRangeValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
+    void givenCustomFusekiKafkaPropertiesWithOutOfRangeValues_whenGettingAdvancedConfiguration_thenDefaultsReturned() {
         // Given
         Properties properties = new Properties();
         properties.put(SysJenaKafka.FUSEKI_KAFKA_HIGH_LAG_THRESHOLD, "-1");
@@ -162,7 +162,7 @@ public class TestConnectorDescriptor {
     }
 
     @Test
-    public void givenKafkaPropertiesUsableForAdvancedConfiguration_whenGettingAdvancedConfiguration_thenPropertyValuesReturned() {
+    void givenKafkaPropertiesUsableForAdvancedConfiguration_whenGettingAdvancedConfiguration_thenPropertyValuesReturned() {
         // Given
         Properties properties = new Properties();
         properties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "2500");

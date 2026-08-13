@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-public class TestFusekiOffsetStore {
+class TestFusekiOffsetStore {
     static {
         JenaSystem.init();
     }
@@ -29,7 +29,7 @@ public class TestFusekiOffsetStore {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    public void givenNullDatasetName_whenCreatingStore_thenIllegalArgument() {
+    void givenNullDatasetName_whenCreatingStore_thenIllegalArgument() {
         // Given, When and Then
         FusekiOffsetStore.FusekiOffsetStoreBuilder builder = FusekiOffsetStore.builder().datasetName(null);
         Assertions.assertThrows(IllegalArgumentException.class,
@@ -37,7 +37,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenValidDatasetName_whenCreatingStore_thenOK_andSaveIsNoOp() {
+    void givenValidDatasetName_whenCreatingStore_thenOK_andSaveIsNoOp() {
         // Given
         String datasetName = DATASET_NAME;
 
@@ -53,7 +53,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenNonExistentStateFile_whenCreatingStore_thenNothingLoaded() {
+    void givenNonExistentStateFile_whenCreatingStore_thenNothingLoaded() {
         // Given
         File noSuchFile = new File("no-such-file.json");
         Assertions.assertFalse(noSuchFile.exists());
@@ -66,7 +66,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenMissingStateFileWithBackupAvailable_whenCreatingStore_thenBackupRecovered() throws IOException {
+    void givenMissingStateFileWithBackupAvailable_whenCreatingStore_thenBackupRecovered() throws IOException {
         // Given
         File stateFile = Files.createTempFile("state", ".json").toFile();
         writeStateFile(Map.of(FusekiOffsetStore.FIELD_DATASET, DATASET_NAME, FusekiOffsetStore.FIELD_OFFSETS,
@@ -84,7 +84,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenLegacyStateFile_whenCreatingStore_thenConvertedOk() throws IOException {
+    void givenLegacyStateFile_whenCreatingStore_thenConvertedOk() throws IOException {
         // Given
         String datasetName = DATASET_NAME;
         Map<String, Object> legacyState =
@@ -108,7 +108,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenLegacyStateFileWithMisMatchedDatasetName_whenCreatingStore_thenConversionFails() throws
+    void givenLegacyStateFileWithMisMatchedDatasetName_whenCreatingStore_thenConversionFails() throws
             IOException {
         // Given
         String datasetName = DATASET_NAME;
@@ -128,7 +128,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenLegacyStateFileWithPrefixDatasetName_whenCreatingStore_thenConversionSucceeds_andAfterSavePrefixIsRemoved() throws
+    void givenLegacyStateFileWithPrefixDatasetName_whenCreatingStore_thenConversionSucceeds_andAfterSavePrefixIsRemoved() throws
             IOException {
         // Given
         String datasetName = DATASET_NAME;
@@ -173,7 +173,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenNonExistentStateFile_whenCreatingStore_thenNothingIsRead_andOnCloseStateFileIsCreated() {
+    void givenNonExistentStateFile_whenCreatingStore_thenNothingIsRead_andOnCloseStateFileIsCreated() {
         // Given
         File stateFile = new File("no-such-state.json");
         stateFile.delete();
@@ -197,7 +197,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenCurrentStateFile_whenCreatingStore_thenStateIsRead() throws IOException {
+    void givenCurrentStateFile_whenCreatingStore_thenStateIsRead() throws IOException {
         // Given
         Map<String, Object> state =
                 Map.of(FusekiOffsetStore.FIELD_DATASET, DATASET_NAME, FusekiOffsetStore.FIELD_OFFSETS,
@@ -229,7 +229,7 @@ public class TestFusekiOffsetStore {
 
     @ParameterizedTest
     @MethodSource("malformedStatesProvider")
-    public void givenMalformedStateFile_whenCreatingStore_thenError(Map<String, Object> malformedState) throws
+    void givenMalformedStateFile_whenCreatingStore_thenError(Map<String, Object> malformedState) throws
             IOException {
         // Given
         File stateFile = createStateFile(malformedState);
@@ -243,7 +243,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenNonReadableFile_whenCreatingStore_thenError() throws IOException {
+    void givenNonReadableFile_whenCreatingStore_thenError() throws IOException {
         // Given
         File stateFile = this.createStateFile(Map.of(FusekiOffsetStore.FIELD_DATASET, DATASET_NAME));
         stateFile.setReadable(false);
@@ -256,7 +256,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenNonWritableFile_whenSavingStore_thenError() throws IOException {
+    void givenNonWritableFile_whenSavingStore_thenError() throws IOException {
         // Given
         File stateFile = Files.createTempFile("state", ".json").toFile();
         stateFile.setWritable(false);
@@ -267,7 +267,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenNonWritableDirectory_whenSavingStore_thenError() throws IOException {
+    void givenNonWritableDirectory_whenSavingStore_thenError() throws IOException {
         // Given
         File tempDir = Files.createTempDirectory("test").toFile();
         tempDir.setWritable(false);
@@ -279,7 +279,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenOffsetStore_whenCopyingToSameFile_thenIllegalArgument() throws IOException {
+    void givenOffsetStore_whenCopyingToSameFile_thenIllegalArgument() throws IOException {
         // Given
         File stateFile = Files.createTempFile("state", ".json").toFile();
         FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
@@ -289,7 +289,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenOffsetStore_whenCopyingToDifferentFile_thenSuccess_andOffsetsAreSame() throws IOException {
+    void givenOffsetStore_whenCopyingToDifferentFile_thenSuccess_andOffsetsAreSame() throws IOException {
         // Given
         File stateFile = Files.createTempFile("state", ".json").toFile();
         FusekiOffsetStore store = FusekiOffsetStore.builder().datasetName(DATASET_NAME).stateFile(stateFile).build();
@@ -319,7 +319,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenTooLargeStateFile_whenReadingStore_thenDiscarded() throws IOException {
+    void givenTooLargeStateFile_whenReadingStore_thenDiscarded() throws IOException {
         // Given
         File stateFile = createLargeFile(10 * 1024 * 1024);
 
@@ -334,7 +334,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenTooLargeStateFileWithBackupAvailable_whenReadingStore_thenBackupRestored() throws IOException {
+    void givenTooLargeStateFileWithBackupAvailable_whenReadingStore_thenBackupRestored() throws IOException {
         // Given
         File stateFile = createLargeFile(10 * 1024 * 1024);
         File backupStateFile = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.BACKUP_EXTENSION);
@@ -354,7 +354,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenTooLargeStateFileWithTempAvailable_whenReadingStore_thenTempRestored() throws IOException {
+    void givenTooLargeStateFileWithTempAvailable_whenReadingStore_thenTempRestored() throws IOException {
         // Given
         File stateFile = createLargeFile(10 * 1024 * 1024);
         File tempStateFile = new File(stateFile.getAbsolutePath() + FusekiOffsetStore.TEMP_EXTENSION);
@@ -378,7 +378,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenTooLargeStateFileWithTooLargeBackupAndTempFiles_whenReadingStore_thenDiscarded() throws
+    void givenTooLargeStateFileWithTooLargeBackupAndTempFiles_whenReadingStore_thenDiscarded() throws
             IOException {
         // Given
         File stateFile = createLargeFile(10 * 1024 * 1024);
@@ -401,7 +401,7 @@ public class TestFusekiOffsetStore {
     }
 
     @Test
-    public void givenCorruptedStateFileWithCorruptedBackupFile_whenReadingStore_thenDiscarded() throws
+    void givenCorruptedStateFileWithCorruptedBackupFile_whenReadingStore_thenDiscarded() throws
             IOException {
         // Given
         File stateFile = Files.createTempFile("corrupted", ".json").toFile();

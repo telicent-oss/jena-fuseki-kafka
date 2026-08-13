@@ -10,11 +10,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 @SuppressWarnings("java:S3577")
-public class DockerTestFusekiProjectorTdb2 extends AbstractDockerTests {
+class DockerTestFusekiProjectorTdb2 extends AbstractDockerTests {
 
     @MethodSource("batchSizes")
     @ParameterizedTest
-    public void givenFusekiProjector_whenProjectingFromKafkaToTdb2Dataset_thenDataIsLoaded(int batchSize) throws IOException {
+    void givenFusekiProjector_whenProjectingFromKafkaToTdb2Dataset_thenDataIsLoaded(int batchSize) throws IOException {
         // Given
         Location location = Location.create(Files.createTempDirectory("fuseki-kafka"));
         DatasetGraph dsg = TDB2Factory.connectDataset(location).asDatasetGraph();

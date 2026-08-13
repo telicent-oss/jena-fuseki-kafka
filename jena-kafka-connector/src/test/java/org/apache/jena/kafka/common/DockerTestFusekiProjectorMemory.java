@@ -6,11 +6,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @SuppressWarnings("java:S3577")
-public class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
+class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
 
     @MethodSource("batchSizes")
     @ParameterizedTest
-    public void givenFusekiProjector_whenProjectingFromKafkaToInMemoryTransactionalDataset_thenDataIsLoaded(
+    void givenFusekiProjector_whenProjectingFromKafkaToInMemoryTransactionalDataset_thenDataIsLoaded(
             int batchSize) {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();

@@ -23,7 +23,7 @@ import java.util.concurrent.locks.LockSupport;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorTests {
+class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorTests {
 
 
     private List<Event<Bytes, RdfPayload>> createKafkaTestEvents(int size) {
@@ -38,7 +38,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenBatchingProjector_whenProjectingKafkaEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
+    void givenBatchingProjector_whenProjectingKafkaEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         List<Event<Bytes, RdfPayload>> kafkaEvents = createKafkaTestEvents(3);
@@ -51,7 +51,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -68,7 +68,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorInTransaction_whenStalling_thenCommits() {
+    void givenProjectorInTransaction_whenStalling_thenCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
@@ -87,7 +87,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenNonBatchingProjector_whenStalling_thenNoAdditionalCommits() {
+    void givenNonBatchingProjector_whenStalling_thenNoAdditionalCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
@@ -106,7 +106,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() throws
+    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() throws
             InterruptedException {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
@@ -129,7 +129,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsFasterThanMaxDuration_thenNoCommits() {
+    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsFasterThanMaxDuration_thenNoCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();

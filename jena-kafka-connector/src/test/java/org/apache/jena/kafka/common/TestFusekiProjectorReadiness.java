@@ -36,14 +36,14 @@ import java.util.concurrent.locks.LockSupport;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 
-public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
+class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
 
     // -----------------------------------------------------------------------------------
     // requestPause / requestResume / isAtPausePoint
     // -----------------------------------------------------------------------------------
 
     @Test
-    public void givenFreshProjector_whenInspecting_thenNotPaused() {
+    void givenFreshProjector_whenInspecting_thenNotPaused() {
         // Given
         FusekiProjector projector = newProjectorWithSingleEvent();
 
@@ -53,7 +53,7 @@ public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenNoPause_whenRequestResumeCalled_thenIdempotent() {
+    void givenNoPause_whenRequestResumeCalled_thenIdempotent() {
         // Given
         FusekiProjector projector = newProjectorWithSingleEvent();
 
@@ -67,7 +67,7 @@ public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
 
     @Test
     @Timeout(10)
-    public void givenPauseRequestedBeforeProject_whenProjectCalled_thenItBlocksUntilResume()
+    void givenPauseRequestedBeforeProject_whenProjectCalled_thenItBlocksUntilResume()
             throws Exception {
         // Given -- pause is requested before any events are processed
         KConnectorDesc connector = createTestConnector();
@@ -102,7 +102,7 @@ public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
 
     @Test
     @Timeout(10)
-    public void givenInflightTransaction_whenPauseRequested_thenTransactionCommittedBeforePauseBlocks()
+    void givenInflightTransaction_whenPauseRequested_thenTransactionCommittedBeforePauseBlocks()
             throws Exception {
         // Given -- a projector that has processed one event (so it's mid-batch with an open
         // Jena transaction) but the latch has flipped because remaining==0 after that event.
@@ -151,7 +151,7 @@ public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
 
     @Test
     @Timeout(10)
-    public void givenPauseRequested_whenStalledCalled_thenItAlsoBlocksUntilResume() throws Exception {
+    void givenPauseRequested_whenStalledCalled_thenItAlsoBlocksUntilResume() throws Exception {
         // Given -- pause is requested. The projector is idle (no events flowing). The
         // driver's stalled() callback must also observe the pause -- this is the path that
         // matters for quiet/low-volume topics where project() is rarely called.
