@@ -230,9 +230,8 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
         verify(dsg, atLeastOnce()).commit();
     }
 
-    // This test was very slow, just created to debug and characterise some overheads
     @Test
-    @Disabled
+    @Disabled("Characterization/debug-only test: injects 5ms processing delay across millions of events and is too slow for CI.")
     public void givenHighLagSource_whenProjectingSmallEventsWithProcessingTime_thenHighLagDetected_andCommitsTriggeredByEventSize() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
