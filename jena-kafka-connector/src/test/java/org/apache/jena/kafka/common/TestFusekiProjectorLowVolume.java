@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -70,7 +71,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
 
             // And
             sendEvents(projector, source, sink, 1);
-            Thread.sleep(500);
+            LockSupport.parkNanos(Duration.ofMillis(500).toNanos());
             sendEvents(projector, source, sink, 1);
             verify(dsg, times(26)).begin((TxnType) any());
             verify(dsg, times(26)).commit();

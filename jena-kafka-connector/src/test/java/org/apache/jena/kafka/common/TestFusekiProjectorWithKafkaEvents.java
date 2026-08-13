@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -126,7 +127,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
 
         // When
         projector.project(createTestDatasetEvent(), sink);
-        Thread.sleep(500);
+        LockSupport.parkNanos(Duration.ofMillis(500).toNanos());
         // NB - We slept longer than our max transaction duration of 100 milliseconds, next projected event should
         //      trigger a commit due to exceeding the duration
         projector.project(createTestDatasetEvent(), sink);

@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -239,11 +241,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
         // When
         try (Sink<Event<Bytes, RdfPayload>> sink = event -> {
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                // Ignored
-            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
         }) {
             for (int i = 1; i <= 1_000; i++) {
                 sendEvents(projector, source, sink, 5_000);

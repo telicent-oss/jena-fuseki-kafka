@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
@@ -204,7 +205,10 @@ public class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
         long deadline = System.nanoTime() + timeout.toNanos();
         while (System.nanoTime() < deadline) {
             if (condition.getAsBoolean()) return;
-            Thread.sleep(10);
+            if (Thread.interrupted()) {
+                throw new InterruptedException();
+            }
+            LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
         }
         Assertions.fail(failureMessage + " (within " + timeout + ")");
     }
