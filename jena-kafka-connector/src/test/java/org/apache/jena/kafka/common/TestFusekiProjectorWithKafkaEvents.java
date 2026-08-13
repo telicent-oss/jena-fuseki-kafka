@@ -39,10 +39,10 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     private List<Event<Bytes, RdfPayload>> createKafkaTestEvents(int size) {
         List<Event<Bytes, RdfPayload>> events = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            ConsumerRecord<Bytes, RdfPayload> record = new ConsumerRecord<>("test", 0, i, Bytes.wrap(new byte[0]),
-                                                                            RdfPayload.of(
-                                                                                    TestFusekiSink.createSimpleDatasetPayload()));
-            events.add(new KafkaEvent<>(record, null));
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord =
+                    new ConsumerRecord<>("test", 0, i, Bytes.wrap(new byte[0]),
+                                         RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload()));
+            events.add(new KafkaEvent<>(consumerRecord, null));
         }
         return events;
     }

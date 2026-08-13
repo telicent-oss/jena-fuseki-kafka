@@ -290,9 +290,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         // Log the error
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
-            ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
             FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                                  record.topic(), record.partition(), record.offset(), reason,
+                                  consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
                                   e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
         } else {
             FusekiKafka.LOG.error("[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
