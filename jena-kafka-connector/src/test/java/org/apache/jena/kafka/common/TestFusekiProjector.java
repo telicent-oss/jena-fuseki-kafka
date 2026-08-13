@@ -137,56 +137,30 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
         verifyProjection(source, projector, dsg, 1L, 1, 1);
     }
 
-    @Test
-    public void givenNonBatchingProjector_whenProjectingMultipleEvents_thenProjectedWithTransactionPerEvent() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 1);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 3, 3);
+    private static Stream<Arguments> projectionBatchingScenarios() {
+        return Stream.of(Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 1, 3, 3, 3),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 10, 3, 1, 1),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 3, 3, 1, 1),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 100, 3, 1, 1));
     }
 
-    @Test
-    public void givenBatchingProjector_whenProjectingMultipleEvents_thenProjectedWithSingleTransaction() {
+    @ParameterizedTest
+    @MethodSource("projectionBatchingScenarios")
+    public void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
+            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount, int expectedTransactionCount,
+            int expectedCommitCount) {
         // Given
         KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(events);
         DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 10);
+        FusekiProjector projector = buildProjector(connector, source, dsg, batchSize);
 
         // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
-    }
-
-    @Test
-    public void givenBatchingProjector_whenProjectingEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 3);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
-    }
-
-    @Test
-    public void givenBatchingProjector_whenProjectingAllAvailableEventsButFewerThanBatchSize_thenProjectedWithSingleTransaction() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 100);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
+        verifyProjection(source, projector, dsg, projectedEventCount, expectedTransactionCount, expectedCommitCount);
     }
 
     @Test
