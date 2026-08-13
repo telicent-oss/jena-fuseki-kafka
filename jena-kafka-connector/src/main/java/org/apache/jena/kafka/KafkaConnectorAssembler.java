@@ -195,6 +195,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     private static final Assem2.OnError errorException = JenaKafkaException::new;
 
+    @SuppressWarnings("java:S125")
     private KConnectorDesc createSub(Graph graph, Node node, Node type) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
