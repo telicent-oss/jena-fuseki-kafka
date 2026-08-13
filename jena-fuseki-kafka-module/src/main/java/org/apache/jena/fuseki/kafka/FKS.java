@@ -442,8 +442,8 @@ public class FKS {
     private static boolean allProjectorsAtPausePoint(
             List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers) {
         for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
-            if (driver.getProjector() instanceof FusekiProjector fp) {
-                if (!fp.isAtPausePoint()) return false;
+            if (driver.getProjector() instanceof FusekiProjector fp && !fp.isAtPausePoint()) {
+                return false;
             }
         }
         return true;
