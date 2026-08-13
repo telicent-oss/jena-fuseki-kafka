@@ -23,9 +23,11 @@ public class FusekiKafka {
     /** Log used for runtime general information */
     public static Logger LOG = LoggerFactory.getLogger(FusekiKafka.class);
 
+    private FusekiKafka() {
+    }
+
     /**
      * Constant used to indicate in Fuseki Kafka configuration that no remote endpoint is configured
      */
     public static String noRemoteEndpointName = "";
 }
-

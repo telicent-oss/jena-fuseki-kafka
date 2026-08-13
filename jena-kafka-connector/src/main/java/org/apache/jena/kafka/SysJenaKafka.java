@@ -25,6 +25,9 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 public class SysJenaKafka {
 
+    private SysJenaKafka() {
+    }
+
     public static final String PATH = "org.apache.jena.kafka";
 
     /**
