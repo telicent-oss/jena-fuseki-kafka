@@ -244,34 +244,18 @@ public class TestKafkaConnectorAssembler {
         }
     }
 
-    @ValueSource(strings = {
-            "https://example.org/kafka.properties",
-            "file:/no/such/kafka.properties",
-            "env:NO_SUCH_VAR"
-    })
-    @ParameterizedTest
-    public void givenExtraExternalConfigBadUri_whenAssemblingConnector_thenNotLoaded(String source) {
-        // Given
-        Model config = ModelFactory.createDefaultModel();
-        Resource resource = config.createResource(TEST_URI);
-        createMinimalConfiguration(config, resource);
-        config.add(resource, config.createProperty(KafkaConnectorAssembler.pKafkaPropertyFile.getURI()),
-                   config.createResource(source));
-
-        // When
-        Object assembled = assembler.open(resource);
-
-        // Then
-        Assertions.assertNull(assembled);
+    private static Stream<String> badExternalConfigSources() {
+        return Stream.of("https://example.org/kafka.properties",
+                         "file:/no/such/kafka.properties",
+                         "env:NO_SUCH_VAR",
+                         "/no/such/kafka.properties",
+                         "env:NO_SUCH_ENV_VAR",
+                         "env:{NO_SUCH_ENV_VAR:/no/such/default.properties}");
     }
 
-    @ValueSource(strings = {
-            "/no/such/kafka.properties",
-            "env:NO_SUCH_ENV_VAR",
-            "env:{NO_SUCH_ENV_VAR:/no/such/default.properties}"
-    })
+    @MethodSource("badExternalConfigSources")
     @ParameterizedTest
-    public void givenExtraExternalConfigBadLiteral_whenAssemblingConnector_thenNotLoaded(String source) {
+    public void givenBadExternalConfigSource_whenAssemblingConnector_thenNotLoaded(String source) {
         // Given
         Model config = ModelFactory.createDefaultModel();
         Resource resource = config.createResource(TEST_URI);
