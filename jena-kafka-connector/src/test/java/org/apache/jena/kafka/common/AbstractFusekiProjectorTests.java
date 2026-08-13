@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("java:S2187")
 public class AbstractFusekiProjectorTests {
     static {
         JenaSystem.init();

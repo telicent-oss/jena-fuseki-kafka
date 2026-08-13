@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.stream.Stream;
 
+@SuppressWarnings("java:S2187")
 public class AbstractDockerTests {
     static {
         JenaSystem.init();
