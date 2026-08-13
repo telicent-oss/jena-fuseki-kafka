@@ -575,15 +575,12 @@ public class FKS {
             active.removeIf(f -> f.isCancelled() || f.isDone());
         }
 
+        @SuppressWarnings("java:S899")
         private void awaitNextCheck() {
             // We intentionally use a semaphore here as that allows the cancel() method to immediately unblock this
             // thread during cleanup/shutdown by releasing a permit to the semaphore
             try {
-                if (this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS)) {
-                    // cancel() released a permit so we can re-check shouldRun immediately.
-                } else {
-                    // The timed wait elapsed, so continue with the next monitoring cycle.
-                }
+                this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 stopAfterInterrupt();
             }

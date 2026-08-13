@@ -182,10 +182,10 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     @Override
     public Object open(Assembler a, Resource root, Mode mode) {
-        return create(root.getModel().getGraph(), root.asNode(), tKafkaConnector.asNode());
+        return create(root.getModel().getGraph(), root.asNode());
     }
 
-    private KConnectorDesc create(Graph graph, Node node, Node type) {
+    private KConnectorDesc create(Graph graph, Node node) {
         try {
             return createSub(graph, node);
         } catch (RuntimeException ex) {

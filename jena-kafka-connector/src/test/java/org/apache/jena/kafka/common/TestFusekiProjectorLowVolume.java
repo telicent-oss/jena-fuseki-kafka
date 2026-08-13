@@ -51,8 +51,7 @@ class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    void givenLowVolumeSource_whenProjectingWithShortMaxTransactionDuration_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() throws
-            InterruptedException {
+    void givenLowVolumeSource_whenProjectingWithShortMaxTransactionDuration_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1);

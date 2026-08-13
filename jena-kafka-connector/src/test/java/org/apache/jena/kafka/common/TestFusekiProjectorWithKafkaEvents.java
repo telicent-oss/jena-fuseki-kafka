@@ -106,8 +106,7 @@ class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() throws
-            InterruptedException {
+    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
