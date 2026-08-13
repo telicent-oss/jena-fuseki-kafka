@@ -58,6 +58,17 @@ public class TestFKS {
         Assert.assertFalse(dsg.isPresent());
     }
 
+    @Test
+    public void givenInterruptedThread_whenResettingPollThreads_thenInterruptStatusPreserved() {
+        Thread.currentThread().interrupt();
+        try {
+            FKS.resetPollThreads();
+            Assert.assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     @DataProvider(name = "paths")
     private Object[][] paths() {
         return new Object[][] {

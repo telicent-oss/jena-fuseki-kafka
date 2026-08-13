@@ -289,7 +289,7 @@ public class FKS {
         try {
             EXECUTOR.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            // Ignored
+            Thread.currentThread().interrupt();
         }
         EXECUTOR = threadExecutor();
     }
@@ -340,7 +340,10 @@ public class FKS {
         try {
             future.get(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            // Ignored
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+            DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
+            throw new FusekiKafkaException("Interrupted while waiting for connector to start up", e);
         } catch (ExecutionException e) {
             // If the projector driver fails in the startup phase we should bail out immediately
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
@@ -553,10 +556,10 @@ public class FKS {
                 // message.  If we don't log the stack trace we have zero visibility into what the system was
                 // doing when the error occurred making it difficult to debug.
                 LOG.error("Polling thread failed: ", e.getCause());
-            } catch (InterruptedException | CancellationException e) {
-                // Ignore, we could be cancelled/interrupted for a legitimate reason like JVM shutdown so no
-                // point doing anything about those here.  If the poll thread continues to run then it'll check
-                // the driver again on a future loop unless it was genuinely cancelled
+            } catch (InterruptedException e) {
+                stopAfterInterrupt();
+            } catch (CancellationException e) {
+                // Ignore, cancellation is expected during legitimate shutdown/cleanup.
             } catch (TimeoutException e) {
                 // Ignore, this just means the poll thread is still alive and active
             }
@@ -574,8 +577,13 @@ public class FKS {
             try {
                 this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
-                // Ignore, most likely resetPollThreads() has been called and we're being shutdown
+                stopAfterInterrupt();
             }
+        }
+
+        private void stopAfterInterrupt() {
+            Thread.currentThread().interrupt();
+            this.shouldRun = false;
         }
 
         /**
