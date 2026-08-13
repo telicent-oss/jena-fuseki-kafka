@@ -186,7 +186,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     private KConnectorDesc create(Graph graph, Node node, Node type) {
         try {
-            return createSub(graph, node, type);
+            return createSub(graph, node);
         } catch (RuntimeException ex) {
             FusekiKafka.LOG.error(ex.getMessage());
             return null;
@@ -196,7 +196,7 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
     private static final Assem2.OnError errorException = JenaKafkaException::new;
 
     @SuppressWarnings("java:S125")
-    private KConnectorDesc createSub(Graph graph, Node node, Node type) {
+    private KConnectorDesc createSub(Graph graph, Node node) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *

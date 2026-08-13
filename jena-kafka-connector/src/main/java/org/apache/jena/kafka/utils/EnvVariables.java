@@ -72,10 +72,10 @@ public class EnvVariables {
                 String defaultValue = innerExpression.substring(colonIndex + 1);
                 return getEnvVarOrDefault(envVarName, defaultValue);
             } else {
-                return getEnvVarOrThrow(innerExpression, configName, envVarExpression);
+                return getEnvVarOrThrow(innerExpression, configName);
             }
         } else {
-            return getEnvVarOrThrow(envVarExpression, configName, envVarExpression);
+            return getEnvVarOrThrow(envVarExpression, configName);
         }
     }
 
@@ -86,7 +86,7 @@ public class EnvVariables {
      * @param configName the name of the config being set
      * @return the value of the environment variable
      */
-    private static String getEnvVarOrThrow(String envVarName, String configName, String envVarExpression) {
+    private static String getEnvVarOrThrow(String envVarName, String configName) {
         return Optional.ofNullable(lookupEnvironmentVariable(envVarName))
                        .orElseThrow(() -> new JenaException(
                                String.format("Environment variable %s not set for %s", envVarName, configName)
