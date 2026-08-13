@@ -313,7 +313,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)),
                     new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()))));
             return true;
-        } catch (Throwable dlqError) {
+        } catch (Exception dlqError) {
             FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ: {}", this.topicNames, dlqError.getMessage());
         }
         return false;
