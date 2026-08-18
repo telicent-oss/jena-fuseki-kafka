@@ -30,10 +30,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.apache.jena.fuseki.kafka.DockerTestConfigFK.configuration;
 
-
+@SuppressWarnings({"java:S117", "java:S3577"})
 public class DockerTestKafkaDelays {
 
     static {
@@ -108,7 +109,10 @@ public class DockerTestKafkaDelays {
                 return;
             } catch (Exception e) {
                 debugLogging("Kafka broker not ready. Retrying... (" + (i + 1) + "/10)");
-                Thread.sleep(1000);
+                if (Thread.interrupted()) {
+                    throw new InterruptedException();
+                }
+                LockSupport.parkNanos(java.util.concurrent.TimeUnit.SECONDS.toNanos(1));
             }
         }
         throw new IllegalStateException("Kafka broker did not start in time");

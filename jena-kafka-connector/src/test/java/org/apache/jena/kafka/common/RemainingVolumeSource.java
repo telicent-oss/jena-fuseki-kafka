@@ -46,7 +46,7 @@ public class RemainingVolumeSource implements EventSource<Bytes, RdfPayload> {
 
     @Override
     public void close() {
-
+        // No-op: this test double does not own any external resources.
     }
 
     @Override
@@ -81,6 +81,6 @@ public class RemainingVolumeSource implements EventSource<Bytes, RdfPayload> {
 
     @Override
     public void processed(Collection<Event<?,?>> collection) {
-
+        // No-op: tests using this source drive remaining-count behaviour only and do not need processed callbacks.
     }
 }

@@ -5,11 +5,12 @@ import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
+@SuppressWarnings("java:S3577")
+class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
 
     @MethodSource("batchSizes")
     @ParameterizedTest
-    public void givenFusekiProjector_whenProjectingFromKafkaToInMemoryTransactionalDataset_thenDataIsLoaded(
+    void givenFusekiProjector_whenProjectingFromKafkaToInMemoryTransactionalDataset_thenDataIsLoaded(
             int batchSize) {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();

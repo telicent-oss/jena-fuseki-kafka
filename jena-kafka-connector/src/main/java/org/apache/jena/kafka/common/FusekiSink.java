@@ -44,7 +44,7 @@ public class FusekiSink<T extends DatasetGraph> implements Sink<Event<Bytes, Rdf
                 applyRdfPatchEvent(event);
             }
 
-        } catch (Throwable e) {
+        } catch (Exception e) {
             Throwable rootCause = rootCause(e);
             String payloadType = event.value().isPatch() ? "RDF Patch" : "Dataset";
             StringBuilder message = new StringBuilder("Failed to apply ").append(payloadType).append(" payload");

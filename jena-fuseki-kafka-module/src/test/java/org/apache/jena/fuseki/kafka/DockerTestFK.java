@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@SuppressWarnings({"java:S116", "java:S117", "java:S3577"})
 public class DockerTestFK {
     static {
         JenaSystem.init();
@@ -59,7 +60,7 @@ public class DockerTestFK {
     }
 
     @BeforeMethod
-    public void setupTest() throws InterruptedException {
+    public void setupTest() {
         // Start Kafka Test Cluster
         this.kafka = createTestCluster();
         kafka.setup();

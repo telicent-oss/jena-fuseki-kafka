@@ -14,7 +14,6 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
-import org.mockito.Mockito;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -25,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("java:S2187")
 public class AbstractFusekiProjectorTests {
     static {
         JenaSystem.init();
@@ -37,7 +37,7 @@ public class AbstractFusekiProjectorTests {
      * @return Mock dataset graph
      */
     public static DatasetGraph mockDatasetGraph() {
-        DatasetGraph dsg = Mockito.mock(DatasetGraph.class);
+        DatasetGraph dsg = mock(DatasetGraph.class);
         AtomicBoolean inTransaction = new AtomicBoolean(false);
         when(dsg.isInTransaction()).thenAnswer(x -> inTransaction.get());
         doAnswer(x -> {

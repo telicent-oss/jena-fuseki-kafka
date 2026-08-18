@@ -21,6 +21,9 @@ import java.time.Duration;
 /** Constants relating to Fuseki-Kafka connections */
 public class FKConst {
 
+    private FKConst() {
+    }
+
     /**
      * Time to wait when pinging Kafka during startup topic-availability checks.
      */

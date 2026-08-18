@@ -88,7 +88,7 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         //@formatter:off
         StreamReadConstraints readConstraints =
                 StreamReadConstraints.builder()
-                                     .maxDocumentLength(5 * 1024 * 1024)
+                                     .maxDocumentLength(5L * 1024 * 1024)
                                      .maxNestingDepth(3)
                                      .build();
         //@formatter:on
@@ -110,94 +110,136 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
      * </p>
      */
     private void readStateFile() {
+        IOException readFailure = attemptReadStateFile();
+        if (readFailure == null) {
+            return;
+        }
+
+        handleReadStateFileFailure(readFailure);
+        throw new JenaKafkaException("Error reading state file", readFailure);
+    }
+
+    private IOException attemptReadStateFile() {
         try {
             if (this.stateFile.exists() && this.stateFile.length() > 0) {
-                LOGGER.info("Attempting to load state file {} (size on disk {})...", this.stateFile.getAbsolutePath(),
-                            FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
-
-                // Make an attempt to read the JSON from the state file
-                Map<String, Object> stateMap;
-                try {
-                    stateMap = this.mapper.readValue(this.stateFile, GENERIC_MAP_TYPE);
-                } catch (StreamConstraintsException e) {
-                    // Can be encountered if the state file is corrupted so that it reports a really large size, or has
-                    // been manually edited and/or otherwise populated with junk data that doesn't trigger some other
-                    // Jackson error condition
-                    //
-                    // If it exceeds the stream constraints we define assume the file is corrupted and move it to a new
-                    // file with a .discarded suffix so operators can inspect the corrupted file later
-                    LOGGER.warn(
-                            "State file {} violated stream constraints (size on disk {}), this likely indicates disk corruption as state files should be small",
-                            this.stateFile.getAbsolutePath(),
-                            FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
-                    File discardFile = getNextDiscardFile();
-                    LOGGER.warn("Attempting to move state file to {} and ignoring its contents",
-                                discardFile.getAbsolutePath());
-                    Files.move(this.stateFile.toPath(), discardFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    LOGGER.warn("Discarded state file available at {} for manual inspection",
-                                discardFile.getAbsolutePath());
-
-                    // Attempt to recover from the temporary/backup files if available
-                    tryRecoverStateFile(true);
-
-                    // Note that tryRecoverStateFile() calls back into this method so no need to continue execution here
-                    // as if a valid recovery file is found and used one of those method calls will have run to success
-                    return;
-                }
-
-                // Load basic fields used for configuration sanity checking
-                String datasetName = stateMap.getOrDefault(FIELD_DATASET, "").toString();
-                if (StringUtils.isBlank(datasetName)) {
-                    throw new JenaKafkaException(
-                            "No dataset name found in state file " + this.stateFile.getAbsolutePath());
-                }
-
-                // Check whether the state file contains legacy fields and if so migrate those to the new format
-                migrateLegacyStateFile(stateMap);
-
-                // Load current offsets
-                try {
-                    // NB - Since we've used Jackson to parse the state file as a generic map the only way this cast
-                    //      doesn't work is if the state field is malformed i.e. the offsets field is not an object
-                    @SuppressWarnings("unchecked") Map<String, Object> storedOffsets =
-                            (Map<String, Object>) stateMap.getOrDefault(FIELD_OFFSETS, new HashMap<>());
-                    this.offsets.putAll(storedOffsets);
-                } catch (ClassCastException ex) {
-                    throw new JenaKafkaException(
-                            "State file " + this.stateFile.getAbsolutePath() + " contains an offsets field whose value is not a JSON object");
-                }
-
-                // Configuration sanity checks
-                // NB - To allow graceful migration if the stored datasetName has trailing URL segments vs the currently
-                // configured one then permit this
-                if (!this.datasetName.equals(datasetName) && !Strings.CS.startsWith(datasetName, this.datasetName + (
-                        this.datasetName.endsWith("/") ? "" : "/"))) {
-                    throw new JenaKafkaException(
-                            "Dataset name does not match: this=" + this.datasetName + " / read=" + datasetName);
-                }
-
-                LOGGER.info("State file {} loaded successfully with {} offsets present",
-                            this.stateFile.getAbsolutePath(), this.offsets.size());
-
+                loadExistingStateFile();
             } else if (!tryRecoverStateFile(false)) {
-                // State file could be missing if a write operation was aborted prior to moving the original file back
-                // into place, in which case attempt to recover it.
-                // It could also be legitimately not be present if this is the first time this state file is used so
-                // don't issue a warning if no recovery files are found
-                LOGGER.info("No pre-existing state file {} to load", this.stateFile.getAbsolutePath());
+                logNoPreExistingStateFile();
             }
+            return null;
         } catch (IOException e) {
-            try {
-                // In the event of an IO error try to see if we can recover from temporary/backup files (if present)
-                // Since something is going wrong here do issue the warning if recovery is not possible
-                tryRecoverStateFile(true);
-            } catch (IOException | JenaKafkaException e2) {
-                // If recovery fails log the error and throw the first IO error that originally got us here
-                LOGGER.warn("IO error trying to recover state files: {}", e2.getMessage());
-                e.addSuppressed(e2);
-            }
+            return e;
+        }
+    }
 
-            throw new JenaKafkaException("Error reading state file", e);
+    private void loadExistingStateFile() throws IOException {
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Attempting to load state file {} (size on disk {})...", this.stateFile.getAbsolutePath(),
+                        FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
+        }
+
+        Optional<Map<String, Object>> stateMap = tryReadStateMap();
+        if (stateMap.isEmpty()) {
+            return;
+        }
+
+        String storedDatasetName = requireStoredDatasetName(stateMap.get());
+        migrateLegacyStateFile(stateMap.get());
+        loadStoredOffsets(stateMap.get());
+        validateStoredDatasetName(storedDatasetName);
+
+        LOGGER.info("State file {} loaded successfully with {} offsets present",
+                    this.stateFile.getAbsolutePath(), this.offsets.size());
+    }
+
+    private Optional<Map<String, Object>> tryReadStateMap() throws IOException {
+        try {
+            return Optional.of(this.mapper.readValue(this.stateFile, GENERIC_MAP_TYPE));
+        } catch (StreamConstraintsException e) {
+            handleCorruptStateFile();
+            return Optional.empty();
+        }
+    }
+
+    private void handleCorruptStateFile() throws IOException {
+        // Can be encountered if the state file is corrupted so that it reports a really large size, or has
+        // been manually edited and/or otherwise populated with junk data that doesn't trigger some other
+        // Jackson error condition
+        //
+        // If it exceeds the stream constraints we define assume the file is corrupted and move it to a new
+        // file with a .discarded suffix so operators can inspect the corrupted file later
+        LOGGER.warn(
+                "State file {} violated stream constraints (size on disk {}), this likely indicates disk corruption as state files should be small",
+                this.stateFile.getAbsolutePath(),
+                FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
+        File discardFile = getNextDiscardFile();
+        LOGGER.warn("Attempting to move state file to {} and ignoring its contents", discardFile.getAbsolutePath());
+        Files.move(this.stateFile.toPath(), discardFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        LOGGER.warn("Discarded state file available at {} for manual inspection", discardFile.getAbsolutePath());
+
+        // Note that tryRecoverStateFile() calls back into this method so no need to continue execution here
+        // as if a valid recovery file is found and used one of those method calls will have run to success
+        tryRecoverStateFile(true);
+    }
+
+    private String requireStoredDatasetName(Map<String, Object> stateMap) {
+        String storedDatasetName = stateMap.getOrDefault(FIELD_DATASET, "").toString();
+        if (StringUtils.isBlank(storedDatasetName)) {
+            throw new JenaKafkaException("No dataset name found in state file " + this.stateFile.getAbsolutePath());
+        }
+        return storedDatasetName;
+    }
+
+    private void loadStoredOffsets(Map<String, Object> stateMap) {
+        try {
+            // NB - Since we've used Jackson to parse the state file as a generic map the only way this cast
+            //      doesn't work is if the state field is malformed i.e. the offsets field is not an object
+            @SuppressWarnings("unchecked") Map<String, Object> storedOffsets =
+                    (Map<String, Object>) stateMap.getOrDefault(FIELD_OFFSETS, new HashMap<>());
+            this.offsets.putAll(storedOffsets);
+        } catch (ClassCastException ex) {
+            throw new JenaKafkaException(
+                    "State file " + this.stateFile.getAbsolutePath() + " contains an offsets field whose value is not a JSON object");
+        }
+    }
+
+    private void validateStoredDatasetName(String storedDatasetName) {
+        // To allow graceful migration if the stored dataset name has trailing URL segments vs the currently configured
+        // one then permit this
+        String expectedDatasetPrefix = this.datasetName + (this.datasetName.endsWith("/") ? "" : "/");
+        if (!this.datasetName.equals(storedDatasetName) &&
+            !Strings.CS.startsWith(storedDatasetName, expectedDatasetPrefix)) {
+            throw new JenaKafkaException(
+                    "Dataset name does not match: this=" + this.datasetName + " / read=" + storedDatasetName);
+        }
+    }
+
+    private void logNoPreExistingStateFile() {
+        // State file could be missing if a write operation was aborted prior to moving the original file back
+        // into place, in which case attempt to recover it.
+        // It could also be legitimately not be present if this is the first time this state file is used so
+        // don't issue a warning if no recovery files are found
+        LOGGER.info("No pre-existing state file {} to load", this.stateFile.getAbsolutePath());
+    }
+
+    private void handleReadStateFileFailure(IOException readFailure) {
+        Exception recoveryFailure = attemptReadFailureRecovery();
+        if (recoveryFailure == null) {
+            return;
+        }
+
+        LOGGER.warn("IO error trying to recover state files: {}", recoveryFailure.getMessage());
+        readFailure.addSuppressed(recoveryFailure);
+    }
+
+    private Exception attemptReadFailureRecovery() {
+        try {
+            // In the event of an IO error try to see if we can recover from temporary/backup files (if present)
+            // Since something is going wrong here do issue the warning if recovery is not possible
+            tryRecoverStateFile(true);
+            return null;
+        } catch (IOException | JenaKafkaException e2) {
+            return e2;
         }
     }
 
@@ -375,8 +417,10 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
             LOGGER.debug("Moving temporary state file to {}", file.toPath());
             Files.move(tempStateFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             LOGGER.debug("Moved state file to {}", file.toPath());
-            LOGGER.info("Updated state file {} (size on disk {})", file.getAbsolutePath(),
-                        FusekiProjector.byteCountToDisplaySize(file.length()));
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Updated state file {} (size on disk {})", file.getAbsolutePath(),
+                            FusekiProjector.byteCountToDisplaySize(file.length()));
+            }
 
             // Finally remove the backup state file
             if (backupStateFile != null) {

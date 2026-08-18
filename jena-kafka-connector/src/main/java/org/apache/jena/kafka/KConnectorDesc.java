@@ -86,6 +86,7 @@ public class KConnectorDesc {
      * @param dlqTopic           Optional dead letter queue (DLQ) topic to use for malformed events
      * @param kafkaConsumerProps Additional Kafka configuration properties
      */
+    @SuppressWarnings("java:S107")
     public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName, String stateFile,
                           boolean syncTopic, boolean replayTopic, String dlqTopic, Properties kafkaConsumerProps) {
         this(topics, bootstrapServers, datasetName, stateFile, syncTopic, replayTopic, false, dlqTopic,
@@ -105,6 +106,7 @@ public class KConnectorDesc {
      * @param dlqTopic             Optional dead letter queue (DLQ) topic to use for malformed events
      * @param kafkaConsumerProps   Additional Kafka configuration properties
      */
+    @SuppressWarnings("java:S107")
     public KConnectorDesc(List<String> topics, String bootstrapServers, String datasetName, String stateFile,
                           boolean syncTopic, boolean replayTopic, boolean checkTopicAtStartUp, String dlqTopic,
                           Properties kafkaConsumerProps) {
@@ -163,7 +165,7 @@ public class KConnectorDesc {
                     FusekiKafka.LOG.warn("Kafka Configuration property {} had an invalid value: {}", key, value);
                     return defaultValue;
                 }
-            } catch (Throwable e) {
+            } catch (RuntimeException e) {
                 FusekiKafka.LOG.warn("Kafka Configuration property {} had a non-parseable value: {}", key, rawValue);
                 return defaultValue;
             }

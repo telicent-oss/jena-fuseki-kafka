@@ -54,6 +54,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.*;
 
+@SuppressWarnings({"java:S117", "java:S3577"})
 public class DockerTestConfigFK {
     static {
         JenaSystem.init();
@@ -76,7 +77,7 @@ public class DockerTestConfigFK {
     }
 
     @BeforeMethod
-    public void setupTest() throws InterruptedException {
+    public void setupTest() {
         kafka = createTestCluster();
         kafka.setup();
         resetTopics();
@@ -98,7 +99,7 @@ public class DockerTestConfigFK {
     }
 
     @AfterMethod
-    public void teardownTest() throws InterruptedException {
+    public void teardownTest() {
         FKS.resetPollThreads();
         kafka.teardown();
         kafka = null;

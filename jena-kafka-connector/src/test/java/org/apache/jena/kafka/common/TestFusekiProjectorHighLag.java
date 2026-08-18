@@ -22,18 +22,19 @@ import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
+class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
     private static final String NTRIPLES = Lang.NTRIPLES.getContentType().getContentTypeStr();
 
@@ -71,7 +72,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
 
     @Test
-    public void givenHighLagSource_whenProjectingLessThanBatchSize_thenHighLagDetected_andNoCommit() {
+    void givenHighLagSource_whenProjectingLessThanBatchSize_thenHighLagDetected_andNoCommit() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(50_000, 1);
@@ -91,7 +92,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenHighLagSource_whenProjectingBatchSizeEvents_thenHighLagDetected_andNoCommit() {
+    void givenHighLagSource_whenProjectingBatchSizeEvents_thenHighLagDetected_andNoCommit() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(50_000, 1);
@@ -111,7 +112,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenHighLagSourceWithAdvancedConnectorConfiguration_whenProjectingBatchSizeEvents_thenHighLagNotDetected_andCommitsAsNormal() {
+    void givenHighLagSourceWithAdvancedConnectorConfiguration_whenProjectingBatchSizeEvents_thenHighLagNotDetected_andCommitsAsNormal() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(50_000, 1);
@@ -133,7 +134,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenSourceWhoseLagEventuallyReachesZero_whenProjecting_thenHighLagDetectedInitially_andEventuallyDisabled() {
+    void givenSourceWhoseLagEventuallyReachesZero_whenProjecting_thenHighLagDetectedInitially_andEventuallyDisabled() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(15_000, 0.8);
@@ -157,7 +158,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenHighLagSource_whenProjectingLargeEvents_thenHighLagDetected_andCommitTriggeredByEventSize() {
+    void givenHighLagSource_whenProjectingLargeEvents_thenHighLagDetected_andCommitTriggeredByEventSize() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         Graph graph = GraphFactory.createGraphMem();
@@ -189,7 +190,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenHighLagSource_whenProjectingSmallEvents_thenHighLagDetected_andCommitsTriggeredByEventSize() {
+    void givenHighLagSource_whenProjectingSmallEvents_thenHighLagDetected_andCommitsTriggeredByEventSize() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(10_000_000, 1);
@@ -209,7 +210,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenHighLagSource_whenProjectingVerySmallEvents_thenHighLagDetected_andCommitsTriggeredByEventSize() {
+    void givenHighLagSource_whenProjectingVerySmallEvents_thenHighLagDetected_andCommitsTriggeredByEventSize() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(10_000_000, 1, () -> TEN_TRIPLE_EVENT);
@@ -228,10 +229,9 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
         verify(dsg, atLeastOnce()).commit();
     }
 
-    // This test was very slow, just created to debug and characterise some overheads
     @Test
-    @Disabled
-    public void givenHighLagSource_whenProjectingSmallEventsWithProcessingTime_thenHighLagDetected_andCommitsTriggeredByEventSize() {
+    @Disabled("Characterization/debug-only test: injects 5ms processing delay across millions of events and is too slow for CI.")
+    void givenHighLagSource_whenProjectingSmallEventsWithProcessingTime_thenHighLagDetected_andCommitsTriggeredByEventSize() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createHighVolumeSource(10_000_000, 1);
@@ -239,11 +239,7 @@ public class TestFusekiProjectorHighLag extends AbstractFusekiProjectorTests {
 
         // When
         try (Sink<Event<Bytes, RdfPayload>> sink = event -> {
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                // Ignored
-            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
         }) {
             for (int i = 1; i <= 1_000; i++) {
                 sendEvents(projector, source, sink, 5_000);

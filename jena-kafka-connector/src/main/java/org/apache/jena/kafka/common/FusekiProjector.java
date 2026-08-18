@@ -159,7 +159,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private final String topicNames;
     private final Sink<Event<Bytes, RdfPayload>> dlq;
     @Getter
-    private boolean lowVolumeDetected = false, highLagDetected = false;
+    private boolean lowVolumeDetected = false;
+    @Getter
+    private boolean highLagDetected = false;
 
     /**
      * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} /
@@ -179,9 +181,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private volatile boolean atPausePoint = false;
     private final DescriptiveStatistics recentBatchSizes;
     @Getter
-    private final long batchSizeBytes, highLagThreshold;
+    private final long batchSizeBytes;
     @Getter
-    private final int recentBatchSizeWindow, lowVolumeBatchSizeThreshold;
+    private final long highLagThreshold;
+    @Getter
+    private final int recentBatchSizeWindow;
+    @Getter
+    private final int lowVolumeBatchSizeThreshold;
 
     /**
      * Creates a new projector
@@ -290,9 +296,9 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         // Log the error
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
-            ConsumerRecord<Bytes, RdfPayload> record = kafkaEvent.getConsumerRecord();
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
             FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                                  record.topic(), record.partition(), record.offset(), reason,
+                                  consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
                                   e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
         } else {
             FusekiKafka.LOG.error("[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
@@ -313,7 +319,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)),
                     new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()))));
             return true;
-        } catch (Throwable dlqError) {
+        } catch (Exception dlqError) {
             FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ: {}", this.topicNames, dlqError.getMessage());
         }
         return false;
@@ -404,78 +410,128 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         // Track current batch size as we go to avoid repeatedly recalculating it
         this.currentBatchSizeBytes += event.value().sizeInBytes();
 
-        // Make a decision about whether to commit
-        if (event.value().isPatch() && !this.dataset.isInTransaction()) {
-            // Just processed an RDF Patch that committed the transaction for us
-            // Need to call our own commit() now or our state will be incorrect
-            FusekiKafka.LOG.debug("[{}] Committing due to previous RDF patch event committing", this.topicNames);
-            this.commit();
-        } else if (this.batchSize == 1) {
-            // No batching enabled, always commit immediately
-            FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
-            this.commit();
-        } else if (this.currentBatchSizeBytes > batchSizeBytes) {
-            // We've exceeded the batch size bytes threshold
+        if (commitAfterExternalPatch(event) ||
+            commitWhenBatchingDisabled() ||
+            commitWhenBatchSizeBytesExceeded() ||
+            commitWhenBatchSizeReachedWithoutBufferedEvents() ||
+            commitWhenMaxTransactionDurationExceeded(elapsed)) {
+            return;
+        }
+
+        updateLagAwareBatchingState();
+    }
+
+    private boolean commitAfterExternalPatch(Event<Bytes, RdfPayload> event) {
+        if (!event.value().isPatch() || this.dataset.isInTransaction()) {
+            return false;
+        }
+
+        // Just processed an RDF Patch that committed the transaction for us
+        // Need to call our own commit() now or our state will be incorrect
+        FusekiKafka.LOG.debug("[{}] Committing due to previous RDF patch event committing", this.topicNames);
+        this.commit();
+        return true;
+    }
+
+    private boolean commitWhenBatchingDisabled() {
+        if (this.batchSize != 1) {
+            return false;
+        }
+
+        // No batching enabled, always commit immediately
+        FusekiKafka.LOG.trace("[{}] Committing due to batching disabled", this.topicNames);
+        this.commit();
+        return true;
+    }
+
+    private boolean commitWhenBatchSizeBytesExceeded() {
+        if (this.currentBatchSizeBytes <= this.batchSizeBytes) {
+            return false;
+        }
+
+        // We've exceeded the batch size bytes threshold
+        if (FusekiKafka.LOG.isDebugEnabled()) {
             FusekiKafka.LOG.debug("[{}] Committing due to exceeding max batch size in bytes threshold ({})",
                                   this.topicNames, byteCountToDisplaySize(this.currentBatchSizeBytes));
-            commit();
-        } else if (!this.highLagDetected && this.eventsSinceLastCommit.size() >= this.batchSize) {
-            // Reached batch size and NOT high lag detected
-            // When in high lag mode we ignore the batch size (in terms of number of events) and prefer batch size in
-            // terms of event size in bytes, provided events are generally small so this almost certainly leads to
-            // larger batches and lets us catch up on the high lag faster
-            // Check whether further events are available immediately, if not commit now
-            if (!this.source.availableImmediately()) {
-                // All in-memory events consumed so commit now
-                FusekiKafka.LOG.debug(
-                        "[{}] Committing due to exceeding batch size ({}) and no buffered events available",
-                        this.topicNames, this.batchSize);
-                commit();
-            }
-            // If we have more events in-memory we should be being called again shortly with those
-        } else if (elapsed.compareTo(this.maxTransactionDuration) >= 0) {
-            // Have we exceeded the maximum transaction time?
-            // This can happen if we have a slow low volume producer writing to the input topics, this can cause the
-            // projector to never hit zero events remaining and means that we would otherwise leave the transaction
-            // open far longer than we should.  This both impacts our memory usage, and delays new data appearing in
-            // the graph which is a bad user experience.
-            FusekiKafka.LOG.warn(
-                    "[{}] Committing due to exceeding maximum transaction duration ({}), this is most likely caused by a slow low volume producer writing to these topics.",
-                    this.topicNames, this.maxTransactionDuration);
-            commit();
-        } else {
-            if (!this.lowVolumeDetected) {
-                // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
-                // We DON't do this when in low volume mode as we're likely caught up fairly frequently, and we're
-                // trying to avoid having lots of small batches
-                Long remaining = this.source.remaining();
-                if (remaining != null && remaining == 0L) {
-                    // Caught up, commit now!
-                    FusekiKafka.LOG.info("[{}] Completely up to date with Kafka topic(s)", this.topicNames);
-                    commit();
-
-                    // Reset high lag detection state if we've caught up
-                    if (this.highLagDetected) {
-                        FusekiKafka.LOG.info("[{}] Lag is now zero, disabling high lag batching mode for these topics",
-                                             this.topicNames);
-                        this.highLagDetected = false;
-                    }
-                } else {
-                    if (!this.highLagDetected && remaining != null && remaining > highLagThreshold) {
-                        // Enable high lag batching mode
-                        // Our outstanding lag is above our configured high lag threshold so for the time being want to
-                        // batch based on size of events in bytes, rather than number of events, as provided events are
-                        // small that leads to larger batches and fewer transactions, thus letting us catch up sooner
-                        FusekiKafka.LOG.info(
-                                "[{}] Lag is currently {}, switching to high lag batching mode for these topics",
-                                this.topicNames, remaining);
-                        this.highLagDetected = true;
-                    }
-                }
-                // Not caught up so we should be being called again shortly with further events after the next Kafka
-                // poll completes
-            }
         }
+        this.commit();
+        return true;
+    }
+
+    private boolean commitWhenBatchSizeReachedWithoutBufferedEvents() {
+        if (this.highLagDetected || this.eventsSinceLastCommit.size() < this.batchSize || this.source.availableImmediately()) {
+            return false;
+        }
+
+        // Reached batch size and NOT high lag detected
+        // When in high lag mode we ignore the batch size (in terms of number of events) and prefer batch size in
+        // terms of event size in bytes, provided events are generally small so this almost certainly leads to
+        // larger batches and lets us catch up on the high lag faster
+        // All in-memory events consumed so commit now
+        FusekiKafka.LOG.debug("[{}] Committing due to exceeding batch size ({}) and no buffered events available",
+                              this.topicNames, this.batchSize);
+        this.commit();
+        return true;
+    }
+
+    private boolean commitWhenMaxTransactionDurationExceeded(Duration elapsed) {
+        if (elapsed.compareTo(this.maxTransactionDuration) < 0) {
+            return false;
+        }
+
+        // This can happen if we have a slow low volume producer writing to the input topics, this can cause the
+        // projector to never hit zero events remaining and means that we would otherwise leave the transaction
+        // open far longer than we should.  This both impacts our memory usage, and delays new data appearing in
+        // the graph which is a bad user experience.
+        FusekiKafka.LOG.warn(
+                "[{}] Committing due to exceeding maximum transaction duration ({}), this is most likely caused by a slow low volume producer writing to these topics.",
+                this.topicNames, this.maxTransactionDuration);
+        this.commit();
+        return true;
+    }
+
+    private void updateLagAwareBatchingState() {
+        if (this.lowVolumeDetected) {
+            return;
+        }
+
+        // Batch size not reached BUT we could be caught up with the Kafka topic(s) i.e. zero lag
+        // We DON'T do this when in low volume mode as we're likely caught up fairly frequently, and we're
+        // trying to avoid having lots of small batches
+        Long remaining = this.source.remaining();
+        if (remaining == null) {
+            return;
+        }
+        if (remaining == 0L) {
+            commitWhenCaughtUp();
+            return;
+        }
+
+        enableHighLagBatchingModeIfNeeded(remaining);
+    }
+
+    private void commitWhenCaughtUp() {
+        FusekiKafka.LOG.info("[{}] Completely up to date with Kafka topic(s)", this.topicNames);
+        this.commit();
+
+        if (this.highLagDetected) {
+            FusekiKafka.LOG.info("[{}] Lag is now zero, disabling high lag batching mode for these topics",
+                                 this.topicNames);
+            this.highLagDetected = false;
+        }
+    }
+
+    private void enableHighLagBatchingModeIfNeeded(long remaining) {
+        if (this.highLagDetected || remaining <= this.highLagThreshold) {
+            return;
+        }
+
+        // Our outstanding lag is above our configured high lag threshold so for the time being want to
+        // batch based on size of events in bytes, rather than number of events, as provided events are
+        // small that leads to larger batches and fewer transactions, thus letting us catch up sooner
+        FusekiKafka.LOG.info("[{}] Lag is currently {}, switching to high lag batching mode for these topics",
+                             this.topicNames, remaining);
+        this.highLagDetected = true;
     }
 
     /**

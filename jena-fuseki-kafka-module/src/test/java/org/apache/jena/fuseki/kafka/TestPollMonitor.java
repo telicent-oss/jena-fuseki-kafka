@@ -44,7 +44,7 @@ public class TestPollMonitor {
         @Override
         public void run() {
             try {
-                Thread.sleep(Long.MAX_VALUE);
+                new CountDownLatch(1).await();
             } catch (InterruptedException e) {
                 return;
             }
@@ -114,7 +114,13 @@ public class TestPollMonitor {
 
     private static void verifyPromptCancellation(FKS.PollThreadMonitor monitor, Future<?> future) throws InterruptedException {
         monitor.cancel();
-        Thread.sleep(100);
+        try {
+            future.get(1, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            Assert.fail("Monitor thread should exit cleanly after cancellation", e);
+        } catch (TimeoutException e) {
+            Assert.fail("Monitor thread should stop promptly after cancellation", e);
+        }
         Assert.assertTrue(future.isDone());
     }
 }

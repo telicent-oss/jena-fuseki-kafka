@@ -106,10 +106,14 @@ public class FKS {
         // If replay is true ignore topic state and start at beginning.
         // If sync is true continue from previous offsets.
         // If neither is true continue from latest offsets
-        KafkaReadPolicy<Bytes, RdfPayload> readPolicy = conn.isReplayTopic() ? KafkaReadPolicies.fromBeginning() :
-                                                        (conn.isSyncTopic() ?
-                                                         KafkaReadPolicies.fromExternalOffsets(offsets, 0) :
-                                                         KafkaReadPolicies.fromLatest());
+        KafkaReadPolicy<Bytes, RdfPayload> readPolicy;
+        if (conn.isReplayTopic()) {
+            readPolicy = KafkaReadPolicies.fromBeginning();
+        } else if (conn.isSyncTopic()) {
+            readPolicy = KafkaReadPolicies.fromExternalOffsets(offsets, 0);
+        } else {
+            readPolicy = KafkaReadPolicies.fromLatest();
+        }
         FmtLog.info(LOG, "[%s] Selected read policy (replay: %s, sync: %s) is %s", topicNames, conn.isReplayTopic(),
                     conn.isSyncTopic(), readPolicy.getClass().getSimpleName());
 
@@ -289,7 +293,7 @@ public class FKS {
         try {
             EXECUTOR.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            // Ignored
+            Thread.currentThread().interrupt();
         }
         EXECUTOR = threadExecutor();
     }
@@ -340,7 +344,10 @@ public class FKS {
         try {
             future.get(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            // Ignored
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+            DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
+            throw new FusekiKafkaException("Interrupted while waiting for connector to start up", e);
         } catch (ExecutionException e) {
             // If the projector driver fails in the startup phase we should bail out immediately
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
@@ -439,8 +446,8 @@ public class FKS {
     private static boolean allProjectorsAtPausePoint(
             List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers) {
         for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
-            if (driver.getProjector() instanceof FusekiProjector fp) {
-                if (!fp.isAtPausePoint()) return false;
+            if (driver.getProjector() instanceof FusekiProjector fp && !fp.isAtPausePoint()) {
+                return false;
             }
         }
         return true;
@@ -453,23 +460,37 @@ public class FKS {
      * @param newOffsets  desired offsets to reset to
      */
     public static void restoreOffsetForDataset(String datasetName, FusekiOffsetStore newOffsets) {
-        if (DRIVERS.containsKey(datasetName)) {
-            for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : DRIVERS.get(datasetName)) {
-                if (driver.getSource() instanceof KafkaEventSource<Bytes, RdfPayload> kafkaSource) {
-                    // Convert from offset store format into the map format KafkaEventSource expects
-                    // Our external offset store keys are of the form <topic>-<partition>-<consumerGroup>
-                    // Since we may be restoring from a state file that may have different group in it, e.g. we might be
-                    // using a restore to spin up a new instance from a previous backup, we want to find the maximum
-                    // offsets in that file as those will represent the most recent Kafka offsets
-                    Map<TopicPartition, Long> kafkaOffsets = new HashMap<>();
-                    for (Map.Entry<String, Object> offset : newOffsets.offsets()) {
-                        TopicPartition partition = decodeExternalOffsetKey(offset.getKey());
-                        kafkaOffsets.compute(partition, (k, v) -> (v == null) ? (Long) offset.getValue() :
-                                                                  Math.max(v, (Long) offset.getValue()));
-                    }
-                    kafkaSource.resetOffsets(kafkaOffsets);
-                }
-            }
+        List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers = DRIVERS.get(datasetName);
+        if (drivers == null) {
+            return;
+        }
+
+        Map<TopicPartition, Long> kafkaOffsets = decodeExternalOffsets(newOffsets);
+        for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
+            resetDriverOffsets(driver, kafkaOffsets);
+        }
+    }
+
+    private static Map<TopicPartition, Long> decodeExternalOffsets(FusekiOffsetStore newOffsets) {
+        // Convert from offset store format into the map format KafkaEventSource expects
+        // Our external offset store keys are of the form <topic>-<partition>-<consumerGroup>
+        // Since we may be restoring from a state file that may have different group in it, e.g. we might be
+        // using a restore to spin up a new instance from a previous backup, we want to find the maximum
+        // offsets in that file as those will represent the most recent Kafka offsets
+        Map<TopicPartition, Long> kafkaOffsets = new HashMap<>();
+        for (Map.Entry<String, Object> offset : newOffsets.offsets()) {
+            TopicPartition partition = decodeExternalOffsetKey(offset.getKey());
+            Long storedOffset = (Long) offset.getValue();
+            kafkaOffsets.compute(partition, (k, currentOffset) ->
+                    currentOffset == null ? storedOffset : Math.max(currentOffset, storedOffset));
+        }
+        return kafkaOffsets;
+    }
+
+    private static void resetDriverOffsets(ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver,
+                                           Map<TopicPartition, Long> kafkaOffsets) {
+        if (driver.getSource() instanceof KafkaEventSource<Bytes, RdfPayload> kafkaSource) {
+            kafkaSource.resetOffsets(kafkaOffsets);
         }
     }
 
@@ -504,51 +525,70 @@ public class FKS {
         @Override
         public void run() {
             while (this.shouldRun) {
-                for (Future<?> future : active) {
-                    try {
-                        if (future.isCancelled()) {
-                            // Ignore threads that have been explicitly cancelled
-                            continue;
-                        }
-
-                        // Check the current status of the polling thread by waiting briefly to get() it's result
-                        future.get(1, TimeUnit.SECONDS);
-
-                        // If we successfully get() it's result then it has exited normally
-                        // BUT in most cases the thread should only exit if it either fails, or we're being shutdown
-                        LOG.info("Polling thread exited normally");
-                    } catch (ExecutionException e) {
-                        // This means something fatal has happened on the polling thread to cause it to exit with an
-                        // exception, log an error for this
-                        // NB - We intentionally log the error directly, and thus its full stack trace here.  As this is
-                        // an error on a ProjectorDriver thread and the ProjectorDriver will only log the basic error
-                        // message.  If we don't log the stack trace we have zero visibility into what the system was
-                        // doing when the error occurred making it difficult to debug.
-                        LOG.error("Polling thread failed: ", e.getCause());
-                    } catch (InterruptedException | CancellationException e) {
-                        // Ignore, we could be cancelled/interrupted for a legitimate reason like JVM shutdown so no
-                        // point doing anything about those here.  If the poll thread continues to run then it'll check
-                        // the driver again on a future loop unless it was genuinely cancelled
-                    } catch (TimeoutException e) {
-                        // Ignore, this just means the poll thread is still alive and active
-                    }
-                }
-
-                // Remove any cancelled/failed/completed drivers from subsequent monitoring otherwise we'd spam the logs
-                // with the error repeatedly
-                active.removeIf(f -> f.isCancelled() || f.isDone());
-
-                // Wait a while before checking the threads again
-                // We intentionally use a semaphore here as that allows the cancel() method to immediately unblock this
-                // thread during cleanup/shutdown by releasing a permit to the semaphore
-                try {
-                    this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    // Ignore, most likely resetPollThreads() has been called and we're being shutdown
-                }
+                monitorActiveDrivers();
+                pruneCompletedDrivers();
+                awaitNextCheck();
             }
 
             LOG.info("Kafka Polling monitor thread exited");
+        }
+
+        private void monitorActiveDrivers() {
+            for (Future<?> future : active) {
+                monitorDriver(future);
+            }
+        }
+
+        private void monitorDriver(Future<?> future) {
+            if (future.isCancelled()) {
+                // Ignore threads that have been explicitly cancelled
+                return;
+            }
+
+            try {
+                // Check the current status of the polling thread by waiting briefly to get() its result
+                future.get(1, TimeUnit.SECONDS);
+
+                // If we successfully get() its result then it has exited normally
+                // BUT in most cases the thread should only exit if it either fails, or we're being shutdown
+                LOG.info("Polling thread exited normally");
+            } catch (ExecutionException e) {
+                // This means something fatal has happened on the polling thread to cause it to exit with an
+                // exception, log an error for this
+                // NB - We intentionally log the error directly, and thus its full stack trace here.  As this is
+                // an error on a ProjectorDriver thread and the ProjectorDriver will only log the basic error
+                // message.  If we don't log the stack trace we have zero visibility into what the system was
+                // doing when the error occurred making it difficult to debug.
+                LOG.error("Polling thread failed: ", e.getCause());
+            } catch (InterruptedException e) {
+                stopAfterInterrupt();
+            } catch (CancellationException e) {
+                // Ignore, cancellation is expected during legitimate shutdown/cleanup.
+            } catch (TimeoutException e) {
+                // Ignore, this just means the poll thread is still alive and active
+            }
+        }
+
+        private void pruneCompletedDrivers() {
+            // Remove any cancelled/failed/completed drivers from subsequent monitoring otherwise we'd spam the logs
+            // with the error repeatedly
+            active.removeIf(f -> f.isCancelled() || f.isDone());
+        }
+
+        @SuppressWarnings("java:S899")
+        private void awaitNextCheck() {
+            // We intentionally use a semaphore here as that allows the cancel() method to immediately unblock this
+            // thread during cleanup/shutdown by releasing a permit to the semaphore
+            try {
+                this.waitLock.tryAcquire(this.checkInterval, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                stopAfterInterrupt();
+            }
+        }
+
+        private void stopAfterInterrupt() {
+            Thread.currentThread().interrupt();
+            this.shouldRun = false;
         }
 
         /**

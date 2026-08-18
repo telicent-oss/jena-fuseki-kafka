@@ -13,11 +13,12 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
+class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
 
     private EventSource<Bytes, RdfPayload> createLowVolumeSource(long maxRemaining, double multiplier) {
         return new RemainingVolumeSource(maxRemaining, multiplier,
@@ -25,7 +26,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenLowVolumeSource_whenProjecting_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() {
+    void givenLowVolumeSource_whenProjecting_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1);
@@ -50,8 +51,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenLowVolumeSource_whenProjectingWithShortMaxTransactionDuration_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() throws
-            InterruptedException {
+    void givenLowVolumeSource_whenProjectingWithShortMaxTransactionDuration_thenLowVolumeModeIsEngaged_andSubsequentEventsAreBatchedAppropriately() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1);
@@ -70,7 +70,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
 
             // And
             sendEvents(projector, source, sink, 1);
-            Thread.sleep(500);
+            LockSupport.parkNanos(Duration.ofMillis(500).toNanos());
             sendEvents(projector, source, sink, 1);
             verify(dsg, times(26)).begin((TxnType) any());
             verify(dsg, times(26)).commit();
@@ -78,7 +78,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenLowVolumeSourceThatEventuallyGetsHighVolume_whenProjecting_thenLowVolumeModeIsEngagedInitially_andSubsequentlyDisengaged() {
+    void givenLowVolumeSourceThatEventuallyGetsHighVolume_whenProjecting_thenLowVolumeModeIsEngagedInitially_andSubsequentlyDisengaged() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1.1);
@@ -102,7 +102,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenSourceWhoseVolumeEventuallyBecomesLow_whenProjecting_thenLowVolumeModeEventuallyEngaged() {
+    void givenSourceWhoseVolumeEventuallyBecomesLow_whenProjecting_thenLowVolumeModeEventuallyEngaged() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(10_000, 0.95);
@@ -123,7 +123,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenLowVolumeSourceAndConnectorWithAdvancedConfiguration_whenProjecting_thenLowVolumeModeEngages() {
+    void givenLowVolumeSourceAndConnectorWithAdvancedConfiguration_whenProjecting_thenLowVolumeModeEngages() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         // NB - In this test our source has higher data volume then the default low volume thresholds, but we're
@@ -148,7 +148,7 @@ public class TestFusekiProjectorLowVolume extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenLowVolumeSourceAndConnectorConfigDisablesLowVolumeMode_whenProjecting_thenLowVolumeModeIsNotEngaged() {
+    void givenLowVolumeSourceAndConnectorConfigDisablesLowVolumeMode_whenProjecting_thenLowVolumeModeIsNotEngaged() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         EventSource<Bytes, RdfPayload> source = createLowVolumeSource(1, 1);

@@ -1,53 +1,44 @@
 package org.apache.jena.kafka.common;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
-import io.telicent.smart.cache.projectors.Sink;
-import io.telicent.smart.cache.projectors.SinkException;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.EventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaEvent;
 import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
-import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.query.TxnType;
-import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorTests {
+class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorTests {
 
 
     private List<Event<Bytes, RdfPayload>> createKafkaTestEvents(int size) {
         List<Event<Bytes, RdfPayload>> events = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            ConsumerRecord<Bytes, RdfPayload> record = new ConsumerRecord<>("test", 0, i, Bytes.wrap(new byte[0]),
-                                                                            RdfPayload.of(
-                                                                                    TestFusekiSink.createSimpleDatasetPayload()));
-            events.add(new KafkaEvent<>(record, null));
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord =
+                    new ConsumerRecord<>("test", 0, i, Bytes.wrap(new byte[0]),
+                                         RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload()));
+            events.add(new KafkaEvent<>(consumerRecord, null));
         }
         return events;
     }
 
     @Test
-    public void givenBatchingProjector_whenProjectingKafkaEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
+    void givenBatchingProjector_whenProjectingKafkaEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         List<Event<Bytes, RdfPayload>> kafkaEvents = createKafkaTestEvents(3);
@@ -60,7 +51,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -77,7 +68,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorInTransaction_whenStalling_thenCommits() {
+    void givenProjectorInTransaction_whenStalling_thenCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
@@ -96,7 +87,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenNonBatchingProjector_whenStalling_thenNoAdditionalCommits() {
+    void givenNonBatchingProjector_whenStalling_thenNoAdditionalCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
@@ -115,8 +106,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() throws
-            InterruptedException {
+    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsSlowly_thenCommitsTriggeredByTimeThreshold() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();
@@ -126,7 +116,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
 
         // When
         projector.project(createTestDatasetEvent(), sink);
-        Thread.sleep(500);
+        LockSupport.parkNanos(Duration.ofMillis(500).toNanos());
         // NB - We slept longer than our max transaction duration of 100 milliseconds, next projected event should
         //      trigger a commit due to exceeding the duration
         projector.project(createTestDatasetEvent(), sink);
@@ -138,7 +128,7 @@ public class TestFusekiProjectorWithKafkaEvents extends AbstractFusekiProjectorT
     }
 
     @Test
-    public void givenProjectorWithMaxTransactionDuration_whenReceivingEventsFasterThanMaxDuration_thenNoCommits() {
+    void givenProjectorWithMaxTransactionDuration_whenReceivingEventsFasterThanMaxDuration_thenNoCommits() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();

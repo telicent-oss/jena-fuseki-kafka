@@ -32,37 +32,42 @@ import java.util.stream.Stream;
 
 import static org.mockito.Mockito.*;
 
-public class TestFusekiProjector extends AbstractFusekiProjectorTests {
+class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
     @Test
-    public void givenNoParameters_whenBuildingProjector_thenNPE() {
+    void givenNoParameters_whenBuildingProjector_thenNPE() {
         // Given, When and Then
-        Assertions.assertThrows(NullPointerException.class, () -> FusekiProjector.builder().build());
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder();
+        Assertions.assertThrows(NullPointerException.class, builder::build);
     }
 
     @Test
-    public void givenOnlyConnector_whenBuildingProjector_thenNPE() {
+    void givenOnlyConnector_whenBuildingProjector_thenNPE() {
         // Given
         KConnectorDesc connector = createTestConnector();
 
         // When and Then
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder().connector(connector);
         Assertions.assertThrows(NullPointerException.class,
-                                () -> FusekiProjector.builder().connector(connector).build());
+                                builder::build);
     }
 
     @Test
-    public void givenConnectorAndSource_whenBuildingProjector_thenNPE() {
+    void givenConnectorAndSource_whenBuildingProjector_thenNPE() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
 
         // When and Then
+        FusekiProjector.FusekiProjectorBuilder builder = FusekiProjector.builder()
+                                                                        .connector(connector)
+                                                                        .source(source);
         Assertions.assertThrows(NullPointerException.class,
-                                () -> FusekiProjector.builder().connector(connector).source(source).build());
+                                builder::build);
     }
 
     @Test
-    public void givenMinimalConfig_whenBuildingProjector_thenOk() {
+    void givenMinimalConfig_whenBuildingProjector_thenOk() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -83,7 +88,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
     @ParameterizedTest
     @MethodSource(value = "badMaxDurations")
-    public void givenMinimalConfigAndBadMaxTransactionDuration_whenBuildingProjector_thenDefaultMaxTransactionDurationIsUsed(
+    void givenMinimalConfigAndBadMaxTransactionDuration_whenBuildingProjector_thenDefaultMaxTransactionDurationIsUsed(
             Duration badMax) {
         // Given
         KConnectorDesc connector = createTestConnector();
@@ -106,7 +111,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenFullConfig_whenBuildingProjector_thenOk() {
+    void givenFullConfig_whenBuildingProjector_thenOk() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -121,7 +126,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenNonBatchingProjector_whenProjectingSingleEvent_thenProjectedWithSingleTransaction() {
+    void givenNonBatchingProjector_whenProjectingSingleEvent_thenProjectedWithSingleTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(createTestDatasetEvent()));
@@ -132,60 +137,34 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
         verifyProjection(source, projector, dsg, 1L, 1, 1);
     }
 
-    @Test
-    public void givenNonBatchingProjector_whenProjectingMultipleEvents_thenProjectedWithTransactionPerEvent() {
+    private static Stream<Arguments> projectionBatchingScenarios() {
+        return Stream.of(Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 1, 3, 3, 3),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 10, 3, 1, 1),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 3, 3, 1, 1),
+                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                                         createTestDatasetEvent()), 100, 3, 1, 1));
+    }
+
+    @ParameterizedTest
+    @MethodSource("projectionBatchingScenarios")
+    void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
+            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount, int expectedTransactionCount,
+            int expectedCommitCount) {
         // Given
         KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(events);
         DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 1);
+        FusekiProjector projector = buildProjector(connector, source, dsg, batchSize);
 
         // When and Then
-        verifyProjection(source, projector, dsg, 3, 3, 3);
+        verifyProjection(source, projector, dsg, projectedEventCount, expectedTransactionCount, expectedCommitCount);
     }
 
     @Test
-    public void givenBatchingProjector_whenProjectingMultipleEvents_thenProjectedWithSingleTransaction() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 10);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
-    }
-
-    @Test
-    public void givenBatchingProjector_whenProjectingEventsEquallingBatchSize_thenProjectedWithSingleTransaction() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 3);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
-    }
-
-    @Test
-    public void givenBatchingProjector_whenProjectingAllAvailableEventsButFewerThanBatchSize_thenProjectedWithSingleTransaction() {
-        // Given
-        KConnectorDesc connector = createTestConnector();
-        SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
-        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(List.of(event, event, event));
-        DatasetGraph dsg = mockDatasetGraph();
-        FusekiProjector projector = buildProjector(connector, source, dsg, 100);
-
-        // When and Then
-        verifyProjection(source, projector, dsg, 3, 1, 1);
-    }
-
-    @Test
-    public void givenBatchingProjector_whenProjectingFewerEventsThanBatchSizeFromSourceWithNullRemaining_thenNoCommit() {
+    void givenBatchingProjector_whenProjectingFewerEventsThanBatchSizeFromSourceWithNullRemaining_thenNoCommit() {
         // Given
         KConnectorDesc connector = createTestConnector();
         SimpleEvent<Bytes, RdfPayload> event = createTestDatasetEvent();
@@ -198,7 +177,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingPatchThatCommitsTheTransaction_thenNoAdditionalCommits() {
+    void givenProjector_whenProjectingPatchThatCommitsTheTransaction_thenNoAdditionalCommits() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -214,7 +193,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingPatchThatLeavesTransactionOpen_thenCommitted() {
+    void givenProjector_whenProjectingPatchThatLeavesTransactionOpen_thenCommitted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -232,7 +211,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
+    void givenProjector_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = badNestedTransactionPatch();
@@ -251,7 +230,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
+    void givenProjectorWithDlq_whenProjectingMalformedPatch_thenErrorThrown_andTransactionAborted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = badNestedTransactionPatch();
@@ -276,7 +255,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -292,7 +271,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
+    void givenProjector_whenProjectingMalformedRdfPayloadKafkaEvent_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -309,7 +288,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithBrokenDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjectorWithBrokenDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -327,7 +306,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
+    void givenProjectorWithDlq_whenProjectingMalformedRdfPayload_thenNoTransaction() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(
@@ -342,7 +321,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenSinkFails_thenDlqIncludesRootCauseHeaders() {
+    void givenProjectorWithDlq_whenSinkFails_thenDlqIncludesRootCauseHeaders() {
         // Given
         KConnectorDesc connector = createTestConnector();
         EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
@@ -374,7 +353,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenProjectorWithDlq_whenProjectingValidFollowedByInvalidEvent_thenValidEventsAreCommitted() {
+    void givenProjectorWithDlq_whenProjectingValidFollowedByInvalidEvent_thenValidEventsAreCommitted() {
         // Given
         KConnectorDesc connector = createTestConnector();
         RDFChangesCollector collector = new RDFChangesCollector();
@@ -394,7 +373,7 @@ public class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     @Test
-    public void givenIdleProjector_whenStalling_thenNothingIsCommited() {
+    void givenIdleProjector_whenStalling_thenNothingIsCommited() {
         // Given
         DatasetGraph dsg = mockDatasetGraph();
         KConnectorDesc connector = createTestConnector();

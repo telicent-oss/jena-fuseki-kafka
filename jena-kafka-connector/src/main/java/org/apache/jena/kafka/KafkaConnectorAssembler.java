@@ -107,6 +107,7 @@ import org.slf4j.LoggerFactory;
  * </p>
  */
 public class KafkaConnectorAssembler extends AssemblerBase implements Assembler {
+    private static final String DATASET_PATH_SEPARATOR = Character.toString('/');
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectorAssembler.class);
 
@@ -181,12 +182,12 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     @Override
     public Object open(Assembler a, Resource root, Mode mode) {
-        return create(root.getModel().getGraph(), root.asNode(), tKafkaConnector.asNode());
+        return create(root.getModel().getGraph(), root.asNode());
     }
 
-    private KConnectorDesc create(Graph graph, Node node, Node type) {
+    private KConnectorDesc create(Graph graph, Node node) {
         try {
-            return createSub(graph, node, type);
+            return createSub(graph, node);
         } catch (RuntimeException ex) {
             FusekiKafka.LOG.error(ex.getMessage());
             return null;
@@ -195,7 +196,8 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
 
     private static final Assem2.OnError errorException = JenaKafkaException::new;
 
-    private KConnectorDesc createSub(Graph graph, Node node, Node type) {
+    @SuppressWarnings("java:S125")
+    private KConnectorDesc createSub(Graph graph, Node node) {
         /*
          * PREFIX fk: <http://jena.apache.org/fuseki/kafka#>
          *
@@ -373,9 +375,6 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
         }
     }
 
-    private static final String PREFIXES =
-            StrUtils.strjoinNL("PREFIX ja:     <" + JA.getURI() + ">", "PREFIX fk:     <" + NS + ">", "");
-
     private String datasetName(Graph graph, Node node) {
         String queryString = """
                 SELECT ?n {
@@ -417,15 +416,15 @@ public class KafkaConnectorAssembler extends AssemblerBase implements Assembler 
             return datasetPath;
         }
         if (datasetPath.isEmpty()) {
-            return "/";
+            return DATASET_PATH_SEPARATOR;
         }
-        if (datasetPath.equals("/")) {
+        if (datasetPath.equals(DATASET_PATH_SEPARATOR)) {
             return datasetPath;
         }
-        if (!datasetPath.startsWith("/")) {
-            datasetPath = "/" + datasetPath;
+        if (!datasetPath.startsWith(DATASET_PATH_SEPARATOR)) {
+            datasetPath = DATASET_PATH_SEPARATOR + datasetPath;
         }
-        if (datasetPath.endsWith("/")) {
+        if (datasetPath.endsWith(DATASET_PATH_SEPARATOR)) {
             datasetPath = datasetPath.substring(0, datasetPath.length() - 1);
         }
         return datasetPath;

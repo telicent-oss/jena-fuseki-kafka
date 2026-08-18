@@ -6,10 +6,10 @@ import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class TestRDFChangesApplyExternalTransaction {
+class TestRDFChangesApplyExternalTransaction {
 
     @Test
-    public void givenNoExternalTransaction_whenUsingTransactionBegin_thenOk() {
+    void givenNoExternalTransaction_whenUsingTransactionBegin_thenOk() {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
 
@@ -23,7 +23,7 @@ public class TestRDFChangesApplyExternalTransaction {
     }
 
     @Test
-    public void givenExternalTransaction_whenUsingTransactionBegin_thenOk() {
+    void givenExternalTransaction_whenUsingTransactionBegin_thenOk() {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
         dsg.begin(TxnType.WRITE);
@@ -38,7 +38,7 @@ public class TestRDFChangesApplyExternalTransaction {
     }
 
     @Test
-    public void givenExternalTransaction_whenUsingTransactionAbort_thenOk() {
+    void givenExternalTransaction_whenUsingTransactionAbort_thenOk() {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.createTxnMem();
         dsg.begin(TxnType.WRITE);

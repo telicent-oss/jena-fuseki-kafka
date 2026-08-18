@@ -14,7 +14,6 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 
@@ -22,24 +21,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
-public class TestFusekiSink {
+class TestFusekiSink {
     static {
         JenaSystem.init();
     }
 
     @Test
-    public void givenNullDataset_whenBuildingSink_thenNPE() {
+    void givenNullDataset_whenBuildingSink_thenNPE() {
         // Given
         DatasetGraph dsg = null;
 
         // When and Then
-        assertThrows(NullPointerException.class, () -> FusekiSink.builder().dataset(dsg).build());
+        FusekiSink.FusekiSinkBuilder<DatasetGraph> builder = FusekiSink.builder();
+        assertThrows(NullPointerException.class, () -> builder.dataset(dsg));
     }
 
     @Test
-    public void givenDatasetNotInTransaction_whenClosing_thenNoOp() {
+    void givenDatasetNotInTransaction_whenClosing_thenNoOp() {
         // Given
-        DatasetGraph dsg = Mockito.mock(DatasetGraph.class);
+        DatasetGraph dsg = mock(DatasetGraph.class);
         when(dsg.isInTransaction()).thenReturn(false);
 
         // When
@@ -51,7 +51,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenDatasetPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
+    void givenDatasetPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
         // Given
         DatasetGraph destination = DatasetGraphFactory.createTxnMem();
         DatasetGraph data = createSimpleDatasetPayload();
@@ -67,7 +67,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenPatchPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
+    void givenPatchPayload_whenUsingSink_thenDestinationDatasetIsPopulated() {
         // Given
         DatasetGraph destination = DatasetGraphFactory.createTxnMem();
         RDFChangesCollector patch = new RDFChangesCollector();
@@ -85,7 +85,7 @@ public class TestFusekiSink {
     }
 
     @Test
-    public void givenFailingPatch_whenUsingSink_thenFails() {
+    void givenFailingPatch_whenUsingSink_thenFails() {
         // Given
         RDFChangesCollector patch = new RDFChangesCollector();
         patch.txnBegin();
@@ -94,26 +94,28 @@ public class TestFusekiSink {
 
         // When
         try (FusekiSink sink = FusekiSink.builder().dataset(DatasetGraphFactory.createTxnMem()).build()) {
-            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(
-                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(patch.getRDFPatch()))));
+            Event<Bytes, RdfPayload> event =
+                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(patch.getRDFPatch()));
+            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(event));
         }
     }
 
     @Test
-    public void givenNonWritableDataset_whenUsingSink_thenFails() {
+    void givenNonWritableDataset_whenUsingSink_thenFails() {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.empty();
         DatasetGraph data = createSimpleDatasetPayload();
 
         // When
         try (FusekiSink sink = FusekiSink.builder().dataset(dsg).build()) {
-            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(
-                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(data))));
+            Event<Bytes, RdfPayload> event =
+                    new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(data));
+            Assertions.assertThrows(JenaKafkaException.class, () -> sink.send(event));
         }
     }
 
     @Test
-    public void givenNestedFailure_whenUsingSink_thenErrorIncludesRootCause() {
+    void givenNestedFailure_whenUsingSink_thenErrorIncludesRootCause() {
         // Given
         Event<Bytes, RdfPayload> event =
                 new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(createSimpleDatasetPayload()));
@@ -133,7 +135,7 @@ public class TestFusekiSink {
         assertTrue(ex.getMessage().contains("No space left on device"));
     }
 
-    public static DatasetGraph createSimpleDatasetPayload() {
+    static DatasetGraph createSimpleDatasetPayload() {
         DatasetGraph data = DatasetGraphFactory.create();
         data.add(Quad.defaultGraphIRI, NodeFactory.createURI("https://example.org/s"),
                  NodeFactory.createURI("https://example.org/p"), NodeFactory.createLiteralString("object"));

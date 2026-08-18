@@ -50,6 +50,7 @@ import org.apache.kafka.common.utils.Bytes;
 /**
  * Connect Kafka to a dataset. Messages on a Kafka topic are HTTP-like: updates (add data), SPARQL Update or RDF patch.
  */
+@SuppressWarnings("java:S101")
 public class FMod_FusekiKafka implements FusekiAutoModule {
 
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
@@ -67,6 +68,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
     }
 
     public FMod_FusekiKafka() {
+        // Required public no-arg constructor for Fuseki's service/module loading.
     }
 
     // The Fuseki modules build lifecycle is same-thread.
