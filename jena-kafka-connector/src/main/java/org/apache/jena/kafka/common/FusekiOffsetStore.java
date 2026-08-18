@@ -168,10 +168,11 @@ public class FusekiOffsetStore extends MemoryOffsetStore {
         //
         // If it exceeds the stream constraints we define assume the file is corrupted and move it to a new
         // file with a .discarded suffix so operators can inspect the corrupted file later
+        String byteCountString = FusekiProjector.byteCountToDisplaySize(this.stateFile.length());
         LOGGER.warn(
                 "State file {} violated stream constraints (size on disk {}), this likely indicates disk corruption as state files should be small",
                 this.stateFile.getAbsolutePath(),
-                FusekiProjector.byteCountToDisplaySize(this.stateFile.length()));
+                byteCountString);
         File discardFile = getNextDiscardFile();
         LOGGER.warn("Attempting to move state file to {} and ignoring its contents", discardFile.getAbsolutePath());
         Files.move(this.stateFile.toPath(), discardFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
