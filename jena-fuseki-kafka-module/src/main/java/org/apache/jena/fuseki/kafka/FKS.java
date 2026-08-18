@@ -562,9 +562,8 @@ public class FKS {
                 LOG.error("Polling thread failed: ", e.getCause());
             } catch (InterruptedException e) {
                 stopAfterInterrupt();
-            } catch (CancellationException e) {
+            } catch (CancellationException | TimeoutException e) {
                 // Ignore, cancellation is expected during legitimate shutdown/cleanup.
-            } catch (TimeoutException e) {
                 // Ignore, this just means the poll thread is still alive and active
             }
         }
