@@ -23,6 +23,8 @@ import org.apache.kafka.common.utils.Bytes;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An event source that is caught up but not exhausted, i.e. every poll blocks for the timeout and then yields nothing.
@@ -34,6 +36,12 @@ import java.util.Collection;
 public class QuietEventSource implements EventSource<Bytes, RdfPayload> {
 
     private volatile boolean closed = false;
+
+    /**
+     * Released by {@link #close()} so that a blocked {@link #poll(Duration)} returns promptly instead of waiting out
+     * the remainder of its timeout.
+     */
+    private final CountDownLatch closeSignal = new CountDownLatch(1);
 
     @Override
     public boolean availableImmediately() {
@@ -50,6 +58,7 @@ public class QuietEventSource implements EventSource<Bytes, RdfPayload> {
     @Override
     public void close() {
         this.closed = true;
+        this.closeSignal.countDown();
     }
 
     @Override
@@ -60,7 +69,8 @@ public class QuietEventSource implements EventSource<Bytes, RdfPayload> {
     @Override
     public Event<Bytes, RdfPayload> poll(Duration timeout) {
         try {
-            Thread.sleep(timeout.toMillis());
+            // Blocks for the whole timeout unless the source is closed first, modelling a poll of a quiet topic
+            this.closeSignal.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
