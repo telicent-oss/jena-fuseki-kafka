@@ -1,5 +1,15 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.1.1
+
+- When a Kafka polling thread fails now log more information to aid debugging
+- Build improvements:
+    - Apache Jena upgraded to 6.2.0
+    - Logback upgraded to 1.6.1
+    - LZ4 Java upgraded to 1.11.2
+    - Smart Caches Core upgraded to 1.2.1
+    - Various build and test dependencies upgraded to latest available
+
 ## 3.1.0
 
 - Build improvements:
