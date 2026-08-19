@@ -654,10 +654,19 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             this.commit();
         }
 
-        // Stall is also the point at which a paused projector with no events flowing notices
-        // the pause request — without this, a quiet topic would leave the projector idle in
-        // the driver's poll loop and waitForPause() would have to wait for a poll timeout. The
-        // commit above ensures there is no in-flight transaction before we block.
+        // A pause may have been requested while events were still flowing, in which case this is
+        // the first opportunity to honour it. The commit above ensures there is no in-flight
+        // transaction before we block. Note that the driver only calls this on the FIRST of a run
+        // of consecutive stalls, so a projector that stalled some time ago observes a pause
+        // request via idle() instead.
+        awaitResumeIfPaused();
+    }
+
+    @Override
+    public void idle(Sink<Event<Bytes, RdfPayload>> sink) {
+        // Called by the driver on every poll that yields no events, so this is how a projector on
+        // a quiet topic notices a pause request. Deliberately cheap: awaitResumeIfPaused() returns
+        // immediately unless a pause has actually been requested.
         awaitResumeIfPaused();
     }
 
@@ -693,9 +702,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     }
 
     /**
-     * Called by the projector thread on entry to {@link #project(Event, Sink)} and
-     * {@link #stalled(Sink)}. If a pause has been requested, commits any in-flight Jena
-     * transaction so the dataset is idle, then blocks until resumed.
+     * Called by the projector thread on entry to {@link #project(Event, Sink)},
+     * {@link #stalled(Sink)} and {@link #idle(Sink)}. If a pause has been requested, commits any
+     * in-flight Jena transaction so the dataset is idle, then blocks until resumed.
+     * <p>
+     * {@link #idle(Sink)} is what makes a pause reachable on a quiet topic: events may never
+     * arrive to trigger {@link #project(Event, Sink)}, and {@link #stalled(Sink)} is only called
+     * on the first of a run of consecutive stalls.
      */
     private void awaitResumeIfPaused() {
         if (!this.paused) return;
