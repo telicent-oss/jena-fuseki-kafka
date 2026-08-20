@@ -1,5 +1,10 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.2.2
+
+**NOTE** next version will need to be 3.2.2 as previous version was accidentally labelled as 3.2.1 during a failed
+release process and so a (probably broken) version 3.2.1 already exists in Maven Central.√
+
 ## 3.2.0
 
 - Code quality improvements:
