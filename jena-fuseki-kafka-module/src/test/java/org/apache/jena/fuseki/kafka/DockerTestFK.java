@@ -21,6 +21,7 @@ import io.telicent.smart.cache.sources.kafka.FlakyKafkaTest;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.sources.kafka.KafkaTestCluster;
 import org.apache.jena.fuseki.main.sys.FusekiModules;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.system.FusekiLogging;
@@ -221,7 +222,7 @@ public class DockerTestFK {
         return server;
     }
 
-    @Test(expectedExceptions = FusekiKafkaException.class, expectedExceptionsMessageRegExp = "No dataset found.*")
+    @Test(expectedExceptions = JenaKafkaException.class, expectedExceptionsMessageRegExp = "No dataset found.*")
     public void givenMisconfiguredDatasetName_whenAddingConnectorToServer_thenFails() {
         // Given
         KConnectorDesc conn =
@@ -254,7 +255,7 @@ public class DockerTestFK {
         }
     }
 
-    @Test(expectedExceptions = FusekiKafkaException.class, expectedExceptionsMessageRegExp = ".*Strict startup checks are enabled.*", retryAnalyzer = FlakyKafkaTest.class)
+    @Test(expectedExceptions = JenaKafkaException.class, expectedExceptionsMessageRegExp = ".*Strict startup checks are enabled.*", retryAnalyzer = FlakyKafkaTest.class)
     public void givenStartupTopicChecksEnabledAndTopicMissing_whenAddingConnector_thenFails() {
         // Given
         FusekiOffsetStore offsets = createNonPersistentState();

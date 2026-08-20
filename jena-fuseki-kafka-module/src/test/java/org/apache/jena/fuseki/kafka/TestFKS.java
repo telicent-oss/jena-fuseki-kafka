@@ -1,16 +1,17 @@
 package org.apache.jena.fuseki.kafka;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
-import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
-import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
+import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
+import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.fuseki.server.DataService;
 import org.apache.jena.fuseki.system.FusekiLogging;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.sparql.core.DatasetGraph;
@@ -19,38 +20,23 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.apache.kafka.common.utils.Bytes;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Map;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class TestFKS {
 
@@ -194,7 +180,7 @@ public class TestFKS {
                 props -> new TopicExistenceChecker(adminClient, conn.getBootstrapServers(), conn.getTopics(), null);
 
         // When/Then
-        FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
                 conn, "topic-a", Duration.ofMillis(10), 1, checkerFactory));
         Assert.assertTrue(ex.getMessage().contains("Strict startup checks are enabled"));
     }
@@ -207,7 +193,7 @@ public class TestFKS {
                                    false, false, true, null, new Properties());
 
         // When/Then
-        FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
                 conn, "topic-a", Duration.ofMillis(10), 1, props -> {
                     throw new RuntimeException("boom");
                 }));
@@ -222,9 +208,9 @@ public class TestFKS {
                                    false, false, true, null, new Properties());
 
         // When/Then
-        FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
                 conn, "topic-a", Duration.ofMillis(10), 1, props -> {
-                    throw new FusekiKafkaException("pre-existing failure");
+                    throw new JenaKafkaException("pre-existing failure");
                 }));
         Assert.assertEquals(ex.getMessage(), "pre-existing failure");
     }
@@ -241,7 +227,7 @@ public class TestFKS {
                                                                   conn.getTopics(), null);
 
         // When
-        Assert.expectThrows(FusekiKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
+        Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
                 conn, "topic-a", Duration.ofMillis(10), 1, props -> checker));
 
         // Then
@@ -257,7 +243,7 @@ public class TestFKS {
         FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName("/missing").build();
 
         // When/Then
-        FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class,
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
                                                       () -> FKS.addConnectorToServer(conn, server, offsets, dsg -> NullSink.of()));
         Assert.assertTrue(ex.getMessage().contains("No dataset found"));
     }
@@ -287,7 +273,7 @@ public class TestFKS {
 
         // When/Then
         try {
-            FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class,
+            JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
                                                           () -> FKS.addConnectorToServer(conn, serverForDataset("/ds", DatasetGraphFactory.empty()),
                                                                                          offsets, dsg -> NullSink.of()));
             Assert.assertTrue(ex.getMessage().contains("Interrupted while waiting for connector to start up"));
@@ -306,7 +292,7 @@ public class TestFKS {
         FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName("/ds").build();
 
         // When/Then
-        FusekiKafkaException ex = Assert.expectThrows(FusekiKafkaException.class,
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
                                                       () -> FKS.addConnectorToServer(conn, serverForDataset("/ds", DatasetGraphFactory.empty()),
                                                                                      offsets, dsg -> NullSink.of()));
         Assert.assertTrue(ex.getMessage().contains("Connector failed to start up"));
