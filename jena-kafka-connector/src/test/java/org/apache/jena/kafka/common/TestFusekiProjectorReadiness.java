@@ -17,6 +17,7 @@
 package org.apache.jena.kafka.common;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.memory.InMemoryEventSource;
@@ -174,6 +175,85 @@ class TestFusekiProjectorReadiness extends AbstractFusekiProjectorTests {
         projector.requestResume();
         stalledCall.get(5, TimeUnit.SECONDS);
         Assertions.assertFalse(projector.isAtPausePoint());
+    }
+
+    @Test
+    @Timeout(10)
+    void givenPauseRequested_whenIdleCalled_thenItAlsoBlocksUntilResume() throws Exception {
+        // Given -- pause is requested. The projector is idle (no events flowing) and, crucially,
+        // stalled some time ago, so the driver will not call stalled() again. idle() is called on
+        // every poll that yields no events and is therefore the only path by which a long quiet
+        // projector can observe the pause request. Without it a restore would wait in vain.
+        final FusekiProjector projector = newProjectorWithEmptySource();
+        projector.requestPause();
+
+        // When -- simulate the driver calling idle() on the worker thread
+        final CompletableFuture<Void> idleCall = CompletableFuture.runAsync(() -> {
+            try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
+                projector.idle(sink);
+            }
+        });
+
+        waitFor(projector::isAtPausePoint, Duration.ofSeconds(5),
+                "idle() did not reach pause point");
+        Assertions.assertFalse(idleCall.isDone(),
+                               "idle() should remain blocked while pause is in effect");
+
+        // Then -- resume releases idle()
+        projector.requestResume();
+        idleCall.get(5, TimeUnit.SECONDS);
+        Assertions.assertFalse(projector.isAtPausePoint());
+    }
+
+    @Test
+    @Timeout(10)
+    void givenNoPause_whenIdleCalled_thenReturnsImmediately() {
+        // Given -- no pause requested, i.e. the steady state for every poll of a quiet topic
+        final FusekiProjector projector = newProjectorWithEmptySource();
+
+        // When and Then -- idle() must not block, it is called on every poll
+        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            try (NullSink<Event<Bytes, RdfPayload>> sink = NullSink.of()) {
+                projector.idle(sink);
+            }
+        });
+        Assertions.assertFalse(projector.isAtPausePoint());
+    }
+
+    @Test
+    @Timeout(30)
+    void givenLongStalledDriver_whenPauseRequested_thenProjectorReachesPausePointWithoutAnyEvents() throws Exception {
+        // Given -- a real driver polling a quiet source with a real projector, i.e. the state a
+        // dataset is in when a restore is run on a caught up system. The driver only reports the
+        // first of a run of consecutive stalls, so by the time we request the pause below the
+        // stalled() notification is long gone and only idle() can deliver it.
+        final QuietEventSource source = new QuietEventSource();
+        final FusekiProjector projector =
+                buildProjector(createTestConnector(), source, mockDatasetGraph(), 100);
+        final ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+                ProjectorDriver.<Bytes, RdfPayload, Event<Bytes, RdfPayload>>create()
+                               .source(source)
+                               .projector(projector)
+                               .destination(NullSink.of())
+                               .unlimited()
+                               .pollTimeout(Duration.ofMillis(200))
+                               .build();
+        final CompletableFuture<Void> driverRun = CompletableFuture.runAsync(driver);
+        waitFor(() -> driver.getConsecutiveStalls() >= 3, Duration.ofSeconds(10),
+                "Driver did not stall repeatedly");
+
+        try {
+            // When
+            projector.requestPause();
+
+            // Then -- this is what FKS.waitForPause() polls for on behalf of a restore
+            waitFor(projector::isAtPausePoint, Duration.ofSeconds(5),
+                    "Projector did not reach its pause point while stalled");
+        } finally {
+            projector.requestResume();
+            driver.cancel();
+            driverRun.get(10, TimeUnit.SECONDS);
+        }
     }
 
     // -----------------------------------------------------------------------------------
