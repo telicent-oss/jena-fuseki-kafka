@@ -1,5 +1,13 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.2.0
+
+- Code quality improvements:
+    - **BREAKING** Removed `FusekiKafkaException`, which added nothing to its parent
+      `JenaKafkaException`; the module now throws `JenaKafkaException` directly. Code catching
+      `JenaKafkaException` is unaffected
+    - Addressed further SonarQube issues in `FKS` and `FMod_FusekiKafka`
+
 ## 3.1.2
 
 - Fixed a bug where a paused connector on a quiet topic would not reach its pause point, because a

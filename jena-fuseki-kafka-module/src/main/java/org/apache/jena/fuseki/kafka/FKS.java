@@ -16,29 +16,26 @@
 
 package org.apache.jena.fuseki.kafka;
 
-import static org.apache.jena.kafka.FusekiKafka.LOG;
-
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Function;
-
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
+import io.telicent.smart.cache.sources.kafka.KafkaRdfPayloadSource;
+import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicies;
 import io.telicent.smart.cache.sources.kafka.policies.KafkaReadPolicy;
 import io.telicent.smart.cache.sources.kafka.serializers.RdfPayloadSerializer;
 import io.telicent.smart.cache.sources.kafka.sinks.KafkaSink;
-import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.apache.jena.fuseki.server.*;
+import org.apache.jena.fuseki.server.DataAccessPoint;
+import org.apache.jena.fuseki.server.DataAccessPointRegistry;
+import org.apache.jena.fuseki.server.DataService;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
@@ -48,10 +45,15 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.BytesDeserializer;
-
-import io.telicent.smart.cache.sources.kafka.KafkaRdfPayloadSource;
 import org.apache.kafka.common.serialization.BytesSerializer;
 import org.apache.kafka.common.utils.Bytes;
+
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Function;
+
+import static org.apache.jena.kafka.FusekiKafka.LOG;
 
 /**
  * Functions for Fuseki-Kafka server setup.
@@ -135,7 +137,7 @@ public class FKS {
         // ASYNC
         DatasetGraph dsg = findDataset(server, conn.getDatasetName()).orElse(null);
         if (dsg == null) {
-            throw new FusekiKafkaException(
+            throw new JenaKafkaException(
                     "No dataset found for dataset name '" + conn.getDatasetName() + "', this MUST be the base path to a dataset in your configuration");
         }
         startTopicPoll(conn, source, dsg, sinkBuilder != null ? sinkBuilder : FKS.defaultSinkBuilder());
@@ -177,20 +179,19 @@ public class FKS {
                 }
             }
             if (!allTopicsExist) {
-                throw new FusekiKafkaException(
+                throw new JenaKafkaException(
                         String.format(
                                 "[%s] Strict startup checks are enabled but one/more configured topic(s) do not currently exist on Kafka server %s",
                                 topicNames, conn.getBootstrapServers()));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new FusekiKafkaException(
+            throw new JenaKafkaException(
                     String.format("[%s] Interrupted while performing strict startup topic checks", topicNames), e);
+        } catch (JenaKafkaException e){
+            throw e;
         } catch (RuntimeException e) {
-            if (e instanceof FusekiKafkaException) {
-                throw e;
-            }
-            throw new FusekiKafkaException(
+            throw new JenaKafkaException(
                     String.format("[%s] Failed while performing strict startup topic checks", topicNames), e);
         } finally {
             if (checker != null) {
@@ -347,11 +348,11 @@ public class FKS {
             Thread.currentThread().interrupt();
             future.cancel(true);
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
-            throw new FusekiKafkaException("Interrupted while waiting for connector to start up", e);
+            throw new JenaKafkaException("Interrupted while waiting for connector to start up", e);
         } catch (ExecutionException e) {
             // If the projector driver fails in the startup phase we should bail out immediately
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
-            throw new FusekiKafkaException("Connector failed to start up", e);
+            throw new JenaKafkaException("Connector failed to start up", e);
         } catch (TimeoutException e) {
             // Ignore, we can safely assume the projector driver thread started up cleanly
         }

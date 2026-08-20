@@ -34,6 +34,7 @@ import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.main.sys.FusekiAutoModule;
+import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.KafkaConnectorAssembler;
 import org.apache.jena.kafka.SysJenaKafka;
@@ -107,10 +108,10 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
         try {
             conn = (KConnectorDesc) Assembler.general().open(connector);
         } catch (JenaException ex) {
-            throw new FusekiKafkaException("Failed to build a connector", ex);
+            throw new JenaKafkaException("Failed to build a connector", ex);
         }
         if (conn == null) {
-            throw new FusekiKafkaException("Failed to build a connector, check log for more details");
+            throw new JenaKafkaException("Failed to build a connector, check log for more details");
         }
 
         String datasetName = conn.getDatasetName();
@@ -179,7 +180,7 @@ public class FMod_FusekiKafka implements FusekiAutoModule {
             // Sanity check - if multiple connectors defined then each MUST have a unique consumer group ID otherwise
             // the KafkaConsumer instances will get stuck in a group rebalance loop
             if (!groupIds.add(conn.getConsumerGroupId())) {
-                throw new FusekiKafkaException(
+                throw new JenaKafkaException(
                         "When multiple connectors are defined each MUST have a unique " + KafkaConnectorAssembler.pKafkaGroupId + " value set, found multiple connectors with Group ID " + conn.getConsumerGroupId());
             }
 

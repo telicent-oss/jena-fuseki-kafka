@@ -197,7 +197,7 @@ public class TestFKSPauseResume {
     }
 
     @Test
-    public void givenInterrupted_whenWaitForPause_thenReturnsFalseAndPreservesInterruptFlag() throws InterruptedException {
+    public void givenInterrupted_whenWaitForPause_thenReturnsFalseAndPreservesInterruptFlag() {
         // Given -- a projector that will never pause, plus an interrupted thread state.
         // Sleep inside waitForPause will throw InterruptedException, which the method
         // converts into a "false" return and re-asserts the interrupt flag.
