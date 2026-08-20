@@ -1,5 +1,18 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.1.2
+
+- Fixed a bug where a paused connector on a quiet topic would not reach its pause point, because a
+  projector left stalled in the driver's poll loop never observed the pause request
+- Code quality improvements:
+    - Addressed outstanding SonarQube issues across the codebase, including re-interrupting the
+      thread when catching `InterruptedException` so that shutdown requests are no longer swallowed,
+      and catching `Exception` rather than `Throwable`
+    - Reduced cognitive complexity in `FKS`, `FusekiOffsetStore` and `FusekiProjector`
+    - Increased test coverage, notably for `FKS`
+- Build improvements:
+    - Smart Caches Core upgraded to 1.2.2
+
 ## 3.1.1
 
 - When a Kafka polling thread fails now log more information to aid debugging
