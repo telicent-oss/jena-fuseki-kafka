@@ -1,5 +1,9 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.2.3
+
+- Fixed a bug where `FusekiProjector` did not handle some recoverable error conditions by sending the event to the DLQ
+
 ## 3.2.2
 
 **NOTE** next version will need to be 3.2.2 as previous version was accidentally labelled as 3.2.1 during a failed
