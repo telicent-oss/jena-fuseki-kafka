@@ -259,15 +259,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
             // Decide whether to commit transaction now, or wait to commit later
             commitTransactionIfNeeded(event);
-        } catch (JenaKafkaException e) {
-            // In this scenario something has gone wrong while we were processing the event so our current transaction
-            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
-            // and potentially replay the uncommitted events to ensure their data is not lost.
-            if (!sendToDlq(event, e)) {
-                abort();
-                throw e;
-            }
-            abortAndReplay(sink);
         } catch (RdfPayloadException e) {
             // Note that in this scenario we hadn't started processing the event, we merely failed to deserialise it so
             // we don't have any risk of uncommitted changes that need replaying.  The transaction up to this point was
@@ -279,8 +270,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                 throw new JenaKafkaException("Malformed Kafka event", e);
             }
         } catch (Exception e) {
-            // Any other exception unclear what went wrong/when it went wrong, try to send to the DLQ then abort and
-            // replay for safety
+            // In this scenario something has gone wrong while we were processing the event so our current transaction
+            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
+            // and potentially replay the uncommitted events to ensure their data is not lost.
+            // In the event that this is a non-recoverable error when we try and replay we'll hit it again and it will
+            // be thrown upwards
             if (!sendToDlq(event, e)) {
                 abort();
                 throw e;

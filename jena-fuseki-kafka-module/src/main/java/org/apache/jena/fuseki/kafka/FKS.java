@@ -16,6 +16,8 @@
 
 package org.apache.jena.fuseki.kafka;
 
+import io.opentelemetry.api.metrics.Meter;
+import io.telicent.smart.cache.observability.TelicentMetrics;
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
@@ -37,6 +39,7 @@ import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.fuseki.server.DataService;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
+import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.kafka.common.FusekiOffsetStore;
 import org.apache.jena.kafka.common.FusekiProjector;
 import org.apache.jena.kafka.common.FusekiSink;
@@ -51,6 +54,7 @@ import org.apache.kafka.common.utils.Bytes;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
@@ -59,6 +63,7 @@ import static org.apache.jena.kafka.FusekiKafka.LOG;
  * Functions for Fuseki-Kafka server setup.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
+@SuppressWarnings("resource")
 public class FKS {
 
     /**
@@ -188,7 +193,7 @@ public class FKS {
             Thread.currentThread().interrupt();
             throw new JenaKafkaException(
                     String.format("[%s] Interrupted while performing strict startup topic checks", topicNames), e);
-        } catch (JenaKafkaException e){
+        } catch (JenaKafkaException e) {
             throw e;
         } catch (RuntimeException e) {
             throw new JenaKafkaException(
@@ -260,6 +265,68 @@ public class FKS {
     private static final List<Future<?>> ACTIVE_DRIVERS = new CopyOnWriteArrayList<>();
     private static PollThreadMonitor MONITOR;
     private static ExecutorService EXECUTOR = threadExecutor();
+    private static final AtomicInteger LAUNCHED = new AtomicInteger(0);
+    private static final AtomicInteger FAILED = new AtomicInteger(0);
+
+    /**
+     * Prefix to the metric names used to report the {@link #launched()}, {@link #failed()} and {@link #running()}
+     * metrics to OpenTelemetry
+     */
+    public static final String OTEL_POLL_THREADS_METRIC_PREFIX = "fuseki.kafka.poll.threads.";
+
+    static {
+        Meter meter = TelicentMetrics.getMeter("fuseki-kafka", SysJenaKafka.VERSION);
+        meter.gaugeBuilder(OTEL_POLL_THREADS_METRIC_PREFIX + "launched")
+             .ofLongs()
+             .setDescription("Number of Kafka polling threads that have been launched")
+             .buildWithCallback(measurement -> measurement.record(FKS.launched()));
+        meter.gaugeBuilder(OTEL_POLL_THREADS_METRIC_PREFIX + "failed")
+             .ofLongs()
+             .setDescription("Number of Kafka polling threads that have failed")
+             .buildWithCallback(measurement -> measurement.record(FKS.failed()));
+        meter.gaugeBuilder(OTEL_POLL_THREADS_METRIC_PREFIX + "running")
+             .ofLongs()
+             .setDescription("Number of Kafka polling threads that are actively running")
+             .buildWithCallback(measurement -> measurement.record(FKS.running()));
+    }
+
+    /**
+     * Gets how many, if any, polling threads have been launched
+     * <p>
+     * By comparing this and {@link #failed()} a caller can determine both whether any Fuseki Kafka processing is
+     * running and whether it is healthy.
+     * </p>
+     *
+     * @return Number of launched polling threads
+     */
+    public static int launched() {
+        return LAUNCHED.get();
+    }
+
+    /**
+     * Gets how many, if any, polling threads have failed
+     *
+     * @return Number of failed polling threads
+     */
+    public static int failed() {
+        return FAILED.get();
+    }
+
+    /**
+     * Gets how many actively running polling threads exist
+     * <p>
+     * Note that this may not return the same value as calculating it from <code>launched() - failed()</code> as this
+     * only reports actively running threads and a failure may not have been spotted by the monitoring thread and used
+     * to update those counts yet.  Also, if the service was in the process of shutting down then the threads may have
+     * been cancelled and/or naturally completed and that is not considered a failure so a naive calculation would
+     * return a higher number of active threads than there actually are.
+     * </p>
+     *
+     * @return Actively running threads
+     */
+    public static int running() {
+        return ACTIVE_DRIVERS.stream().filter(f -> !f.isDone()).mapToInt(i -> 1).sum();
+    }
 
     private static ExecutorService threadExecutor() {
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
@@ -273,7 +340,12 @@ public class FKS {
 
 
     /**
-     * The background threads
+     * Resets all polling threads and associated thread execution machinery, explicitly cancelling threads wherever
+     * possible.
+     * <p>
+     * Intended primarily for use within unit and integration tests to allow resetting the Fuseki Kafka machinery
+     * between tests.
+     * </p>
      */
     static void resetPollThreads() {
         // Explicitly cancel the projector drivers
@@ -296,12 +368,14 @@ public class FKS {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        LAUNCHED.set(0);
+        FAILED.set(0);
         EXECUTOR = threadExecutor();
     }
 
-    private static void startTopicPoll(KConnectorDesc connector, KafkaRdfPayloadSource<Bytes> source,
-                                       DatasetGraph destination,
-                                       Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder) {
+    static void startTopicPoll(KConnectorDesc connector, KafkaRdfPayloadSource<Bytes> source,
+                               DatasetGraph destination,
+                               Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder) {
 
         //@formatter:off
         Sink<Event<Bytes, RdfPayload>> dlq = null;
@@ -339,6 +413,7 @@ public class FKS {
 
         // Submit for execution, and register for cancellation
         Future<?> future = EXECUTOR.submit(driver);
+        LAUNCHED.incrementAndGet();
         DRIVERS.computeIfAbsent(connector.getDatasetName(), x -> new CopyOnWriteArrayList<>()).add(driver);
 
         // Wait briefly for the projector driver thread to spin up
@@ -348,10 +423,12 @@ public class FKS {
             Thread.currentThread().interrupt();
             future.cancel(true);
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
+            FAILED.incrementAndGet();
             throw new JenaKafkaException("Interrupted while waiting for connector to start up", e);
         } catch (ExecutionException e) {
             // If the projector driver fails in the startup phase we should bail out immediately
             DRIVERS.getOrDefault(connector.getDatasetName(), Collections.emptyList()).remove(driver);
+            FAILED.incrementAndGet();
             throw new JenaKafkaException("Connector failed to start up", e);
         } catch (TimeoutException e) {
             // Ignore, we can safely assume the projector driver thread started up cleanly
@@ -561,6 +638,7 @@ public class FKS {
                 // message.  If we don't log the stack trace we have zero visibility into what the system was
                 // doing when the error occurred making it difficult to debug.
                 LOG.error("Polling thread failed: ", e.getCause());
+                FAILED.incrementAndGet();
             } catch (InterruptedException e) {
                 stopAfterInterrupt();
             } catch (CancellationException | TimeoutException e) {
