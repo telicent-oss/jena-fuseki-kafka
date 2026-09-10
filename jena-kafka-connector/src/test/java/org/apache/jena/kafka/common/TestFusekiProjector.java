@@ -34,6 +34,8 @@ import static org.mockito.Mockito.*;
 
 class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
+    protected static final String UNEXPECTED_ERROR = "Unexpected error";
+
     @Test
     void givenNoParameters_whenBuildingProjector_thenNPE() {
         // Given, When and Then
@@ -83,7 +85,8 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
 
     private static Stream<Arguments> badMaxDurations() {
-        return Stream.of(() -> new Object[] { null }, Arguments.of(Duration.ZERO), Arguments.of(Duration.ofMinutes(-10)));
+        return Stream.of(() -> new Object[] { null }, Arguments.of(Duration.ZERO),
+                         Arguments.of(Duration.ofMinutes(-10)));
     }
 
     @ParameterizedTest
@@ -138,20 +141,22 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     private static Stream<Arguments> projectionBatchingScenarios() {
-        return Stream.of(Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 1, 3, 3, 3),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 10, 3, 1, 1),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 3, 3, 1, 1),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 100, 3, 1, 1));
+        return Stream.of(
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 1, 3, 3, 3),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 10, 3, 1, 1),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 3, 3, 1, 1),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 100, 3, 1, 1));
     }
 
     @ParameterizedTest
     @MethodSource("projectionBatchingScenarios")
     void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
-            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount, int expectedTransactionCount,
+            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount,
+            int expectedTransactionCount,
             int expectedCommitCount) {
         // Given
         KConnectorDesc connector = createTestConnector();
@@ -386,5 +391,69 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
         // Then
         verifyNoTransactions(dsg);
+    }
+
+    @Test
+    void givenProjectorWithDlq_whenSinkThrowsUnexpectedError_thenGoesToDlq() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        List<Event<Bytes, RdfPayload>> dlqEvents = new ArrayList<>();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, dlqEvents::add);
+        Event<Bytes, RdfPayload> event =
+                new KafkaEvent<>(new ConsumerRecord<>("test", 0, 42L, Bytes.wrap(new byte[0]),
+                                                      RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload())),
+                                 null);
+        Sink<Event<Bytes, RdfPayload>> sink = x -> {
+            throw new IllegalStateException(UNEXPECTED_ERROR);
+        };
+
+        // When
+        projector.project(event, sink);
+
+        // Then
+        Assertions.assertEquals(1, dlqEvents.size());
+    }
+
+    @Test
+    void givenProjectorWithoutDlq_whenSinkThrowsUnexpectedError_thenThrownUpwards() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, null);
+        Event<Bytes, RdfPayload> event =
+                new KafkaEvent<>(new ConsumerRecord<>("test", 0, 42L, Bytes.wrap(new byte[0]),
+                                                      RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload())),
+                                 null);
+        Sink<Event<Bytes, RdfPayload>> sink = x -> {
+            throw new IllegalStateException(UNEXPECTED_ERROR);
+        };
+
+        // When and Then
+        IllegalStateException exception =
+                Assertions.assertThrowsExactly(IllegalStateException.class, () -> projector.project(event, sink));
+        Assertions.assertEquals(UNEXPECTED_ERROR, exception.getMessage());
+    }
+
+    @Test
+    void givenProjectorWithDlq_whenSinkThrowsNonRecoverableError_thenThrownUpwards() {
+        // Given
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, NullSink.of());
+        Event<Bytes, RdfPayload> event =
+                new KafkaEvent<>(new ConsumerRecord<>("test", 0, 42L, Bytes.wrap(new byte[0]),
+                                                      RdfPayload.of(TestFusekiSink.createSimpleDatasetPayload())),
+                                 null);
+        Sink<Event<Bytes, RdfPayload>> sink = x -> {
+            throw new Error(UNEXPECTED_ERROR);
+        };
+
+        // When and Then
+        Error error = Assertions.assertThrowsExactly(Error.class, () -> projector.project(event, sink));
+        Assertions.assertEquals(UNEXPECTED_ERROR, error.getMessage());
     }
 }

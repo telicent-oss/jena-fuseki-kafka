@@ -164,16 +164,14 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     private boolean highLagDetected = false;
 
     /**
-     * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} /
-     * {@link #awaitResumeIfPaused()}.
+     * Pause coordination — see {@link #requestPause()} / {@link #requestResume()} / {@link #awaitResumeIfPaused()}.
      * <p>
-     * {@code paused} is the request flag (set from another thread, e.g. the SCG restore
-     * handler). {@code atPausePoint} reports whether the projector thread has actually
-     * reached the pause point and is currently blocked — used by {@link FusekiProjector} to
-     * tell {@code FKS.waitForPause(...)} when it is safe to begin a restore.
+     * {@code paused} is the request flag (set from another thread, e.g. the SCG restore handler). {@code atPausePoint}
+     * reports whether the projector thread has actually reached the pause point and is currently blocked — used by
+     * {@link FusekiProjector} to tell {@code FKS.waitForPause(...)} when it is safe to begin a restore.
      * <p>
-     * Both are read without locking; {@code pauseMonitor} guards the wait/notify of the
-     * projector thread while it is blocked.
+     * Both are read without locking; {@code pauseMonitor} guards the wait/notify of the projector thread while it is
+     * blocked.
      */
     private final Object pauseMonitor = new Object();
     private volatile boolean paused = false;
@@ -261,15 +259,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
             // Decide whether to commit transaction now, or wait to commit later
             commitTransactionIfNeeded(event);
-        } catch (JenaKafkaException e) {
-            // In this scenario something has gone wrong while we were processing the event so our current transaction
-            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
-            // and potentially replay the uncommitted events to ensure their data is not lost.
-            if (!sendToDlq(event, e)) {
-                abort();
-                throw e;
-            }
-            abortAndReplay(sink);
         } catch (RdfPayloadException e) {
             // Note that in this scenario we hadn't started processing the event, we merely failed to deserialise it so
             // we don't have any risk of uncommitted changes that need replaying.  The transaction up to this point was
@@ -280,6 +269,17 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             if (!sendToDlq(event, e)) {
                 throw new JenaKafkaException("Malformed Kafka event", e);
             }
+        } catch (Exception e) {
+            // In this scenario something has gone wrong while we were processing the event so our current transaction
+            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
+            // and potentially replay the uncommitted events to ensure their data is not lost.
+            // In the event that this is a non-recoverable error when we try and replay we'll hit it again and it will
+            // be thrown upwards
+            if (!sendToDlq(event, e)) {
+                abort();
+                throw e;
+            }
+            abortAndReplay(sink);
         }
     }
 
@@ -297,13 +297,15 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         // Log the error
         if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
             ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
-            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                                  consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
-                                  e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
+            FusekiKafka.LOG.error(
+                    "[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                    consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
+                    e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
         } else {
-            FusekiKafka.LOG.error("[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                                  topicNames, event, reason, e.getClass().getName(), rootCause.getClass().getName(),
-                                  rootCause.getMessage(), e);
+            FusekiKafka.LOG.error(
+                    "[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                    topicNames, event, reason, e.getClass().getName(), rootCause.getClass().getName(),
+                    rootCause.getMessage(), e);
         }
 
         // Try to send to DLQ if configured
@@ -347,8 +349,8 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
         String rootCauseMessage = rootCause.getMessage();
         return reason.contains(rootCause.getClass().getSimpleName()) ||
-               reason.contains(rootCause.getClass().getName()) ||
-               StringUtils.isNotBlank(rootCauseMessage) && reason.contains(rootCauseMessage);
+                reason.contains(rootCause.getClass().getName()) ||
+                StringUtils.isNotBlank(rootCauseMessage) && reason.contains(rootCauseMessage);
     }
 
     private static String rootCauseMessage(Throwable rootCause) {
@@ -361,6 +363,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * This is called when processing fails during application of an event since we can't guarantee that the event was
      * applied cleanly.  Thus, we need to abort the whole transaction and then replay the prior uncommitted events that
      * did apply cleanly to ensure we don't lose any data.
+     * </p>
+     * <p>
+     * If the processing failed due to some non-recoverable error in the target sink this method does no error handling
+     * so the fatal error would bubble upwards back into {@link #project(Event, Sink)} and be thrown upwards causing the
+     * projection to abort.
      * </p>
      *
      * @param sink The destination sink
@@ -411,10 +418,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         this.currentBatchSizeBytes += event.value().sizeInBytes();
 
         if (commitAfterExternalPatch(event) ||
-            commitWhenBatchingDisabled() ||
-            commitWhenBatchSizeBytesExceeded() ||
-            commitWhenBatchSizeReachedWithoutBufferedEvents() ||
-            commitWhenMaxTransactionDurationExceeded(elapsed)) {
+                commitWhenBatchingDisabled() ||
+                commitWhenBatchSizeBytesExceeded() ||
+                commitWhenBatchSizeReachedWithoutBufferedEvents() ||
+                commitWhenMaxTransactionDurationExceeded(elapsed)) {
             return;
         }
 
@@ -673,13 +680,12 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     /**
      * Requests that the projector pause at its next safe point (between events).
      * <p>
-     * Non-blocking. The projector will commit any in-flight batch and then block on
-     * {@link #pauseMonitor} until {@link #requestResume()} is called. Use
-     * {@code isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the projector to
-     * actually reach the pause point.
+     * Non-blocking. The projector will commit any in-flight batch and then block on {@link #pauseMonitor} until
+     * {@link #requestResume()} is called. Use {@code isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the
+     * projector to actually reach the pause point.
      * <p>
-     * Calling this from a thread other than the projector thread is required — the projector
-     * thread itself is the one that observes the flag.
+     * Calling this from a thread other than the projector thread is required — the projector thread itself is the one
+     * that observes the flag.
      */
     public void requestPause() {
         synchronized (pauseMonitor) {
@@ -690,8 +696,8 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     }
 
     /**
-     * Releases a previously requested pause. The projector resumes processing from where it
-     * was blocked at the pause point. Idempotent — safe to call when not paused.
+     * Releases a previously requested pause. The projector resumes processing from where it was blocked at the pause
+     * point. Idempotent — safe to call when not paused.
      */
     public void requestResume() {
         synchronized (pauseMonitor) {
@@ -702,13 +708,13 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     }
 
     /**
-     * Called by the projector thread on entry to {@link #project(Event, Sink)},
-     * {@link #stalled(Sink)} and {@link #idle(Sink)}. If a pause has been requested, commits any
-     * in-flight Jena transaction so the dataset is idle, then blocks until resumed.
+     * Called by the projector thread on entry to {@link #project(Event, Sink)}, {@link #stalled(Sink)} and
+     * {@link #idle(Sink)}. If a pause has been requested, commits any in-flight Jena transaction so the dataset is
+     * idle, then blocks until resumed.
      * <p>
-     * {@link #idle(Sink)} is what makes a pause reachable on a quiet topic: events may never
-     * arrive to trigger {@link #project(Event, Sink)}, and {@link #stalled(Sink)} is only called
-     * on the first of a run of consecutive stalls.
+     * {@link #idle(Sink)} is what makes a pause reachable on a quiet topic: events may never arrive to trigger
+     * {@link #project(Event, Sink)}, and {@link #stalled(Sink)} is only called on the first of a run of consecutive
+     * stalls.
      */
     private void awaitResumeIfPaused() {
         if (!this.paused) return;

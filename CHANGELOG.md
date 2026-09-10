@@ -1,5 +1,12 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.3.0
+
+- Fixed a bug where `FusekiProjector` did not handle some recoverable error conditions by sending the event to the DLQ
+- `FKS` now exposes `launched()`, `failed()` and `running()` counts to provide better observability of how many polling 
+  threads have been launched and how many have failed
+    - Exposes the above counters as new OpenTelemetry metrics under the `fuseki.kafka.poll.threads.` prefix
+
 ## 3.2.2
 
 **NOTE** next version will need to be 3.2.2 as previous version was accidentally labelled as 3.2.1 during a failed
