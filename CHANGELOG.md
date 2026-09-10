@@ -6,6 +6,11 @@
 - `FKS` now exposes `launched()`, `failed()` and `running()` counts to provide better observability of how many polling 
   threads have been launched and how many have failed
     - Exposes the above counters as new OpenTelemetry metrics under the `fuseki.kafka.poll.threads.` prefix
+- Build improvements:
+    - Various build and test dependencies upgraded to latest available
+    - Logback upgraded to 1.6.3
+    - Lombok upgraded to 1.18.48
+    - Smart Caches Core upgraded to 1.4.0
 
 ## 3.2.2
 
