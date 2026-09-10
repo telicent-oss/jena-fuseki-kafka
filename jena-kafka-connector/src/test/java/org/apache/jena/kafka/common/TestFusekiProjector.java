@@ -18,6 +18,7 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.utils.Bytes;
+import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -85,7 +86,8 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
 
 
     private static Stream<Arguments> badMaxDurations() {
-        return Stream.of(() -> new Object[] { null }, Arguments.of(Duration.ZERO), Arguments.of(Duration.ofMinutes(-10)));
+        return Stream.of(() -> new Object[] { null }, Arguments.of(Duration.ZERO),
+                         Arguments.of(Duration.ofMinutes(-10)));
     }
 
     @ParameterizedTest
@@ -140,20 +142,22 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
     }
 
     private static Stream<Arguments> projectionBatchingScenarios() {
-        return Stream.of(Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 1, 3, 3, 3),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 10, 3, 1, 1),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 3, 3, 1, 1),
-                         Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
-                                                                         createTestDatasetEvent()), 100, 3, 1, 1));
+        return Stream.of(
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 1, 3, 3, 3),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 10, 3, 1, 1),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 3, 3, 1, 1),
+                Arguments.of(List.<Event<Bytes, RdfPayload>>of(createTestDatasetEvent(), createTestDatasetEvent(),
+                                                               createTestDatasetEvent()), 100, 3, 1, 1));
     }
 
     @ParameterizedTest
     @MethodSource("projectionBatchingScenarios")
     void givenProjector_whenProjectingEvents_thenProjectedUsingExpectedTransactionCount(
-            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount, int expectedTransactionCount,
+            List<Event<Bytes, RdfPayload>> events, int batchSize, long projectedEventCount,
+            int expectedTransactionCount,
             int expectedCommitCount) {
         // Given
         KConnectorDesc connector = createTestConnector();
@@ -429,8 +433,9 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         };
 
         // When and Then
-        Assertions.assertThrowsExactly(IllegalStateException.class, () -> projector.project(event, sink),
-                                       UNEXPECTED_ERROR);
+        IllegalStateException exception =
+                Assertions.assertThrowsExactly(IllegalStateException.class, () -> projector.project(event, sink));
+        Assertions.assertEquals(UNEXPECTED_ERROR, exception.getMessage());
     }
 
     @Test
@@ -449,6 +454,7 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         };
 
         // When and Then
-        Assertions.assertThrowsExactly(Error.class, () -> projector.project(event, sink), UNEXPECTED_ERROR);
+        Error error = Assertions.assertThrowsExactly(Error.class, () -> projector.project(event, sink));
+        Assertions.assertEquals(UNEXPECTED_ERROR, error.getMessage());
     }
 }
