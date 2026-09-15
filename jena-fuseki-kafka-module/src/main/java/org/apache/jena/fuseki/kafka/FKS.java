@@ -37,7 +37,6 @@ import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.fuseki.server.DataService;
-import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.SysJenaKafka;

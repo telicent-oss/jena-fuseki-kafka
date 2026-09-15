@@ -290,7 +290,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @param e     Error processing the event
      * @return True if sent to DLQ successfully, false otherwise
      */
-    protected final boolean sendToDlq(Event<Bytes, RdfPayload> event, Throwable e) {
+    protected final boolean sendToDlq(Event<Bytes, RdfPayload> event, Exception e) {
         Throwable rootCause = FusekiSink.rootCause(e);
         String reason = buildReason(e, rootCause);
 
@@ -322,7 +322,18 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                     new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()))));
             return true;
         } catch (Exception dlqError) {
-            FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ: {}", this.topicNames, dlqError.getMessage());
+            // NB - The DLQ failure could be itself a nested error so build a full error reason to ensure the logs
+            //      fully report what went wrong
+            //      Also in the case of the input being a Kafka Event log the input event partition and offset to aid
+            //      tracking down the offending input event and its data source
+            String dlqFailureReason = buildReason(dlqError, FusekiSink.rootCause(dlqError));
+            if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
+                FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ (Input Event was Partition {} Offset {}): {}",
+                                     this.topicNames, kafkaEvent.getConsumerRecord().partition(),
+                                     kafkaEvent.getConsumerRecord().offset(), dlqFailureReason);
+            } else {
+                FusekiKafka.LOG.warn("[{}] Failed to send event to DLQ: {}", this.topicNames, dlqFailureReason);
+            }
         }
         return false;
     }

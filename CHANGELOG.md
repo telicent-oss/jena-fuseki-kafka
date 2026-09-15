@@ -1,5 +1,11 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.3.2
+
+- `FusekiProjector` improves logging when a malformed/unprocessable event fails to be sent to the DLQ.  The log should
+  now report the full reason for the event failing to send to the DLQ.  Additionally if the input event was a Kafka
+  Event logging will report the input events partition and offset to aid identifying the problematic event.
+
 ## 3.3.1
 
 - `FKS` now records a name for each polling thread based upon the topics the connector is configured to poll and
