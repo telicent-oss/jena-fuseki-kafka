@@ -259,10 +259,20 @@ public class FKS {
         return Collections.unmodifiableList(topics);
     }
 
+    /**
+     * A record that associates a name with a future to aid debugging
+     *
+     * @param name   Name
+     * @param future Future
+     */
+    public static record NamedFuture(String name, Future<?> future) {
+
+    }
+
     // All the static fields for managing the Kafka polling threads
     private static final Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> DRIVERS =
             new ConcurrentHashMap<>();
-    private static final List<Future<?>> ACTIVE_DRIVERS = new CopyOnWriteArrayList<>();
+    private static final List<NamedFuture> ACTIVE_DRIVERS = new CopyOnWriteArrayList<>();
     private static PollThreadMonitor MONITOR;
     private static ExecutorService EXECUTOR = threadExecutor();
     private static final AtomicInteger LAUNCHED = new AtomicInteger(0);
@@ -325,7 +335,7 @@ public class FKS {
      * @return Actively running threads
      */
     public static int running() {
-        return ACTIVE_DRIVERS.stream().filter(f -> !f.isDone()).mapToInt(i -> 1).sum();
+        return ACTIVE_DRIVERS.stream().filter(f -> !f.future().isDone()).mapToInt(i -> 1).sum();
     }
 
     private static ExecutorService threadExecutor() {
@@ -390,7 +400,7 @@ public class FKS {
                             .noAsync()
                             .build();
         }
-        ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+        String topicNamesLabel = "[" + StringUtils.join(connector.getTopics(), ", ") + "]";ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
                 ProjectorDriver.<Bytes, RdfPayload, Event<Bytes, RdfPayload>>create()
                                .pollTimeout(FKConst.pollingWaitDuration)
                                .unlimited()
@@ -398,7 +408,7 @@ public class FKS {
                                .source(source)
                                // Label each driver with the topics it pertains to, this makes the logs easier to read
                                // if there are multiple connectors defined
-                               .logLabel("[" + StringUtils.join(connector.getTopics(), ", ") + "]")
+                               .logLabel(topicNamesLabel)
                                .projector(FusekiProjector.builder()
                                                          .source(source)
                                                          .dataset(destination)
@@ -436,7 +446,7 @@ public class FKS {
 
         // Retain a reference to the future so our monitor thread can periodically check in on the drivers to see if
         // any have exited unexpectedly
-        ACTIVE_DRIVERS.add(future);
+        ACTIVE_DRIVERS.add(new NamedFuture(topicNamesLabel, future));
     }
 
     /**
@@ -585,14 +595,14 @@ public class FKS {
         private boolean shouldRun = true;
         private final Semaphore waitLock = new Semaphore(0);
         private final long checkInterval;
-        private final Collection<Future<?>> active;
+        private final Collection<NamedFuture> active;
 
         /**
          * Creates a new monitoring thread
          *
          * @param active Active thread futures to monitor
          */
-        public PollThreadMonitor(Collection<Future<?>> active, long checkInterval) {
+        public PollThreadMonitor(Collection<NamedFuture> active, long checkInterval) {
             this.active = Objects.requireNonNull(active);
             if (checkInterval < 0) {
                 throw new IllegalArgumentException("Check interval cannot be zero/negative");
@@ -612,12 +622,13 @@ public class FKS {
         }
 
         private void monitorActiveDrivers() {
-            for (Future<?> future : active) {
+            for (NamedFuture future : active) {
                 monitorDriver(future);
             }
         }
 
-        private void monitorDriver(Future<?> future) {
+        private void monitorDriver(NamedFuture named) {
+            Future<?> future = named.future();
             if (future.isCancelled()) {
                 // Ignore threads that have been explicitly cancelled
                 return;
@@ -629,7 +640,7 @@ public class FKS {
 
                 // If we successfully get() its result then it has exited normally
                 // BUT in most cases the thread should only exit if it either fails, or we're being shutdown
-                LOG.info("Polling thread exited normally");
+                LOG.info("{} Polling thread exited normally", named.name());
             } catch (ExecutionException e) {
                 // This means something fatal has happened on the polling thread to cause it to exit with an
                 // exception, log an error for this
@@ -637,7 +648,7 @@ public class FKS {
                 // an error on a ProjectorDriver thread and the ProjectorDriver will only log the basic error
                 // message.  If we don't log the stack trace we have zero visibility into what the system was
                 // doing when the error occurred making it difficult to debug.
-                LOG.error("Polling thread failed: ", e.getCause());
+                LOG.error("{} Polling thread failed: ", named.name(), e.getCause());
                 FAILED.incrementAndGet();
             } catch (InterruptedException e) {
                 stopAfterInterrupt();
@@ -650,7 +661,7 @@ public class FKS {
         private void pruneCompletedDrivers() {
             // Remove any cancelled/failed/completed drivers from subsequent monitoring otherwise we'd spam the logs
             // with the error repeatedly
-            active.removeIf(f -> f.isCancelled() || f.isDone());
+            active.removeIf(f -> f.future().isCancelled() || f.future().isDone());
         }
 
         @SuppressWarnings("java:S899")

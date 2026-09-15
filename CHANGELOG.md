@@ -1,5 +1,10 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.3.1
+
+- `FKS` now records a name for each polling thread based upon the topics the connector is configured to poll and
+  monitoring thread reports this in logging where appropriate to make it easier to debug which polling thread failed.
+
 ## 3.3.0
 
 - Fixed a bug where `FusekiProjector` did not handle some recoverable error conditions by sending the event to the DLQ
@@ -15,7 +20,7 @@
 ## 3.2.2
 
 **NOTE** next version will need to be 3.2.2 as previous version was accidentally labelled as 3.2.1 during a failed
-release process and so a (probably broken) version 3.2.1 already exists in Maven Central.√
+release process and so a (probably broken) version 3.2.1 already exists in Maven Central.
 
 ## 3.2.0
 
