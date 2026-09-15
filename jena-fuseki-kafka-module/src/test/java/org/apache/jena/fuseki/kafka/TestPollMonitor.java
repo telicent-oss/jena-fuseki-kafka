@@ -69,10 +69,10 @@ public class TestPollMonitor {
     public void givenThreadsToMonitor_whenRunningPollMonitor_thenMonitored_andCanBePromptlyCancelled() throws
             InterruptedException {
         // Given
-        List<Future<?>> futures = new ArrayList<>();
-        futures.add(executor.submit(new Sleepy()));
-        futures.add(executor.submit(new Breaky()));
-        futures.add(executor.submit(new Completey()));
+        List<FKS.NamedFuture> futures = new ArrayList<>();
+        futures.add(new FKS.NamedFuture("Sleep", executor.submit(new Sleepy())));
+        futures.add(new FKS.NamedFuture("Break", executor.submit(new Breaky())));
+        futures.add(new FKS.NamedFuture("Complete", executor.submit(new Completey())));
 
         // When
         FKS.PollThreadMonitor monitor = new FKS.PollThreadMonitor(futures, 1);
@@ -94,11 +94,11 @@ public class TestPollMonitor {
     public void givenCancelledThreadsToMonitor_whenRunningPollMonitor_thenMonitored_andCanBePromptlyCancelled() throws
             InterruptedException {
         // Given
-        List<Future<?>> futures = new ArrayList<>();
-        futures.add(executor.submit(new Sleepy()));
-        futures.add(executor.submit(new Breaky()));
-        for (Future<?> f : futures) {
-            f.cancel(true);
+        List<FKS.NamedFuture> futures = new ArrayList<>();
+        futures.add(new FKS.NamedFuture("Sleep", executor.submit(new Sleepy())));
+        futures.add(new FKS.NamedFuture("Break", executor.submit(new Breaky())));
+        for (FKS.NamedFuture f : futures) {
+            f.future().cancel(true);
         }
 
         // When
