@@ -413,6 +413,7 @@ public class FKS {
                                // Label each driver with the topics it pertains to, this makes the logs easier to read
                                // if there are multiple connectors defined
                                .logLabel(topicNamesLabel)
+                               .threadName("Fuseki-Kafka Connector " + topicNamesLabel)
                                .projector(FusekiProjector.builder()
                                                          .source(source)
                                                          .dataset(destination)
