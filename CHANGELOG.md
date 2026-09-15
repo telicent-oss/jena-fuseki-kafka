@@ -5,7 +5,11 @@
 - `FKS` now records a name for each polling thread based upon the topics the connector is configured to poll and
   monitoring thread reports this in logging where appropriate to make it easier to debug which polling thread failed.
 - `FKS` issues an explicit `WARN` level log message when connectors are configured without a DLQ topic for
-  malformed/unprocessable events to be forwarded to
+  malformed/unprocessable events to be forwarded to.
+- `FKS` now specifies a thread name on each `ProjectorDriver` so driver threads should have clearly distinguishable
+  names to aid debugging.
+- Build improvements:
+    - Bouncy Castle upgraded to 1.86
 
 ## 3.3.0
 
