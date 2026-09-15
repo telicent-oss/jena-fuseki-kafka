@@ -91,7 +91,7 @@
         <plugin.site>3.22.0</plugin.site>
         <plugin.source>3.4.0</plugin.source>
         <plugin.surefire>3.6.0</plugin.surefire>
-        <plugin.sonar>5.7.0.6970</plugin.sonar>
+        <plugin.sonar>5.8.0.7211</plugin.sonar>
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
@@ -124,7 +124,7 @@
         <!-- CVE-2026-1605 -->
         <dependency.jetty>12.1.13</dependency.jetty>
         <!-- CVE-2026-54512 -->
-        <dependency.bcprov>1.85.2</dependency.bcprov>
+        <dependency.bcprov>1.86</dependency.bcprov>
 
 
     </properties>
