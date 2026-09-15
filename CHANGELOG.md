@@ -4,6 +4,8 @@
 
 - `FKS` now records a name for each polling thread based upon the topics the connector is configured to poll and
   monitoring thread reports this in logging where appropriate to make it easier to debug which polling thread failed.
+- `FKS` issues an explicit `WARN` level log message when connectors are configured without a DLQ topic for
+  malformed/unprocessable events to be forwarded to
 
 ## 3.3.0
 

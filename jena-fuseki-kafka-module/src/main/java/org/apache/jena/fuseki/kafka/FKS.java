@@ -37,6 +37,7 @@ import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.fuseki.server.DataService;
+import org.apache.jena.kafka.FusekiKafka;
 import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.SysJenaKafka;
@@ -387,6 +388,7 @@ public class FKS {
                                DatasetGraph destination,
                                Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder) {
 
+        String topicNamesLabel = "[" + StringUtils.join(connector.getTopics(), ", ") + "]";
         //@formatter:off
         Sink<Event<Bytes, RdfPayload>> dlq = null;
         if (StringUtils.isNotBlank(connector.getDlqTopic())) {
@@ -399,8 +401,10 @@ public class FKS {
                             // NB - We want any failures in the DLQ to surface immediately
                             .noAsync()
                             .build();
+        } else {
+            LOG.warn("{} Connector does not configure a DLQ topic, if any malformed/unprocessable events are encountered this will cause the polling thread to fail and stop processing further events", topicNamesLabel);
         }
-        String topicNamesLabel = "[" + StringUtils.join(connector.getTopics(), ", ") + "]";ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+        ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
                 ProjectorDriver.<Bytes, RdfPayload, Event<Bytes, RdfPayload>>create()
                                .pollTimeout(FKConst.pollingWaitDuration)
                                .unlimited()
