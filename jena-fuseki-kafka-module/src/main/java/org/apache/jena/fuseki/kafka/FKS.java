@@ -399,6 +399,9 @@ public class FKS {
                             .valueSerializer(RdfPayloadSerializer.class)
                             // NB - We want any failures in the DLQ to surface immediately
                             .noAsync()
+                            // IMPORTANT - Since this is a DLQ register the special DLQ retry handler, see
+                            //             DlqRetryHandler for details
+                            .forDlq()
                             .build();
         } else {
             LOG.warn("{} Connector does not configure a DLQ topic, if any malformed/unprocessable events are encountered this will cause the polling thread to fail and stop processing further events", topicNamesLabel);
