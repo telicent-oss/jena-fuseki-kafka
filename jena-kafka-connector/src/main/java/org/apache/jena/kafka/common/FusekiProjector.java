@@ -5,10 +5,7 @@ import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
 import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.StallAwareProjector;
-import io.telicent.smart.cache.sources.Event;
-import io.telicent.smart.cache.sources.EventSource;
-import io.telicent.smart.cache.sources.Header;
-import io.telicent.smart.cache.sources.TelicentHeaders;
+import io.telicent.smart.cache.sources.*;
 import io.telicent.smart.cache.sources.kafka.KafkaEvent;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
 import lombok.Builder;
@@ -31,7 +28,8 @@ import org.apache.kafka.common.utils.Bytes;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Stream;
+
+import static io.telicent.smart.cache.sources.TelicentHeaders.*;
 
 /**
  * A projector that processes RDF Payload events handling the management of transactions
@@ -139,9 +137,6 @@ import java.util.stream.Stream;
  */
 public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayload>, Event<Bytes, RdfPayload>> {
 
-    private static final String DEAD_LETTER_EXCEPTION_CLASS = "Dead-Letter-Exception-Class";
-    private static final String DEAD_LETTER_ROOT_CAUSE = "Dead-Letter-Root-Cause";
-    private static final String DEAD_LETTER_ROOT_CAUSE_CLASS = "Dead-Letter-Root-Cause-Class";
     private static final Header DLQ_EXEC_PATH_HEADER = new Header(TelicentHeaders.EXEC_PATH, "smart-cache-graph");
 
     @Getter
@@ -305,8 +300,20 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     protected final boolean sendToDlq(Event<Bytes, RdfPayload> event, Exception e) {
         Throwable rootCause = FusekiSink.rootCause(e);
         String reason = buildReason(e, rootCause);
+        List<EventHeader> dlqHeaders = new ArrayList<>();
+        dlqHeaders.add(DLQ_EXEC_PATH_HEADER);
+        dlqHeaders.add(new Header(DEAD_LETTER_REASON, reason));
 
         logProjectionError(event, e);
+        // If input event was Kafka add the input event information to the DLQ headers
+        if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
+
+            // If input event was Kafka include Kafka source information
+            dlqHeaders.add(new Header(DEAD_LETTER_SOURCE_TOPIC, consumerRecord.topic()));
+            dlqHeaders.add(new Header(DEAD_LETTER_SOURCE_PARTITION, Integer.toString(consumerRecord.partition())));
+            dlqHeaders.add(new Header(DEAD_LETTER_SOURCE_OFFSET, Long.toString(consumerRecord.offset())));
+        }
 
         // Try to send to DLQ if configured
         if (this.dlq == null) {
@@ -314,12 +321,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         }
 
         try {
-            this.dlq.send(event.addHeaders(Stream.of(
-                    DLQ_EXEC_PATH_HEADER,
-                    new Header(TelicentHeaders.DEAD_LETTER_REASON, reason),
-                    new Header(DEAD_LETTER_EXCEPTION_CLASS, e.getClass().getName()),
-                    new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)),
-                    new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()))));
+            dlqHeaders.add(new Header(DEAD_LETTER_EXCEPTION_CLASS, e.getClass().getName()));
+            dlqHeaders.add(new Header(DEAD_LETTER_ROOT_CAUSE, rootCauseMessage(rootCause)));
+            dlqHeaders.add(new Header(DEAD_LETTER_ROOT_CAUSE_CLASS, rootCause.getClass().getName()));
+            this.dlq.send(event.addHeaders(dlqHeaders.stream()));
             return true;
         } catch (Exception dlqError) {
             // NB - The DLQ failure could be itself a nested error so build a full error reason to ensure the logs

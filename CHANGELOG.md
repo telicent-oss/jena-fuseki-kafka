@@ -1,5 +1,14 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.4.0
+
+- `FKS` now configured the DLQ with the new `DlqRetryHandler` from Smart Caches Core.  This addresses a bug that could
+  occur when an input event at/near the maximum Kafka event size was malformed/unprocessable.  When trying to send to
+  the DLQ it could be pushed over the size limit once DLQ headers were added which would cause the DLQ send to fail, and
+  thus the Kafka polling to fail.  This mitigation ensures bad events can be safely sent to the DLQ by stripping their
+  values in this situation since their headers already point back to the offending input event.
+- `FusekiProjector` adds additional DLQ headers to bad events to make determining the input event easier.
+
 ## 3.3.2
 
 - `FusekiProjector` improves logging when a malformed/unprocessable event fails to be sent to the DLQ.  The log should
