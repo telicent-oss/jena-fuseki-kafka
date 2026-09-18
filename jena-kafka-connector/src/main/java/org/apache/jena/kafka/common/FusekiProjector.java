@@ -271,10 +271,11 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                 abort();
             } catch (RuntimeException abortError) {
                 logProjectionError(event, e);
-                JenaKafkaException failure = new JenaKafkaException(
-                        "Failed to abort write transaction before DLQ send", abortError);
-                failure.addSuppressed(e);
-                throw failure;
+                FusekiKafka.LOG.error(
+                        "[{}] Failed to abort write transaction after event failure; transaction state is indeterminate "
+                                + "so the event has NOT been sent to the DLQ and polling will stop", this.topicNames, abortError);
+                e.addSuppressed(abortError);
+                throw e;
             }
             if (!sendToDlq(event, e)) {
                 throw e;

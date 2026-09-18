@@ -424,10 +424,11 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         JenaKafkaException thrown = Assertions.assertThrows(JenaKafkaException.class,
                 () -> projector.project(event, failingSink));
 
-        Assertions.assertEquals("Failed to abort write transaction before DLQ send", thrown.getMessage());
-        Assertions.assertInstanceOf(JenaTransactionException.class, thrown.getCause());
-        Assertions.assertEquals("Cannot abort transaction", thrown.getCause().getMessage());
-        Assertions.assertSame(originalError, thrown.getSuppressed()[0]);
+        Assertions.assertSame(originalError, thrown,
+                              "The original projection failure must propagate, not the abort failure");
+        Assertions.assertEquals(1, thrown.getSuppressed().length);
+        Assertions.assertInstanceOf(JenaTransactionException.class, thrown.getSuppressed()[0]);
+        Assertions.assertEquals("Cannot abort transaction", thrown.getSuppressed()[0].getMessage());
         Assertions.assertTrue(dlqEvents.isEmpty());
     }
 
