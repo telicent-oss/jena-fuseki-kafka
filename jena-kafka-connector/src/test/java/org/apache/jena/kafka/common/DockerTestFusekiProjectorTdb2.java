@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 @SuppressWarnings("java:S3577")
-class DockerTestFusekiProjectorTdb2 extends AbstractDockerTests {
+class DockerTestFusekiProjectorTdb2 extends AbstractDockerProjectionTests {
 
     @MethodSource("batchSizes")
     @ParameterizedTest
