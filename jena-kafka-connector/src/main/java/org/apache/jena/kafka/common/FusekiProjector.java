@@ -271,10 +271,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
                 abort();
             } catch (RuntimeException abortError) {
                 logProjectionError(event, e);
-                FusekiKafka.LOG.warn("[{}] Failed to abort write transaction before DLQ send", this.topicNames,
-                                     abortError);
-                abortError.addSuppressed(e);
-                throw abortError;
+                JenaKafkaException failure = new JenaKafkaException(
+                        "Failed to abort write transaction before DLQ send", abortError);
+                failure.addSuppressed(e);
+                throw failure;
             }
             if (!sendToDlq(event, e)) {
                 throw e;

@@ -396,9 +396,10 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         Sink<Event<Bytes, RdfPayload>> failingSink = x -> {
             throw originalError;
         };
+        Event<Bytes, RdfPayload> event = createTestDatasetEvent();
 
         JenaKafkaException thrown = Assertions.assertThrows(JenaKafkaException.class,
-                () -> projector.project(createTestDatasetEvent(), failingSink));
+                () -> projector.project(event, failingSink));
 
         Assertions.assertSame(originalError, thrown);
         Assertions.assertFalse(transactionOpenDuringDlqSend.get());
@@ -418,11 +419,14 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         Sink<Event<Bytes, RdfPayload>> failingSink = x -> {
             throw originalError;
         };
+        Event<Bytes, RdfPayload> event = createTestDatasetEvent();
 
-        JenaTransactionException thrown = Assertions.assertThrows(JenaTransactionException.class,
-                () -> projector.project(createTestDatasetEvent(), failingSink));
+        JenaKafkaException thrown = Assertions.assertThrows(JenaKafkaException.class,
+                () -> projector.project(event, failingSink));
 
-        Assertions.assertEquals("Cannot abort transaction", thrown.getMessage());
+        Assertions.assertEquals("Failed to abort write transaction before DLQ send", thrown.getMessage());
+        Assertions.assertInstanceOf(JenaTransactionException.class, thrown.getCause());
+        Assertions.assertEquals("Cannot abort transaction", thrown.getCause().getMessage());
         Assertions.assertSame(originalError, thrown.getSuppressed()[0]);
         Assertions.assertTrue(dlqEvents.isEmpty());
     }
