@@ -1,6 +1,7 @@
 package org.apache.jena.kafka.common;
 
 import io.telicent.smart.cache.observability.RuntimeInfo;
+import io.telicent.smart.cache.payloads.LazyPayloadException;
 import io.telicent.smart.cache.payloads.RdfPayload;
 import io.telicent.smart.cache.payloads.RdfPayloadException;
 import io.telicent.smart.cache.projectors.Sink;
@@ -254,7 +255,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
             // Decide whether to commit transaction now, or wait to commit later
             commitTransactionIfNeeded(event);
-        } catch (RdfPayloadException e) {
+        } catch (LazyPayloadException e) {
             // Note that in this scenario we hadn't started processing the event, we merely failed to deserialise it so
             // we don't have any risk of uncommitted changes that need replaying.  The transaction up to this point was
             // good so commit it now just in case we're about to encounter a whole block of malformed events.

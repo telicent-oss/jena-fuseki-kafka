@@ -536,4 +536,5 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         Error error = Assertions.assertThrowsExactly(Error.class, () -> projector.project(event, sink));
         Assertions.assertEquals(UNEXPECTED_ERROR, error.getMessage());
     }
+
 }
