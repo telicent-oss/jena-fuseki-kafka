@@ -1,11 +1,14 @@
 package org.apache.jena.fuseki.kafka;
 
 import io.telicent.smart.cache.payloads.RdfPayload;
+import io.telicent.smart.cache.projectors.Sink;
 import io.telicent.smart.cache.projectors.driver.ProjectorDriver;
 import io.telicent.smart.cache.projectors.sinks.NullSink;
 import io.telicent.smart.cache.sources.Event;
 import io.telicent.smart.cache.sources.kafka.KafkaEventSource;
+import io.telicent.smart.cache.sources.kafka.KafkaRdfPayloadSource;
 import io.telicent.smart.cache.sources.kafka.TopicExistenceChecker;
+import io.telicent.smart.cache.sources.memory.SimpleEvent;
 import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
@@ -38,9 +41,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("resource")
 public class TestFKS {
-
-    private ExecutorService originalExecutor;
 
     static {
         JenaSystem.init();
@@ -50,12 +52,7 @@ public class TestFKS {
     @AfterMethod
     public void cleanup() {
         FKRegistry.get().reset();
-        drivers().clear();
-        activeDrivers().clear();
-        if (this.originalExecutor != null) {
-            setExecutor(this.originalExecutor);
-            this.originalExecutor = null;
-        }
+        FKS.resetPollThreads();
     }
 
     @Test(dataProvider = "paths")
@@ -87,10 +84,7 @@ public class TestFKS {
     @DataProvider(name = "paths")
     private Object[][] paths() {
         return new Object[][] {
-                { "/ds" },
-                { "/ds/" },
-                { "/ds/upload" },
-                { "/ds/upload/"}
+                { "/ds" }, { "/ds/" }, { "/ds/upload" }, { "/ds/upload/" }
         };
     }
 
@@ -98,7 +92,7 @@ public class TestFKS {
     public void givenNonEmptyDapRegistry_whenFindingDataset_thenFound(String path) {
         // Given
         DatasetGraph dsg = DatasetGraphFactory.empty();
-        DataAccessPointRegistry registry = new  DataAccessPointRegistry();
+        DataAccessPointRegistry registry = new DataAccessPointRegistry();
         DataService service = mock(DataService.class);
         when(service.getDataset()).thenReturn(dsg);
         registry.register(new DataAccessPoint("ds", service));
@@ -122,11 +116,11 @@ public class TestFKS {
     public void givenRegisteredConnectors_whenFindingTopics_thenMatchingTopicsReturned() {
         // Given
         KConnectorDesc dsConnector =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, false, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false,
+                                   false, null, new Properties());
         KConnectorDesc nestedConnector =
-                new KConnectorDesc(List.of("topic-b"), "localhost:9092", "/ds/upload", "target/test.state",
-                                   false, false, false, null, new Properties());
+                new KConnectorDesc(List.of("topic-b"), "localhost:9092", "/ds/upload", "target/test.state", false,
+                                   false, false, null, new Properties());
         FKRegistry.get().register(dsConnector.getTopics(), dsConnector);
         FKRegistry.get().register(nestedConnector.getTopics(), nestedConnector);
 
@@ -141,8 +135,8 @@ public class TestFKS {
     public void givenStartupTopicChecksDisabled_whenCheckingTopics_thenNoCheckerCreated() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, false, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false,
+                                   false, null, new Properties());
         AtomicBoolean checkerCreated = new AtomicBoolean(false);
 
         // When
@@ -159,8 +153,8 @@ public class TestFKS {
     public void givenTopicChecksEnabledAndTopicsExist_whenCheckingTopics_thenSucceeds() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, true, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false, true,
+                                   null, new Properties());
 
         // When/Then
         FKS.checkTopicsExistAtStartup(conn, "topic-a", Duration.ofMillis(10), 1,
@@ -172,16 +166,18 @@ public class TestFKS {
     public void givenTopicChecksEnabledAndTopicsMissing_whenCheckingTopics_thenFails() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, true, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false, true,
+                                   null, new Properties());
         AdminClient adminClient = mock(AdminClient.class);
         when(adminClient.describeTopics(anyCollection())).thenThrow(new UnknownTopicOrPartitionException("missing"));
         Function<Properties, TopicExistenceChecker> checkerFactory =
                 props -> new TopicExistenceChecker(adminClient, conn.getBootstrapServers(), conn.getTopics(), null);
 
         // When/Then
-        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
-                conn, "topic-a", Duration.ofMillis(10), 1, checkerFactory));
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
+                                                    () -> FKS.checkTopicsExistAtStartup(conn, "topic-a",
+                                                                                        Duration.ofMillis(10), 1,
+                                                                                        checkerFactory));
         Assert.assertTrue(ex.getMessage().contains("Strict startup checks are enabled"));
     }
 
@@ -189,14 +185,17 @@ public class TestFKS {
     public void givenTopicChecksEnabledAndCheckerCreationFailsWithRuntime_whenCheckingTopics_thenRuntimeWrapped() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, true, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false, true,
+                                   null, new Properties());
 
         // When/Then
-        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
-                conn, "topic-a", Duration.ofMillis(10), 1, props -> {
-                    throw new RuntimeException("boom");
-                }));
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
+                                                    () -> FKS.checkTopicsExistAtStartup(conn, "topic-a",
+                                                                                        Duration.ofMillis(10), 1,
+                                                                                        props -> {
+                                                                                            throw new RuntimeException(
+                                                                                                    "boom");
+                                                                                        }));
         Assert.assertTrue(ex.getMessage().contains("Failed while performing strict startup topic checks"));
     }
 
@@ -204,14 +203,17 @@ public class TestFKS {
     public void givenTopicChecksEnabledAndCheckerCreationFailsWithFusekiException_whenCheckingTopics_thenOriginalExceptionPropagated() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, true, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false, true,
+                                   null, new Properties());
 
         // When/Then
-        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
-                conn, "topic-a", Duration.ofMillis(10), 1, props -> {
-                    throw new JenaKafkaException("pre-existing failure");
-                }));
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
+                                                    () -> FKS.checkTopicsExistAtStartup(conn, "topic-a",
+                                                                                        Duration.ofMillis(10), 1,
+                                                                                        props -> {
+                                                                                            throw new JenaKafkaException(
+                                                                                                    "pre-existing failure");
+                                                                                        }));
         Assert.assertEquals(ex.getMessage(), "pre-existing failure");
     }
 
@@ -219,16 +221,17 @@ public class TestFKS {
     public void givenTopicChecksEnabled_whenCheckingTopics_thenCheckerIsClosed() {
         // Given
         KConnectorDesc conn =
-                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state",
-                                   false, false, true, null, new Properties());
+                new KConnectorDesc(List.of("topic-a"), "localhost:9092", "/ds", "target/test.state", false, false, true,
+                                   null, new Properties());
         AdminClient adminClient = mock(AdminClient.class);
         when(adminClient.describeTopics(anyCollection())).thenThrow(new UnknownTopicOrPartitionException("missing"));
-        TopicExistenceChecker checker = new TopicExistenceChecker(adminClient, conn.getBootstrapServers(),
-                                                                  conn.getTopics(), null);
+        TopicExistenceChecker checker =
+                new TopicExistenceChecker(adminClient, conn.getBootstrapServers(), conn.getTopics(), null);
 
         // When
-        Assert.expectThrows(JenaKafkaException.class, () -> FKS.checkTopicsExistAtStartup(
-                conn, "topic-a", Duration.ofMillis(10), 1, props -> checker));
+        Assert.expectThrows(JenaKafkaException.class,
+                            () -> FKS.checkTopicsExistAtStartup(conn, "topic-a", Duration.ofMillis(10), 1,
+                                                                props -> checker));
 
         // Then
         verify(adminClient, times(1)).close();
@@ -244,7 +247,8 @@ public class TestFKS {
 
         // When/Then
         JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
-                                                      () -> FKS.addConnectorToServer(conn, server, offsets, dsg -> NullSink.of()));
+                                                    () -> FKS.addConnectorToServer(conn, server, offsets,
+                                                                                   dsg -> NullSink.of()));
         Assert.assertTrue(ex.getMessage().contains("No dataset found"));
     }
 
@@ -273,9 +277,12 @@ public class TestFKS {
 
         // When/Then
         try {
-            JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
-                                                          () -> FKS.addConnectorToServer(conn, serverForDataset("/ds", DatasetGraphFactory.empty()),
-                                                                                         offsets, dsg -> NullSink.of()));
+            JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.addConnectorToServer(conn,
+                                                                                                                 serverForDataset(
+                                                                                                                         "/ds",
+                                                                                                                         DatasetGraphFactory.empty()),
+                                                                                                                 offsets,
+                                                                                                                 dsg -> NullSink.of()));
             Assert.assertTrue(ex.getMessage().contains("Interrupted while waiting for connector to start up"));
             Assert.assertTrue(Thread.currentThread().isInterrupted());
             Assert.assertTrue(drivers().getOrDefault("/ds", Collections.emptyList()).isEmpty());
@@ -292,9 +299,12 @@ public class TestFKS {
         FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName("/ds").build();
 
         // When/Then
-        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class,
-                                                      () -> FKS.addConnectorToServer(conn, serverForDataset("/ds", DatasetGraphFactory.empty()),
-                                                                                     offsets, dsg -> NullSink.of()));
+        JenaKafkaException ex = Assert.expectThrows(JenaKafkaException.class, () -> FKS.addConnectorToServer(conn,
+                                                                                                             serverForDataset(
+                                                                                                                     "/ds",
+                                                                                                                     DatasetGraphFactory.empty()),
+                                                                                                             offsets,
+                                                                                                             dsg -> NullSink.of()));
         Assert.assertTrue(ex.getMessage().contains("Connector failed to start up"));
         Assert.assertTrue(drivers().getOrDefault("/ds", Collections.emptyList()).isEmpty());
     }
@@ -307,8 +317,8 @@ public class TestFKS {
         offsets.saveOffset("topica-0-group-2", 8L);
         offsets.saveOffset("topicb-1-group-1", 5L);
         KafkaEventSource<Bytes, RdfPayload> kafkaSource = mock(KafkaEventSource.class);
-        @SuppressWarnings("unchecked")
-        ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver = mock(ProjectorDriver.class);
+        @SuppressWarnings("unchecked") ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+                mock(ProjectorDriver.class);
         when(driver.getSource()).thenReturn(kafkaSource);
         drivers().put("/ds", new ArrayList<>(List.of(driver)));
 
@@ -316,8 +326,8 @@ public class TestFKS {
         FKS.restoreOffsetForDataset("/ds", offsets);
 
         // Then
-        verify(kafkaSource, times(1)).resetOffsets(Map.of(new TopicPartition("topica", 0), 8L,
-                                                          new TopicPartition("topicb", 1), 5L));
+        verify(kafkaSource, times(1)).resetOffsets(
+                Map.of(new TopicPartition("topica", 0), 8L, new TopicPartition("topicb", 1), 5L));
     }
 
     @Test
@@ -329,11 +339,59 @@ public class TestFKS {
         FKS.restoreOffsetForDataset("/unknown", offsets);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void givenFailingSink_whenRunningProjector_thenFailedProjectionsReported() {
+        // Given
+        KConnectorDesc conn =
+                new KConnectorDesc(List.of("topica"), "localhost:9092", "/ds", "target/test.state", false, false, false,
+                                   null, null);
+        KafkaRdfPayloadSource<Bytes> kafkaSource = mock(KafkaRdfPayloadSource.class);
+        when(kafkaSource.poll(any())).thenReturn(
+                new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(DatasetGraphFactory.empty())));
+        DatasetGraph dsg = mock(DatasetGraph.class);
+        Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> sinkBuilder =
+                data -> event -> {throw new IllegalStateException("fails");};
+
+        // When
+        Assert.assertThrows(JenaKafkaException.class, () -> FKS.startTopicPoll(conn, kafkaSource, dsg, sinkBuilder));
+
+        // Then
+        Assert.assertEquals(FKS.launched(), 1, "Should have reported driver as launched");
+        Assert.assertEquals(FKS.failed(), 1, "Should have reported driver as failing");
+        Assert.assertEquals(FKS.running(), 0, "Should have reported no drivers as running");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void givenSomeFailingSinks_whenRunningMultipleProjectors_thenFailedProjectionsReported() {
+        // Given
+        KConnectorDesc conn =
+                new KConnectorDesc(List.of("topica"), "localhost:9092", "/ds", "target/test.state", false, false, false,
+                                   null, null);
+        KafkaRdfPayloadSource<Bytes> kafkaSource = mock(KafkaRdfPayloadSource.class);
+        when(kafkaSource.poll(any())).thenReturn(
+                new SimpleEvent<>(Collections.emptyList(), null, RdfPayload.of(DatasetGraphFactory.empty())));
+        DatasetGraph dsg = mock(DatasetGraph.class);
+        Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> goodSinkBuilder = data -> NullSink.of();
+        Function<DatasetGraph, Sink<Event<Bytes, RdfPayload>>> badSinkBuilder =
+                data -> event -> {throw new IllegalStateException("fails");};
+
+        // When
+        FKS.startTopicPoll(conn, kafkaSource, dsg, goodSinkBuilder);
+        Assert.assertThrows(JenaKafkaException.class, () -> FKS.startTopicPoll(conn, kafkaSource, dsg, badSinkBuilder));
+
+        // Then
+        Assert.assertEquals(FKS.launched(), 2, "Should have reported both drivers as launched");
+        Assert.assertEquals(FKS.failed(), 1, "Should have reported one driver as failing");
+        Assert.assertEquals(FKS.running(), 1, "Should have reported one driver as running");
+    }
+
     private static KConnectorDesc connector(String datasetName) {
         Properties properties = new Properties();
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
-        return new KConnectorDesc(List.of("topica"), "localhost:9092", datasetName, "target/test.state",
-                                  false, false, false, "topica-dlq", properties);
+        return new KConnectorDesc(List.of("topica"), "localhost:9092", datasetName, "target/test.state", false, false,
+                                  false, "topica-dlq", properties);
     }
 
     private static FusekiServer serverForDataset(String datasetPath, DatasetGraph dataset) {
@@ -348,7 +406,8 @@ public class TestFKS {
 
     @SuppressWarnings("unchecked")
     private static Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>> drivers() {
-        return (Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>>) getStaticField("DRIVERS");
+        return (Map<String, List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>>>) getStaticField(
+                "DRIVERS");
     }
 
     @SuppressWarnings("unchecked")
@@ -357,7 +416,6 @@ public class TestFKS {
     }
 
     private RecordingExecutor replaceExecutor(FakeFuture future) {
-        this.originalExecutor = (ExecutorService) getStaticField("EXECUTOR");
         RecordingExecutor executor = new RecordingExecutor(future);
         setExecutor(executor);
         return executor;
@@ -384,9 +442,7 @@ public class TestFKS {
     }
 
     private enum FakeFutureMode {
-        TIMEOUT,
-        EXECUTION,
-        INTERRUPTED
+        TIMEOUT, EXECUTION, INTERRUPTED
     }
 
     private static final class FakeFuture implements Future<Object> {
@@ -419,7 +475,8 @@ public class TestFKS {
         }
 
         @Override
-        public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
+                TimeoutException {
             switch (this.mode) {
                 case TIMEOUT:
                     throw new TimeoutException("still running");

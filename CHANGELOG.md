@@ -1,9 +1,38 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.3.2
+
+- `FusekiProjector` improves logging when a malformed/unprocessable event fails to be sent to the DLQ.  The log should
+  now report the full reason for the event failing to send to the DLQ.  Additionally if the input event was a Kafka
+  Event logging will report the input events partition and offset to aid identifying the problematic event.
+
+## 3.3.1
+
+- `FKS` now records a name for each polling thread based upon the topics the connector is configured to poll and
+  monitoring thread reports this in logging where appropriate to make it easier to debug which polling thread failed.
+- `FKS` issues an explicit `WARN` level log message when connectors are configured without a DLQ topic for
+  malformed/unprocessable events to be forwarded to.
+- `FKS` now specifies a thread name on each `ProjectorDriver` so driver threads should have clearly distinguishable
+  names to aid debugging.
+- Build improvements:
+    - Bouncy Castle upgraded to 1.86
+
+## 3.3.0
+
+- Fixed a bug where `FusekiProjector` did not handle some recoverable error conditions by sending the event to the DLQ
+- `FKS` now exposes `launched()`, `failed()` and `running()` counts to provide better observability of how many polling 
+  threads have been launched and how many have failed
+    - Exposes the above counters as new OpenTelemetry metrics under the `fuseki.kafka.poll.threads.` prefix
+- Build improvements:
+    - Various build and test dependencies upgraded to latest available
+    - Logback upgraded to 1.6.3
+    - Lombok upgraded to 1.18.48
+    - Smart Caches Core upgraded to 1.4.0
+
 ## 3.2.2
 
 **NOTE** next version will need to be 3.2.2 as previous version was accidentally labelled as 3.2.1 during a failed
-release process and so a (probably broken) version 3.2.1 already exists in Maven Central.√
+release process and so a (probably broken) version 3.2.1 already exists in Maven Central.
 
 ## 3.2.0
 
