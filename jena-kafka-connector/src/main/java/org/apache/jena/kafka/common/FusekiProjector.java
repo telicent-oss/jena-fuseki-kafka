@@ -259,26 +259,6 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
             // Decide whether to commit transaction now, or wait to commit later
             commitTransactionIfNeeded(event);
-        } catch (JenaKafkaException e) {
-            // In this scenario something has gone wrong while we were processing the event so our current transaction
-            // may now be polluted with partial changes from this event.  Therefore, we need to abort the transaction
-            // and potentially replay the uncommitted events to ensure their data is not lost.
-            // Release the write transaction before the potentially slow synchronous DLQ send so other writers can
-            // proceed. If abort fails, the transaction is uncertain and this event must not advance to the DLQ.
-            try {
-                abort();
-            } catch (RuntimeException abortError) {
-                logProjectionError(event, e);
-                FusekiKafka.LOG.error(
-                        "[{}] Failed to abort write transaction after event failure; transaction state is indeterminate "
-                                + "so the event has NOT been sent to the DLQ and polling will stop", this.topicNames, abortError);
-                e.addSuppressed(abortError);
-                throw e;
-            }
-            if (!sendToDlq(event, e)) {
-                throw e;
-            }
-            replayUncommitted(sink);
         } catch (RdfPayloadException e) {
             // Note that in this scenario we hadn't started processing the event, we merely failed to deserialise it so
             // we don't have any risk of uncommitted changes that need replaying.  The transaction up to this point was
@@ -295,11 +275,23 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             // and potentially replay the uncommitted events to ensure their data is not lost.
             // In the event that this is a non-recoverable error when we try and replay we'll hit it again and it will
             // be thrown upwards
-            if (!sendToDlq(event, e)) {
+            // Release the write transaction before the potentially slow synchronous DLQ send so other writers can
+            // proceed. If abort fails, the transaction is uncertain and this event must not advance to the DLQ.
+            try {
                 abort();
+            } catch (RuntimeException abortError) {
+                logProjectionError(event, e);
+                FusekiKafka.LOG.error(
+                        "[{}] Failed to abort write transaction after event failure; transaction state is indeterminate "
+                                + "so the event has NOT been sent to the DLQ and polling will stop", this.topicNames,
+                        abortError);
+                e.addSuppressed(abortError);
                 throw e;
             }
-            abortAndReplay(sink);
+            if (!sendToDlq(event, e)) {
+                throw e;
+            }
+            replayUncommitted(sink);
         }
     }
 
