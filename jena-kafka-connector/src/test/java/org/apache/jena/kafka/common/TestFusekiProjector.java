@@ -14,6 +14,7 @@ import org.apache.jena.kafka.JenaKafkaException;
 import org.apache.jena.kafka.KConnectorDesc;
 import org.apache.jena.kafka.SysJenaKafka;
 import org.apache.jena.rdfpatch.changes.RDFChangesCollector;
+import org.apache.jena.sparql.JenaTransactionException;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -28,6 +29,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static org.mockito.Mockito.*;
@@ -355,6 +357,84 @@ class TestFusekiProjector extends AbstractFusekiProjectorTests {
         Assertions.assertEquals("No space left on device", dlqEvent.lastHeader("Dead-Letter-Root-Cause"));
         Assertions.assertEquals("java.lang.IllegalStateException",
                                 dlqEvent.lastHeader("Dead-Letter-Root-Cause-Class"));
+    }
+
+    @Test
+    void givenProjectorWithDlq_whenSinkFails_thenWriteTransactionIsClosedBeforeDlqSend() {
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        List<Event<Bytes, RdfPayload>> dlqEvents = new ArrayList<>();
+        AtomicBoolean transactionOpenDuringDlqSend = new AtomicBoolean();
+        Sink<Event<Bytes, RdfPayload>> dlq = event -> {
+            transactionOpenDuringDlqSend.set(dsg.isInTransaction());
+            dlqEvents.add(event);
+        };
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, dlq);
+        Event<Bytes, RdfPayload> event = createTestDatasetEvent();
+        Sink<Event<Bytes, RdfPayload>> failingSink = x -> {
+            throw new JenaKafkaException("Failed to apply Dataset payload",
+                                         new IllegalStateException("Distribution lifecycle state unavailable"));
+        };
+
+        projector.project(event, failingSink);
+
+        Assertions.assertEquals(1, dlqEvents.size());
+        Assertions.assertFalse(transactionOpenDuringDlqSend.get(),
+                               "A slow DLQ send must not hold Graph's write transaction open");
+        verify(dsg).abort();
+        Assertions.assertFalse(dsg.isInTransaction());
+    }
+
+    @Test
+    void givenProjectorWithBrokenDlq_whenSinkFails_thenTransactionIsClosedAndOriginalErrorIsRethrown() {
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        AtomicBoolean transactionOpenDuringDlqSend = new AtomicBoolean();
+        Sink<Event<Bytes, RdfPayload>> dlq = event -> {
+            transactionOpenDuringDlqSend.set(dsg.isInTransaction());
+            throw new SinkException("DLQ unavailable");
+        };
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, dlq);
+        JenaKafkaException originalError = new JenaKafkaException("Failed to apply Dataset payload");
+        Sink<Event<Bytes, RdfPayload>> failingSink = x -> {
+            throw originalError;
+        };
+        Event<Bytes, RdfPayload> event = createTestDatasetEvent();
+
+        JenaKafkaException thrown = Assertions.assertThrows(JenaKafkaException.class,
+                () -> projector.project(event, failingSink));
+
+        Assertions.assertSame(originalError, thrown);
+        Assertions.assertFalse(transactionOpenDuringDlqSend.get());
+        verify(dsg).abort();
+        Assertions.assertFalse(dsg.isInTransaction());
+    }
+
+    @Test
+    void givenAbortFails_whenSinkFails_thenOriginalErrorIsPreservedAndEventIsNotDeadLettered() {
+        KConnectorDesc connector = createTestConnector();
+        EventSource<Bytes, RdfPayload> source = new InMemoryEventSource<>(Collections.emptyList());
+        DatasetGraph dsg = mockDatasetGraph();
+        doThrow(new JenaTransactionException("Cannot abort transaction")).when(dsg).abort();
+        List<Event<Bytes, RdfPayload>> dlqEvents = new ArrayList<>();
+        FusekiProjector projector = buildProjector(connector, source, dsg, 1, dlqEvents::add);
+        JenaKafkaException originalError = new JenaKafkaException("Failed to apply Dataset payload");
+        Sink<Event<Bytes, RdfPayload>> failingSink = x -> {
+            throw originalError;
+        };
+        Event<Bytes, RdfPayload> event = createTestDatasetEvent();
+
+        JenaKafkaException thrown = Assertions.assertThrows(JenaKafkaException.class,
+                () -> projector.project(event, failingSink));
+
+        Assertions.assertSame(originalError, thrown,
+                              "The original projection failure must propagate, not the abort failure");
+        Assertions.assertEquals(1, thrown.getSuppressed().length);
+        Assertions.assertInstanceOf(JenaTransactionException.class, thrown.getSuppressed()[0]);
+        Assertions.assertEquals("Cannot abort transaction", thrown.getSuppressed()[0].getMessage());
+        Assertions.assertTrue(dlqEvents.isEmpty());
     }
 
     @Test
