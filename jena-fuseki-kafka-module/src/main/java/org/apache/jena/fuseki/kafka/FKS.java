@@ -72,6 +72,13 @@ public class FKS {
     private static final int DEFAULT_POLL_MONITOR_INTERVAL_SECONDS = 60;
     private static final Duration TOPIC_CHECK_TIMEOUT = Duration.ofSeconds(5);
     private static final long TOPIC_CHECK_RETRY_MILLIS = 100;
+    /**
+     * Custom blank value used with {@link io.telicent.smart.cache.sources.kafka.sinks.DlqRetryHandler} when configuring
+     * a {@link KafkaSink} for DLQ purposes.  As we can't guarantee that our events will have non-null keys we can't use
+     * the default behaviour of blanking the value with {@code null} as events aren't permitted to have both a
+     * {@code null} key and value.  Therefore, we have to supply a suitable non-null blank value instead.
+     */
+    private static final RdfPayload DLQ_BLANK_VALUE = RdfPayload.of(null, new byte[0]);
 
     /**
      * Add a connector to a server and starts the polling.
@@ -401,7 +408,7 @@ public class FKS {
                             .noAsync()
                             // IMPORTANT - Since this is a DLQ register the special DLQ retry handler, see
                             //             DlqRetryHandler for details
-                            .forDlq()
+                            .forDlq(DLQ_BLANK_VALUE)
                             .build();
         } else {
             LOG.warn("{} Connector does not configure a DLQ topic, if any malformed/unprocessable events are encountered this will cause the polling thread to fail and stop processing further events", topicNamesLabel);

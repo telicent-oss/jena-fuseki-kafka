@@ -6,7 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @SuppressWarnings("java:S3577")
-class DockerTestFusekiProjectorMemory extends AbstractDockerTests {
+class DockerTestFusekiProjectorMemory extends AbstractDockerProjectionTests {
 
     @MethodSource("batchSizes")
     @ParameterizedTest
