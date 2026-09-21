@@ -78,11 +78,11 @@
         <plugin.compiler>3.16.0</plugin.compiler>
         <plugin.cyclonedx>2.9.3</plugin.cyclonedx>
         <plugin.dependency>3.11.0</plugin.dependency>
-        <plugin.deploy>3.1.4</plugin.deploy>
+        <plugin.deploy>3.2.0</plugin.deploy>
         <plugin.enforcer>3.6.3</plugin.enforcer>
-        <plugin.exec>3.6.3</plugin.exec>
+        <plugin.exec>3.6.4</plugin.exec>
         <plugin.gpg>3.2.8</plugin.gpg>
-        <plugin.install>3.1.4</plugin.install>
+        <plugin.install>3.2.0</plugin.install>
         <plugin.jacoco>0.8.15</plugin.jacoco>
         <plugin.jar>3.5.1</plugin.jar>
         <plugin.javadoc>3.12.0</plugin.javadoc>
@@ -105,7 +105,7 @@
         <dependency.kafka>3.9.2</dependency.kafka>
         <dependency.log4j2>2.26.1</dependency.log4j2>
         <dependency.lombok>1.18.48</dependency.lombok>
-        <dependency.lz4>1.11.2</dependency.lz4>
+        <dependency.lz4>1.11.3</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.18</dependency.slf4j>
 
