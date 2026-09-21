@@ -275,11 +275,23 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             // and potentially replay the uncommitted events to ensure their data is not lost.
             // In the event that this is a non-recoverable error when we try and replay we'll hit it again and it will
             // be thrown upwards
-            if (!sendToDlq(event, e)) {
+            // Release the write transaction before the potentially slow synchronous DLQ send so other writers can
+            // proceed. If abort fails, the transaction is uncertain and this event must not advance to the DLQ.
+            try {
                 abort();
+            } catch (RuntimeException abortError) {
+                logProjectionError(event, e);
+                FusekiKafka.LOG.error(
+                        "[{}] Failed to abort write transaction after event failure; transaction state is indeterminate "
+                                + "so the event has NOT been sent to the DLQ and polling will stop", this.topicNames,
+                        abortError);
+                e.addSuppressed(abortError);
                 throw e;
             }
-            abortAndReplay(sink);
+            if (!sendToDlq(event, e)) {
+                throw e;
+            }
+            replayUncommitted(sink);
         }
     }
 
@@ -294,19 +306,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
         Throwable rootCause = FusekiSink.rootCause(e);
         String reason = buildReason(e, rootCause);
 
-        // Log the error
-        if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
-            ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
-            FusekiKafka.LOG.error(
-                    "[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                    consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
-                    e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
-        } else {
-            FusekiKafka.LOG.error(
-                    "[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
-                    topicNames, event, reason, e.getClass().getName(), rootCause.getClass().getName(),
-                    rootCause.getMessage(), e);
-        }
+        logProjectionError(event, e);
 
         // Try to send to DLQ if configured
         if (this.dlq == null) {
@@ -336,6 +336,21 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             }
         }
         return false;
+    }
+
+    private void logProjectionError(Event<Bytes, RdfPayload> event, Throwable e) {
+        Throwable rootCause = FusekiSink.rootCause(e);
+        String reason = buildReason(e, rootCause);
+        if (event instanceof KafkaEvent<Bytes, RdfPayload> kafkaEvent) {
+            ConsumerRecord<Bytes, RdfPayload> consumerRecord = kafkaEvent.getConsumerRecord();
+            FusekiKafka.LOG.error("[{}] Partition {} Offset {}: {} [exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                                  consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason,
+                                  e.getClass().getName(), rootCause.getClass().getName(), rootCause.getMessage(), e);
+        } else {
+            FusekiKafka.LOG.error("[{}] Malformed Event: {} [reason={}, exceptionClass={}, rootCauseClass={}, rootCauseMessage={}]",
+                                  topicNames, event, reason, e.getClass().getName(), rootCause.getClass().getName(),
+                                  rootCause.getMessage(), e);
+        }
     }
 
     private static String buildReason(Throwable error, Throwable rootCause) {
@@ -369,11 +384,10 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     }
 
     /**
-     * Aborts the transaction and replays preceding events
+     * Replays preceding events after the failed transaction has been aborted
      * <p>
-     * This is called when processing fails during application of an event since we can't guarantee that the event was
-     * applied cleanly.  Thus, we need to abort the whole transaction and then replay the prior uncommitted events that
-     * did apply cleanly to ensure we don't lose any data.
+     * This is called after aborting a failed transaction. Prior uncommitted events that applied cleanly are replayed
+     * to ensure their data is not lost.
      * </p>
      * <p>
      * If the processing failed due to some non-recoverable error in the target sink this method does no error handling
@@ -384,9 +398,7 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * @param sink The destination sink
      */
     @SuppressWarnings("unchecked")
-    protected final void abortAndReplay(Sink<Event<Bytes, RdfPayload>> sink) {
-        abort();
-
+    protected final void replayUncommitted(Sink<Event<Bytes, RdfPayload>> sink) {
         // Replay the intervening events and commit immediately as we know up to this point of the events we could
         // apply them successfully
         if (!this.eventsSinceLastCommit.isEmpty()) {
