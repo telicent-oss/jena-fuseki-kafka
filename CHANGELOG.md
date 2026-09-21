@@ -8,6 +8,11 @@
   thus the Kafka polling to fail.  This mitigation ensures bad events can be safely sent to the DLQ by stripping their
   values in this situation since their headers already point back to the offending input event.
 - `FusekiProjector` adds additional DLQ headers to bad events to make determining the input event easier.
+- `FusekiProjector` aborts the active write transaction prior to DLQ'ing messages so that a slow DLQ doesn't leave a
+  write transaction open unnecessarily.  Uncommitted events are then replayed after DLQ'ing is successful.
+- Build improvements:
+    - Improved integration test coverage around DLQ behaviours
+    - Smart Caches Core upgraded to 1.6.0
 
 ## 3.3.2
 
