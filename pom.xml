@@ -95,7 +95,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
-        <dependency.smart-caches>1.7.1</dependency.smart-caches>
+        <dependency.smart-caches>1.7.3</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
@@ -122,7 +122,7 @@
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <!-- CVE-2026-1605 -->
-        <dependency.jetty>12.1.13</dependency.jetty>
+        <dependency.jetty>12.1.14</dependency.jetty>
         <!-- CVE-2026-54512 -->
         <dependency.bcprov>1.86</dependency.bcprov>
 
