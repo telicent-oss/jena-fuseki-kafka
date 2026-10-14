@@ -9,7 +9,7 @@
   Kafka event source is paused too, and keeps polling with its partitions paused, so it stays in its group however long
   the pause lasts. Sources that can't be paused keep the previous blocking behaviour.
 - Build improvements:
-    - Smart Caches Core upgraded to 1.7.4 (`PausableEventSource`)
+    - Smart Caches Core upgraded to 1.8.0 (`PausableEventSource`)
 
 ## 3.4.0
 
