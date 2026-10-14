@@ -1,5 +1,8 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.4.1
+- Addressing CVE-2026-106451
+
 ## 3.4.0
 
 - `FKS` now configured the DLQ with the new `DlqRetryHandler` from Smart Caches Core.  This addresses a bug that could
