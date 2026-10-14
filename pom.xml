@@ -73,7 +73,7 @@
         <sonar.projectKey>telicent-oss_jena-fuseki-kafka</sonar.projectKey>
 
         <!-- Maven Plugin versions -->
-        <plugin.central>0.11.0</plugin.central>
+        <plugin.central>0.12.0</plugin.central>
         <plugin.clean>3.5.0</plugin.clean>
         <plugin.compiler>3.16.0</plugin.compiler>
         <plugin.cyclonedx>2.9.3</plugin.cyclonedx>
@@ -95,7 +95,7 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
-        <dependency.smart-caches>1.7.1</dependency.smart-caches>
+        <dependency.smart-caches>1.8.0</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
