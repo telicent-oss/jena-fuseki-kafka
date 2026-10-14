@@ -231,11 +231,18 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
 
     @Override
     public void project(Event<Bytes, RdfPayload> event, Sink<Event<Bytes, RdfPayload>> sink) {
-        // Block here if an external caller (e.g. SCG's restore handler) has requested a pause.
-        // The pause point is between events so no partial event is ever applied; any in-flight
-        // batch is committed first by awaitResumeIfPaused() so the dataset is idle (no open
-        // Jena transaction, no events in flight) while the projector is blocked.
-        awaitResumeIfPaused();
+        if (this.source instanceof PausableEventSource<?, ?>) {
+            // A pausable source stops delivering events once paused, so an event arriving here was delivered before
+            // the pause took effect: project it as normal. The pause point is reached on the next stalled()/idle(),
+            // which commits it first. Being here means we're not at the pause point, whatever the flag last said.
+            leavePausePoint();
+        } else {
+            // Block here if an external caller (e.g. SCG's restore handler) has requested a pause.
+            // The pause point is between events so no partial event is ever applied; any in-flight
+            // batch is committed first by awaitResumeIfPaused() so the dataset is idle (no open
+            // Jena transaction, no events in flight) while the projector is blocked.
+            awaitResumeIfPaused();
+        }
 
         try {
             // If this is our first projected event then treat the current point in time as our last commit point, this
@@ -709,16 +716,31 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
     /**
      * Requests that the projector pause at its next safe point (between events).
      * <p>
-     * Non-blocking. The projector will commit any in-flight batch and then block on {@link #pauseMonitor} until
-     * {@link #requestResume()} is called. Use {@code isAtPausePoint()} or {@code FKS.waitForPause(...)} to wait for the
-     * projector to actually reach the pause point.
+     * Non-blocking. The projector will commit any in-flight batch and then stay at its pause point, projecting nothing
+     * further, until {@link #requestResume()} is called. Use {@code isAtPausePoint()} or {@code FKS.waitForPause(...)}
+     * to wait for the projector to actually reach the pause point.
+     * <p>
+     * If the event source is a {@link PausableEventSource} (e.g. a Kafka source) it is paused too, and the projector
+     * does not block: the driver keeps polling the paused source, which delivers nothing but stays connected, so a
+     * Kafka consumer remains in its consumer group however long the pause lasts. Otherwise the projector thread blocks
+     * on {@link #pauseMonitor} until resumed.
      * <p>
      * Calling this from a thread other than the projector thread is required — the projector thread itself is the one
      * that observes the flag.
      */
     public void requestPause() {
+        // Pause the source BEFORE the projector thread can observe the pause request. The projector only reaches its
+        // pause point from stalled()/idle(), i.e. after a poll that returned nothing, so once it sees the request every
+        // later poll is already paused and can't deliver another event after the pause has been acknowledged.
+        if (this.source instanceof PausableEventSource<?, ?> pausable) {
+            pausable.pause();
+        }
         synchronized (pauseMonitor) {
-            this.paused = true;
+            if (!this.paused) {
+                this.paused = true;
+                // Not at the pause point until the projector thread has committed and confirmed it
+                this.atPausePoint = false;
+            }
             pauseMonitor.notifyAll();
         }
         FusekiKafka.LOG.info("[{}] Pause requested", this.topicNames);
@@ -729,17 +751,37 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
      * point. Idempotent — safe to call when not paused.
      */
     public void requestResume() {
+        // The reverse order to requestPause(): leave the pause point before the source can deliver events again
         synchronized (pauseMonitor) {
             this.paused = false;
+            if (this.source instanceof PausableEventSource<?, ?>) {
+                // The projector thread isn't blocked, so it won't clear this itself
+                this.atPausePoint = false;
+            }
             pauseMonitor.notifyAll();
+        }
+        if (this.source instanceof PausableEventSource<?, ?> pausable) {
+            pausable.resume();
         }
         FusekiKafka.LOG.info("[{}] Resume requested", this.topicNames);
     }
 
     /**
+     * Clears the pause point flag when the projector is about to project an event
+     */
+    private void leavePausePoint() {
+        if (this.atPausePoint) {
+            synchronized (pauseMonitor) {
+                this.atPausePoint = false;
+            }
+        }
+    }
+
+    /**
      * Called by the projector thread on entry to {@link #project(Event, Sink)}, {@link #stalled(Sink)} and
      * {@link #idle(Sink)}. If a pause has been requested, commits any in-flight Jena transaction so the dataset is
-     * idle, then blocks until resumed.
+     * idle, then marks the projector as at its pause point. For a {@link PausableEventSource} it then returns (see
+     * {@link #requestPause()}), otherwise it blocks until resumed.
      * <p>
      * {@link #idle(Sink)} is what makes a pause reachable on a quiet topic: events may never arrive to trigger
      * {@link #project(Event, Sink)}, and {@link #stalled(Sink)} is only called on the first of a run of consecutive
@@ -754,6 +796,20 @@ public class FusekiProjector implements StallAwareProjector<Event<Bytes, RdfPayl
             FusekiKafka.LOG.info("[{}] Committing in-flight batch before entering pause",
                                  this.topicNames);
             commit();
+        }
+
+        if (this.source instanceof PausableEventSource<?, ?>) {
+            // Don't block: the driver must keep polling the paused source so that it stays connected, e.g. a Kafka
+            // consumer that isn't polled for max.poll.interval.ms is removed from its consumer group. The paused
+            // source delivers no events, so the driver keeps calling idle(), which keeps us at the pause point.
+            synchronized (pauseMonitor) {
+                if (this.paused && !this.atPausePoint) {
+                    this.atPausePoint = true;
+                    FusekiKafka.LOG.info("[{}] Projector paused; event source kept connected until resume",
+                                         this.topicNames);
+                }
+            }
+            return;
         }
 
         synchronized (pauseMonitor) {

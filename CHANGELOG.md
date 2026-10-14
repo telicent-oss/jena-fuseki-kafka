@@ -1,5 +1,16 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.4.2
+
+- Pausing a dataset's projectors (`FKS.pauseProjectors()`, as used by Smart Cache Graph's restore and online
+  compaction) no longer drops the Kafka consumer from its consumer group when the pause lasts longer than
+  `max.poll.interval.ms` (5 minutes by default). Previously the projector blocked the thread that polls Kafka, so after
+  5 minutes the consumer left its group, and on resume offset commits failed and some events were reprocessed. Now the
+  Kafka event source is paused too, and keeps polling with its partitions paused, so it stays in its group however long
+  the pause lasts. Sources that can't be paused keep the previous blocking behaviour.
+- Build improvements:
+    - Smart Caches Core upgraded to 1.7.4 (`PausableEventSource`)
+
 ## 3.4.0
 
 - `FKS` now configured the DLQ with the new `DlqRetryHandler` from Smart Caches Core.  This addresses a bug that could
