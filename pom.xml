@@ -122,7 +122,7 @@
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <!-- CVE-2026-1605 -->
-        <dependency.jetty>12.1.13</dependency.jetty>
+        <dependency.jetty>12.1.14</dependency.jetty>
         <!-- CVE-2026-54512 -->
         <dependency.bcprov>1.86</dependency.bcprov>
 
