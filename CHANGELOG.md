@@ -1,5 +1,14 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.4.3
+
+- Build improvements:
+    - Smart Caches Core upgraded to 1.9.0
+    - `snappy-java` overridden to 1.1.10.9 (transitive dependency of `kafka-clients`) to address CVE-2026-108106
+    - LZ4 upgraded to 1.12.1
+    - Jetty upgraded to 12.1.14
+    - Maven Surefire plugin upgraded to 3.6.1
+
 ## 3.4.2
 
 - Pausing a dataset's projectors (`FKS.pauseProjectors()`, as used by Smart Cache Graph's restore and online
