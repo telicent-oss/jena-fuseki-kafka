@@ -108,6 +108,7 @@
         <dependency.lz4>1.12.1</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.18</dependency.slf4j>
+        <dependency.snappy>1.1.10.9</dependency.snappy>
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
@@ -261,6 +262,13 @@
                 <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
                 <version>${dependency.lz4}</version>
+            </dependency>
+
+            <!-- Override transitive dependency of kafka-clients to fix CVE-2026-108106 -->
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${dependency.snappy}</version>
             </dependency>
 
             <dependency>
