@@ -108,7 +108,7 @@
         <dependency.lz4>1.12.1</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.18</dependency.slf4j>
-        <dependency.snappy>1.1.10.9</dependency.snappy>
+        <dependency.snappy>1.1.10.12</dependency.snappy>
 
         <!-- Test dependencies -->
         <dependency.awaitility>4.3.0</dependency.awaitility>
