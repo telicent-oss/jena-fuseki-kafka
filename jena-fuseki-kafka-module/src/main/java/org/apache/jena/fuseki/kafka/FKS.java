@@ -56,6 +56,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
@@ -563,17 +565,38 @@ public class FKS {
      */
     public static void restoreOffsetForDataset(String datasetName, FusekiOffsetStore newOffsets) {
         List<ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>>> drivers = DRIVERS.get(datasetName);
-        if (drivers == null) {
+        if (drivers == null || drivers.isEmpty()) {
+            FmtLog.warn(LOG, "Unable to restore Kafka offsets for dataset %s: no active connectors for that dataset (known datasets: %s)",
+                        datasetName, DRIVERS.keySet());
             return;
         }
 
-        Map<TopicPartition, Long> kafkaOffsets = decodeExternalOffsets(newOffsets);
+        Map<TopicPartition, Long> kafkaOffsets = decodeExternalOffsets(newOffsets, knownTopics(datasetName));
+        FmtLog.info(LOG, "Restoring Kafka offsets for dataset %s on %d connector(s): %s", datasetName, drivers.size(),
+                    kafkaOffsets);
         for (ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver : drivers) {
             resetDriverOffsets(driver, kafkaOffsets);
         }
     }
 
-    private static Map<TopicPartition, Long> decodeExternalOffsets(FusekiOffsetStore newOffsets) {
+    /**
+     * Gets the topics of the registered connectors for a dataset, used to decode external offset store keys
+     *
+     * @param datasetName Dataset name
+     * @return Topic names
+     */
+    private static List<String> knownTopics(String datasetName) {
+        List<String> topics = new ArrayList<>();
+        for (KConnectorDesc conn : FKRegistry.get().getConnectors()) {
+            if (Objects.equals(datasetName, conn.getDatasetName())) {
+                topics.addAll(conn.getTopics());
+            }
+        }
+        return topics;
+    }
+
+    private static Map<TopicPartition, Long> decodeExternalOffsets(FusekiOffsetStore newOffsets,
+                                                                   List<String> knownTopics) {
         // Convert from offset store format into the map format KafkaEventSource expects
         // Our external offset store keys are of the form <topic>-<partition>-<consumerGroup>
         // Since we may be restoring from a state file that may have different group in it, e.g. we might be
@@ -581,7 +604,7 @@ public class FKS {
         // offsets in that file as those will represent the most recent Kafka offsets
         Map<TopicPartition, Long> kafkaOffsets = new HashMap<>();
         for (Map.Entry<String, Object> offset : newOffsets.offsets()) {
-            TopicPartition partition = decodeExternalOffsetKey(offset.getKey());
+            TopicPartition partition = decodeExternalOffsetKey(offset.getKey(), knownTopics);
             Long storedOffset = (Long) offset.getValue();
             kafkaOffsets.compute(partition, (k, currentOffset) ->
                     currentOffset == null ? storedOffset : Math.max(currentOffset, storedOffset));
@@ -596,9 +619,58 @@ public class FKS {
         }
     }
 
-    private static TopicPartition decodeExternalOffsetKey(String key) {
-        String[] parts = key.split("-", 3);
-        return new TopicPartition(parts[0], Integer.parseInt(parts[1]));
+    /**
+     * Decodes an external offset store key, of the form {@code <topic>-<partition>-<consumerGroup>}, into a topic
+     * partition.
+     * <p>
+     * Both topic names and consumer groups may contain {@code -}, so the key can't simply be split on it. Where the
+     * key starts with one of the known topics, followed by {@code -<partition>}, the longest such topic is used.
+     * Otherwise the topic is taken to be everything before the first {@code -<digits>} segment that is followed by
+     * {@code -} or the end of the key.
+     * </p>
+     *
+     * @param key         External offset store key
+     * @param knownTopics Topics that the key may refer to, may be empty
+     * @return Topic partition
+     * @throws IllegalArgumentException if the key can't be decoded
+     */
+    static TopicPartition decodeExternalOffsetKey(String key, Collection<String> knownTopics) {
+        String bestTopic = null;
+        int bestPartition = -1;
+        for (String topic : knownTopics) {
+            if (!key.startsWith(topic + "-") || (bestTopic != null && topic.length() <= bestTopic.length())) {
+                continue;
+            }
+            Integer partition = leadingPartition(key.substring(topic.length() + 1));
+            if (partition != null) {
+                bestTopic = topic;
+                bestPartition = partition;
+            }
+        }
+        if (bestTopic != null) {
+            return new TopicPartition(bestTopic, bestPartition);
+        }
+
+        Matcher matcher = EXTERNAL_OFFSET_KEY.matcher(key);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Unable to decode Kafka offset store key " + key);
+        }
+        return new TopicPartition(matcher.group(1), Integer.parseInt(matcher.group(2)));
+    }
+
+    private static final Pattern EXTERNAL_OFFSET_KEY = Pattern.compile("^(.+?)-(\\d+)(?:-.*)?$");
+
+    private static Integer leadingPartition(String rest) {
+        int dash = rest.indexOf('-');
+        String partition = dash < 0 ? rest : rest.substring(0, dash);
+        if (partition.isEmpty() || !partition.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(partition);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**
