@@ -396,7 +396,9 @@ public class TestFKS {
                 { "knowledge-lab-v2-0-JenaFusekiKafka", List.of(), "knowledge-lab-v2", 0 },
                 { "knowledge-lab-v2-0-JenaFusekiKafka", List.of("other"), "knowledge-lab-v2", 0 },
                 { "a-1-b-2-group", List.of("a", "a-1-b"), "a-1-b", 2 },
-                { "topic-x-1-group", List.of("topic"), "topic-x", 1 }
+                { "topic-x-1-group", List.of("topic"), "topic-x", 1 },
+                { "topic-99999999999-0-group", List.of(), "topic-99999999999", 0 },
+                { "topic-99999999999-0-group", List.of("topic"), "topic-99999999999", 0 }
         };
     }
 
@@ -411,11 +413,30 @@ public class TestFKS {
         Assert.assertEquals(partition, new TopicPartition(expectedTopic, expectedPartition));
     }
 
-    @Test
-    public void givenKeyWithoutPartition_whenDecoding_thenFails() {
+    @DataProvider(name = "badOffsetKeys")
+    private Object[][] badOffsetKeys() {
+        return new Object[][] {
+                { "no-partition-here" },
+                { "nodashes" },
+                { "-1-group" },
+                { "topic-" },
+                { "topic-1x-group" }
+        };
+    }
+
+    @Test(dataProvider = "badOffsetKeys")
+    public void givenKeyWithoutPartition_whenDecoding_thenFails(String key) {
         // When/Then
-        Assert.expectThrows(IllegalArgumentException.class,
-                            () -> FKS.decodeExternalOffsetKey("no-partition-here", List.of()));
+        Assert.expectThrows(IllegalArgumentException.class, () -> FKS.decodeExternalOffsetKey(key, List.of()));
+    }
+
+    @Test(timeOut = 5_000)
+    public void givenVeryLongKeyWithoutPartition_whenDecoding_thenFailsQuickly() {
+        // Given
+        String key = "a-".repeat(200_000) + "b";
+
+        // When/Then
+        Assert.expectThrows(IllegalArgumentException.class, () -> FKS.decodeExternalOffsetKey(key, List.of("a")));
     }
 
     @Test

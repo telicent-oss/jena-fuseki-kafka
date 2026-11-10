@@ -56,8 +56,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.jena.kafka.FusekiKafka.LOG;
 
@@ -641,7 +639,7 @@ public class FKS {
             if (!key.startsWith(topic + "-") || (bestTopic != null && topic.length() <= bestTopic.length())) {
                 continue;
             }
-            Integer partition = leadingPartition(key.substring(topic.length() + 1));
+            Integer partition = partitionAt(key, topic.length());
             if (partition != null) {
                 bestTopic = topic;
                 bestPartition = partition;
@@ -651,24 +649,41 @@ public class FKS {
             return new TopicPartition(bestTopic, bestPartition);
         }
 
-        Matcher matcher = EXTERNAL_OFFSET_KEY.matcher(key);
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("Unable to decode Kafka offset store key " + key);
+        // No known topic matched, use the first -<digits> segment followed by - or the end of the key (the topic
+        // must be non-empty, so start looking after the first character)
+        for (int dash = key.indexOf('-', 1); dash >= 0; dash = key.indexOf('-', dash + 1)) {
+            Integer partition = partitionAt(key, dash);
+            if (partition != null) {
+                return new TopicPartition(key.substring(0, dash), partition);
+            }
         }
-        return new TopicPartition(matcher.group(1), Integer.parseInt(matcher.group(2)));
+        throw new IllegalArgumentException("Unable to decode Kafka offset store key " + key);
     }
 
-    private static final Pattern EXTERNAL_OFFSET_KEY = Pattern.compile("^(.+?)-(\\d+)(?:-.*)?$");
-
-    private static Integer leadingPartition(String rest) {
-        int dash = rest.indexOf('-');
-        String partition = dash < 0 ? rest : rest.substring(0, dash);
-        if (partition.isEmpty() || !partition.chars().allMatch(Character::isDigit)) {
+    /**
+     * Reads the partition number in a key that starts with the {@code -} at {@code dash}, i.e. {@code -<digits>}
+     * followed by {@code -} or the end of the key
+     *
+     * @param key  External offset store key
+     * @param dash Index of the {@code -} before the partition
+     * @return Partition, or {@code null} if there isn't a valid partition at that position
+     */
+    private static Integer partitionAt(String key, int dash) {
+        if (dash >= key.length() || key.charAt(dash) != '-') {
+            return null;
+        }
+        int start = dash + 1;
+        int end = start;
+        while (end < key.length() && key.charAt(end) >= '0' && key.charAt(end) <= '9') {
+            end++;
+        }
+        if (end == start || (end < key.length() && key.charAt(end) != '-')) {
             return null;
         }
         try {
-            return Integer.parseInt(partition);
+            return Integer.parseInt(key, start, end, 10);
         } catch (NumberFormatException e) {
+            // Too large to be a partition
             return null;
         }
     }
