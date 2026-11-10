@@ -340,6 +340,106 @@ public class TestFKS {
     }
 
     @Test
+    public void givenHyphenatedTopicAndGroups_whenRestoringOffsets_thenKafkaSourceResetWithTopicIntact() {
+        // Given
+        String topic = "knowledge-lab-v2";
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "JenaFusekiKafka");
+        KConnectorDesc conn =
+                new KConnectorDesc(List.of(topic), "localhost:9092", "/ds", "target/test.state", false, false, false,
+                                   null, properties);
+        FKRegistry.get().register(conn.getTopics(), conn);
+        FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName("/ds").build();
+        offsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(topic, 0, "JenaFusekiKafka"), 2227L);
+        offsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(topic, 0, "smart-cache-graph"), 2000L);
+        offsets.saveOffset(KafkaEventSource.externalOffsetStoreKey(topic, 1, "smart-cache-graph"), 17L);
+        KafkaEventSource<Bytes, RdfPayload> kafkaSource = mock(KafkaEventSource.class);
+        @SuppressWarnings("unchecked") ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+                mock(ProjectorDriver.class);
+        when(driver.getSource()).thenReturn(kafkaSource);
+        drivers().put("/ds", new ArrayList<>(List.of(driver)));
+
+        // When
+        FKS.restoreOffsetForDataset("/ds", offsets);
+
+        // Then
+        verify(kafkaSource, times(1)).resetOffsets(
+                Map.of(new TopicPartition(topic, 0), 2227L, new TopicPartition(topic, 1), 17L));
+    }
+
+    @Test
+    public void givenDriversRegisteredUnderAnotherDataset_whenRestoringOffsets_thenSourceNotReset() {
+        // Given
+        FusekiOffsetStore offsets = FusekiOffsetStore.builder().datasetName("/ds").build();
+        offsets.saveOffset("topica-0-group", 3L);
+        KafkaEventSource<Bytes, RdfPayload> kafkaSource = mock(KafkaEventSource.class);
+        @SuppressWarnings("unchecked") ProjectorDriver<Bytes, RdfPayload, Event<Bytes, RdfPayload>> driver =
+                mock(ProjectorDriver.class);
+        when(driver.getSource()).thenReturn(kafkaSource);
+        drivers().put("/ds/upload", new ArrayList<>(List.of(driver)));
+
+        // When
+        FKS.restoreOffsetForDataset("/ds", offsets);
+
+        // Then
+        verify(kafkaSource, never()).resetOffsets(any());
+    }
+
+    @DataProvider(name = "offsetKeys")
+    private Object[][] offsetKeys() {
+        return new Object[][] {
+                { "topica-0-group", List.of(), "topica", 0 },
+                { "topica-0-group-1", List.of(), "topica", 0 },
+                { "knowledge-12", List.of(), "knowledge", 12 },
+                { "knowledge-3-smart-cache-graph", List.of("knowledge"), "knowledge", 3 },
+                { "knowledge-lab-v2-0-JenaFusekiKafka", List.of("knowledge-lab-v2"), "knowledge-lab-v2", 0 },
+                { "knowledge-lab-v2-0-JenaFusekiKafka", List.of(), "knowledge-lab-v2", 0 },
+                { "knowledge-lab-v2-0-JenaFusekiKafka", List.of("other"), "knowledge-lab-v2", 0 },
+                { "a-1-b-2-group", List.of("a", "a-1-b"), "a-1-b", 2 },
+                { "topic-x-1-group", List.of("topic"), "topic-x", 1 },
+                { "topic-99999999999-0-group", List.of(), "topic-99999999999", 0 },
+                { "topic-99999999999-0-group", List.of("topic"), "topic-99999999999", 0 }
+        };
+    }
+
+    @Test(dataProvider = "offsetKeys")
+    public void givenExternalOffsetKey_whenDecoding_thenTopicAndPartitionCorrect(String key, List<String> knownTopics,
+                                                                                String expectedTopic,
+                                                                                int expectedPartition) {
+        // When
+        TopicPartition partition = FKS.decodeExternalOffsetKey(key, knownTopics);
+
+        // Then
+        Assert.assertEquals(partition, new TopicPartition(expectedTopic, expectedPartition));
+    }
+
+    @DataProvider(name = "badOffsetKeys")
+    private Object[][] badOffsetKeys() {
+        return new Object[][] {
+                { "no-partition-here" },
+                { "nodashes" },
+                { "-1-group" },
+                { "topic-" },
+                { "topic-1x-group" }
+        };
+    }
+
+    @Test(dataProvider = "badOffsetKeys")
+    public void givenKeyWithoutPartition_whenDecoding_thenFails(String key) {
+        // When/Then
+        Assert.expectThrows(IllegalArgumentException.class, () -> FKS.decodeExternalOffsetKey(key, List.of()));
+    }
+
+    @Test(timeOut = 5_000)
+    public void givenVeryLongKeyWithoutPartition_whenDecoding_thenFailsQuickly() {
+        // Given
+        String key = "a-".repeat(200_000) + "b";
+
+        // When/Then
+        Assert.expectThrows(IllegalArgumentException.class, () -> FKS.decodeExternalOffsetKey(key, List.of("a")));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void givenFailingSink_whenRunningProjector_thenFailedProjectionsReported() {
         // Given
