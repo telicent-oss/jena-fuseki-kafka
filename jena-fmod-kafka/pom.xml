@@ -102,6 +102,8 @@
                 <exclude>META-INF/NOTICE.md</exclude>
                 <exclude>META-INF/DEPENDENCIES</exclude>
                 <exclude>META-INF/MANIFEST.MF</exclude>
+                <exclude>META-INF/*-LICENSE</exclude>
+                <exclude>META-INF/*-NOTICE</exclude>
                 <!-- Some jars are signed but shading breaks that.
                      Don't include signing files.
                 -->

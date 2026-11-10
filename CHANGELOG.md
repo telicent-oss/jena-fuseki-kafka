@@ -1,5 +1,10 @@
 # Kafka Connector for Apache Jena Fuseki
 
+## 3.4.4
+- Build improvements:
+  - Better logging of backup/restore actions.
+  - Improved dataset name processing for offsets.
+
 ## 3.4.3
 
 - Build improvements:
