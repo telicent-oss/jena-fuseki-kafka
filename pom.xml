@@ -80,7 +80,7 @@
         <plugin.dependency>3.11.0</plugin.dependency>
         <plugin.deploy>3.2.0</plugin.deploy>
         <plugin.enforcer>3.7.0</plugin.enforcer>
-        <plugin.exec>3.6.4</plugin.exec>
+        <plugin.exec>3.7.0</plugin.exec>
         <plugin.gpg>3.2.8</plugin.gpg>
         <plugin.install>3.2.0</plugin.install>
         <plugin.jacoco>0.8.16</plugin.jacoco>
@@ -95,17 +95,17 @@
 
         <!-- Internal dependencies -->
         <dependency.jena>6.2.0</dependency.jena>
-        <dependency.smart-caches>1.10.2</dependency.smart-caches>
+        <dependency.smart-caches>1.11.0</dependency.smart-caches>
 
         <!-- External dependencies -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <dependency.commons-io>2.22.0</dependency.commons-io>
-        <dependency.commons-lang>3.21.0</dependency.commons-lang>
+        <dependency.commons-lang>3.22.0</dependency.commons-lang>
         <dependency.commons-math>3.6.1</dependency.commons-math>
         <dependency.kafka>3.9.2</dependency.kafka>
         <dependency.log4j2>2.26.1</dependency.log4j2>
         <dependency.lombok>1.18.48</dependency.lombok>
-        <dependency.lz4>1.13.0</dependency.lz4>
+        <dependency.lz4>1.14.0</dependency.lz4>
         <dependency.servlet>6.1.0</dependency.servlet>
         <dependency.slf4j>2.0.18</dependency.slf4j>
         <dependency.snappy>1.1.10.12</dependency.snappy>
@@ -123,9 +123,9 @@
         <!-- CVE-2025-48734 -->
         <dependency.commons-beanutils>1.11.0</dependency.commons-beanutils>
         <!-- CVE-2026-1605 -->
-        <dependency.jetty>12.1.14</dependency.jetty>
+        <dependency.jetty>12.1.15</dependency.jetty>
         <!-- CVE-2026-54512 -->
-        <dependency.bcprov>1.86</dependency.bcprov>
+        <dependency.bcprov>1.87</dependency.bcprov>
 
 
     </properties>
