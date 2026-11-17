@@ -1,0 +1,22 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_run:
+    workflows: ["Maven Build"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    uses: telicent-oss/shared-workflows/.github/workflows/dependabot-automerge.yml@main
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    secrets:
+      MERGEBOT_CLIENT_ID: ${{ secrets.MERGEBOT_CLIENT_ID }}
+      MERGEBOT_PRIVATE_KEY: ${{ secrets.MERGEBOT_PRIVATE_KEY }}
